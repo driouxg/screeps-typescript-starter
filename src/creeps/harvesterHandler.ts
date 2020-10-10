@@ -1,42 +1,44 @@
-import ICreepHandler from "./IcreepHandler";
+import ICreepHandler from "./ICreepHandler";
 
 export default class HarvesterHandler implements ICreepHandler {
-  public move(creep: Creep): void {
-    if (!this.hasEnergy(creep)) {
-      creep.memory.working = false;
+  private creep: Creep;
+
+  public constructor(creep: Creep) {
+    this.creep = creep;
+  }
+
+  public handle(): void {
+    if (!this.hasEnergy()) {
+      this.creep.memory.working = false;
     }
 
-    if (this.hasMaxEnergy(creep)) {
-      creep.memory.working = true;
+    if (this.hasMaxEnergy()) {
+      this.creep.memory.working = true;
     }
 
-    if (this.isWorking(creep)) {
-      const spawn: StructureSpawn | null = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+    if (this.isWorking()) {
+      const spawn: StructureSpawn | null = this.creep.pos.findClosestByPath(FIND_MY_SPAWNS);
 
       if (!spawn) return;
-      if (creep.transfer(spawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(spawn.pos);
+      if (this.creep.transfer(spawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) this.creep.moveTo(spawn.pos);
     } else {
-      const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+      const source: Source | null = this.creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
 
       if (!source) return;
 
-      if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source);
+      if (this.creep.harvest(source) === ERR_NOT_IN_RANGE) this.creep.moveTo(source);
     }
   }
 
-  public attack(creep: Creep): void {
-    creep.say("I can't attack");
+  private isWorking() {
+    return this.creep.memory.working;
   }
 
-  private isWorking(creep: Creep) {
-    return creep.memory.working;
+  private hasEnergy(): boolean {
+    return this.creep.store.energy > 0;
   }
 
-  private hasEnergy(creep: Creep): boolean {
-    return creep.store.energy > 0;
-  }
-
-  private hasMaxEnergy(creep: Creep): boolean {
-    return creep.store.getFreeCapacity() === 0;
+  private hasMaxEnergy(): boolean {
+    return this.creep.store.getFreeCapacity() === 0;
   }
 }

@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-empty-function */
-import ICreepHandler from "./IcreepHandler";
+import ICreepHandler from "./ICreepHandler";
 
 export default class NoOpCreepHandler implements ICreepHandler {
-  public move(creep: Creep): void {}
-
-  public attack(creep: Creep): void {}
+  public handle(): void {}
 }
