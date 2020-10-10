@@ -1,3 +1,4 @@
+import ConstructionHandler from "./construction/constructionHandler";
 import CreepHandler from "./creeps/creepHandler";
 import { ErrorMapper } from "utils/ErrorMapper";
 import SpawnHandler from "./spawns/spawnHandler";
@@ -7,6 +8,7 @@ import SpawnHandler from "./spawns/spawnHandler";
 export const loop = ErrorMapper.wrapLoop(() => {
   const spawnHandler: SpawnHandler = new SpawnHandler();
   const creepHandler: CreepHandler = new CreepHandler();
+  const constructionHandler: ConstructionHandler = new ConstructionHandler();
 
   spawnHandler.handle();
   creepHandler.handle();
