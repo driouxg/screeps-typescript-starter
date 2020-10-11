@@ -1,4 +1,5 @@
 import * as creepRoles from "./roles";
+import BrawlerHandler from "./brawlerHandler";
 import BuilderHandler from "./builderHandler";
 import HarvesterHandler from "./harvesterHandler";
 import ICreepHandler from "./ICreepHandler";
@@ -23,6 +24,8 @@ export default class CreepHandler {
         return new UpgraderHandler(creep);
       case creepRoles.BUILDER:
         return new BuilderHandler(creep);
+      case creepRoles.BRAWLER:
+        return new BrawlerHandler(creep);
       default:
         return new NoOpCreepHandler();
     }

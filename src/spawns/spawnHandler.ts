@@ -1,3 +1,4 @@
+import { spawn } from "child_process";
 import * as creepRoles from "../creeps/roles";
 import generateGuid from "../utils/guidGenerator";
 
@@ -15,6 +16,9 @@ export default class SpawnHandler {
       if (this.getCreepCountByRole(creepRoles.BUILDER, creepDict) < 1) {
         this.spawnBuilder(spawnKey);
       }
+      if (this.getCreepCountByRole(creepRoles.BRAWLER, creepDict) < 2) {
+        this.spawnBrawler(spawnKey);
+      }
     }
   }
 
@@ -28,6 +32,10 @@ export default class SpawnHandler {
 
   private spawnBuilder(spawnKey: string): void {
     this.spawnCreep(spawnKey, [WORK, WORK, CARRY, MOVE], creepRoles.BUILDER);
+  }
+
+  private spawnBrawler(spawnKey: string): void {
+    this.spawnCreep(spawnKey, [TOUGH, TOUGH, ATTACK, MOVE], creepRoles.BRAWLER);
   }
 
   private spawnCreep(spawnKey: string, body: BodyPartConstant[], role: string): void {
