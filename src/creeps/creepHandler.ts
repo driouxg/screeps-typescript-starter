@@ -2,11 +2,11 @@ import * as creepRoles from "./roles";
 import BrawlerHandler from "./brawlerHandler";
 import BuilderHandler from "./builderHandler";
 import HarvesterHandler from "./harvesterHandler";
+import HealerHandler from "./healerHandler";
 import ICreepHandler from "./ICreepHandler";
 import NoOpCreepHandler from "./noOpCreepHandler";
 import RepairerHandler from "./repairerHandler";
 import UpgraderHandler from "./upgraderHandler";
-import HealerHandler from "./healerHandler";
 
 export default class CreepHandler {
   public handle(): void {
