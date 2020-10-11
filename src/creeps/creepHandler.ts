@@ -6,6 +6,7 @@ import ICreepHandler from "./ICreepHandler";
 import NoOpCreepHandler from "./noOpCreepHandler";
 import RepairerHandler from "./repairerHandler";
 import UpgraderHandler from "./upgraderHandler";
+import HealerHandler from "./healerHandler";
 
 export default class CreepHandler {
   public handle(): void {
@@ -29,6 +30,8 @@ export default class CreepHandler {
         return new BrawlerHandler(creep);
       case creepRoles.REPAIRER:
         return new RepairerHandler(creep);
+      case creepRoles.HEALER:
+        return new HealerHandler(creep);
       default:
         return new NoOpCreepHandler();
     }

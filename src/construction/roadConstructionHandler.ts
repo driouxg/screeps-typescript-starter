@@ -5,14 +5,12 @@ export default class RoadConstructionHandler implements IConstructionHandler {
     for (const spawnKey in Game.spawns) {
       const spawn: StructureSpawn = Game.spawns[spawnKey];
 
-      if (Game.time < this.getRoadConstructionTick(spawn.room) + 10000) {
-        return;
-      }
+      if (this.alreadyCreatedRoadConstructionSites(spawn)) continue;
 
       this.buildRoadToSources(spawn);
       this.buildRoadToController(spawn);
 
-      spawn.room.memory.roadConstructionTick = Game.time;
+      this.updateCache(spawn);
     }
   }
 
@@ -44,5 +42,13 @@ export default class RoadConstructionHandler implements IConstructionHandler {
 
   private getRoadConstructionTick(room: Room): number {
     return room.memory.roadConstructionTick || 0;
+  }
+
+  private updateCache(spawn: StructureSpawn): void {
+    spawn.room.memory.roadConstructionTick = Game.time;
+  }
+
+  private alreadyCreatedRoadConstructionSites(spawn: StructureSpawn): boolean {
+    return Game.time < this.getRoadConstructionTick(spawn.room) + 10000;
   }
 }
