@@ -36,7 +36,22 @@ export default class HealerHandler implements ICreepHandler {
   }
 
   private heal(): void {
-    const ally: Creep[] = this.creep.room.find(FIND_MY_CREEPS);
+    const allies: Creep[] = this.creep.room.find(FIND_MY_CREEPS);
+
+    let allyToHeal: Creep | null = null;
+
+    for (const ally of allies) {
+      if (ally.hits !== ally.hitsMax) {
+        allyToHeal = ally;
+        break;
+      }
+    }
+
+    if (!allyToHeal) return;
+
+    if (this.creep.heal(allyToHeal) === ERR_NOT_IN_RANGE) {
+      this.creep.moveTo(allyToHeal);
+    }
   }
 
   private harvestEnergy(): void {

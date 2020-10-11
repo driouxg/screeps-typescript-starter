@@ -12,6 +12,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   spawnHandler.handle();
   creepHandler.handle();
+  constructionHandler.handle();
 
   // Automatically delete memory of missing creeps
   for (const name in Memory.creeps) {

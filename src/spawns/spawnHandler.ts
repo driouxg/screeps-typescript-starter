@@ -1,46 +1,55 @@
-import { spawn } from "child_process";
 import * as creepRoles from "../creeps/roles";
 import generateGuid from "../utils/guidGenerator";
 
 export default class SpawnHandler {
+  private spawnKey = "";
+
   public handle(): void {
     for (const spawnKey in Game.spawns) {
+      this.spawnKey = spawnKey;
       const creepDict = this.creepDict();
 
       if (this.getCreepCountByRole(creepRoles.HARVESTER, creepDict) < 1) {
-        this.spawnHarvester(spawnKey);
+        this.spawnHarvester();
       }
-      if (this.getCreepCountByRole(creepRoles.UPGRADER, creepDict) < 1) {
-        this.spawnUpgrader(spawnKey);
+      if (this.getCreepCountByRole(creepRoles.UPGRADER, creepDict) < 2) {
+        this.spawnUpgrader();
       }
       if (this.getCreepCountByRole(creepRoles.BUILDER, creepDict) < 1) {
-        this.spawnBuilder(spawnKey);
+        this.spawnBuilder();
       }
       if (this.getCreepCountByRole(creepRoles.BRAWLER, creepDict) < 2) {
-        this.spawnBrawler(spawnKey);
+        this.spawnBrawler();
+      }
+      if (this.getCreepCountByRole(creepRoles.HEALER, creepDict) < 1) {
+        this.spawnHealer();
       }
     }
   }
 
-  private spawnHarvester(spawnKey: string): void {
-    this.spawnCreep(spawnKey, [WORK, WORK, CARRY, MOVE], creepRoles.HARVESTER);
+  private spawnHarvester(): void {
+    this.spawnCreep([WORK, WORK, CARRY, MOVE], creepRoles.HARVESTER);
   }
 
-  private spawnUpgrader(spawnKey: string): void {
-    this.spawnCreep(spawnKey, [WORK, CARRY, MOVE, MOVE], creepRoles.UPGRADER);
+  private spawnUpgrader(): void {
+    this.spawnCreep([WORK, CARRY, MOVE, MOVE], creepRoles.UPGRADER);
   }
 
-  private spawnBuilder(spawnKey: string): void {
-    this.spawnCreep(spawnKey, [WORK, WORK, CARRY, MOVE], creepRoles.BUILDER);
+  private spawnBuilder(): void {
+    this.spawnCreep([WORK, WORK, CARRY, MOVE], creepRoles.BUILDER);
   }
 
-  private spawnBrawler(spawnKey: string): void {
-    this.spawnCreep(spawnKey, [TOUGH, TOUGH, ATTACK, MOVE], creepRoles.BRAWLER);
+  private spawnBrawler(): void {
+    this.spawnCreep([TOUGH, TOUGH, ATTACK, MOVE], creepRoles.BRAWLER);
   }
 
-  private spawnCreep(spawnKey: string, body: BodyPartConstant[], role: string): void {
-    Game.spawns[spawnKey].spawnCreep(body, generateGuid(), {
-      memory: { role, working: false, room: Game.spawns[spawnKey].room.name }
+  private spawnHealer(): void {
+    this.spawnCreep([TOUGH, MOVE, HEAL], creepRoles.HEALER);
+  }
+
+  private spawnCreep(body: BodyPartConstant[], role: string): void {
+    Game.spawns[this.spawnKey].spawnCreep(body, generateGuid(), {
+      memory: { role, working: false, room: Game.spawns[this.spawnKey].room.name }
     });
   }
 

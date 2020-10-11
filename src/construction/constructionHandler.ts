@@ -1,11 +1,16 @@
+import RoadConstructionHandler from "./roadConstructionHandler";
+
 export default class ContructionHandler {
+  private roadConstructionHandler: RoadConstructionHandler;
+
+  public constructor() {
+    this.roadConstructionHandler = new RoadConstructionHandler();
+  }
+
   public handle(): void {
-    for (const roomKey in Game.rooms) {
-      const room: Room = Game.rooms[roomKey];
-      // roadConstructionHandler
-      // containerConstructionHandler
-      // wallConstructionHandler
-      // spawnConstructionHandler
-    }
+    this.roadConstructionHandler.handle();
+    // containerConstructionHandler
+    // wallConstructionHandler
+    // spawnConstructionHandler
   }
 }
