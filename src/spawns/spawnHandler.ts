@@ -24,6 +24,10 @@ export default class SpawnHandler {
       if (this.getCreepCountByRole(creepRoles.HEALER, creepDict) < 1) {
         this.spawnHealer();
       }
+
+      if (this.getCreepCountByRole(creepRoles.REPAIRER, creepDict) < 1) {
+        this.spawnRepairer();
+      }
     }
   }
 
@@ -45,6 +49,10 @@ export default class SpawnHandler {
 
   private spawnHealer(): void {
     this.spawnCreep([TOUGH, MOVE, HEAL], creepRoles.HEALER);
+  }
+
+  private spawnRepairer(): void {
+    this.spawnCreep([WORK, CARRY, MOVE], creepRoles.REPAIRER);
   }
 
   private spawnCreep(body: BodyPartConstant[], role: string): void {

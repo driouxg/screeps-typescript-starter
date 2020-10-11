@@ -12,6 +12,10 @@ interface Memory {
   log: any;
 }
 
+interface RoomMemory {
+  roadConstructionTick: number;
+}
+
 // `global` extension samples
 declare namespace NodeJS {
   interface Global {

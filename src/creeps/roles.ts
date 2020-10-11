@@ -4,3 +4,4 @@ export const UPGRADER = "UPGRADER";
 export const BUILDER = "BUILDER";
 export const BRAWLER = "BRAWLER";
 export const HEALER = "HEALER";
+export const REPAIRER = "REPAIRER";

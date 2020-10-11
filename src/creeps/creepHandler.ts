@@ -4,6 +4,7 @@ import BuilderHandler from "./builderHandler";
 import HarvesterHandler from "./harvesterHandler";
 import ICreepHandler from "./ICreepHandler";
 import NoOpCreepHandler from "./noOpCreepHandler";
+import RepairerHandler from "./repairerHandler";
 import UpgraderHandler from "./upgraderHandler";
 
 export default class CreepHandler {
@@ -26,6 +27,8 @@ export default class CreepHandler {
         return new BuilderHandler(creep);
       case creepRoles.BRAWLER:
         return new BrawlerHandler(creep);
+      case creepRoles.REPAIRER:
+        return new RepairerHandler(creep);
       default:
         return new NoOpCreepHandler();
     }
