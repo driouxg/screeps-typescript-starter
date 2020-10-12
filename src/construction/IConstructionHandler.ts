@@ -1,3 +1,3 @@
-export default interface IConstructionInterface {
+export default interface IConstructionHandler {
   handle(): void;
 }
