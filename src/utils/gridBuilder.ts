@@ -23,3 +23,11 @@ export function buildStringGrid(): string[][] {
 export function isBuildablePos(x: number, y: number): boolean {
   return 2 <= x && x < 48 && 2 <= y && y < 48;
 }
+
+export function isEdge(x: number, y: number): boolean {
+  return !(0 < y && y <= 48 && 0 < x && x <= 48);
+}
+
+export function isInBounds(x: number, y: number): boolean {
+  return 0 <= y && y < 50 && 0 <= x && x < 50;
+}

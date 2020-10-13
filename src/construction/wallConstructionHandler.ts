@@ -1,3 +1,4 @@
+import { isBuildablePos, isEdge, isInBounds } from "utils/gridBuilder";
 import IConstructionHandler from "./IConstructionHandler";
 
 export default class WallConstructionHandler implements IConstructionHandler {
@@ -26,7 +27,7 @@ export default class WallConstructionHandler implements IConstructionHandler {
 
       for (let y = 0; y < this.len; y++) {
         for (let x = 0; x < this.len; x++) {
-          if (!this.isEdge(x, y) || !this.isOpenSpot(x, y, room)) continue;
+          if (!isEdge(x, y) || !this.isOpenSpot(x, y, room)) continue;
 
           this.markWallLocation(room, x, y);
         }
@@ -34,29 +35,17 @@ export default class WallConstructionHandler implements IConstructionHandler {
     }
   }
 
-  private isBuildableArea(x: number, y: number): boolean {
-    return 2 <= x && x < this.len - 1 && 2 <= y && y < this.len - 1;
-  }
-
-  private isEdge(x: number, y: number): boolean {
-    return !(0 < y && y < this.len - 1 && 0 < x && x < this.len - 1);
-  }
-
   private markWallLocation(room: Room, x: number, y: number): void {
-    if (!this.isInBounds(x, y)) return;
+    if (!isInBounds(x, y)) return;
 
     for (const dir of this.dirs) {
       const dx: number = x + dir[0];
       const dy: number = y + dir[1];
 
-      if (!this.isEdge(dx, dy) && this.isInBounds(dx, dy) && !this.isWall(room, dx, dy)) {
+      if (!isEdge(dx, dy) && isInBounds(dx, dy) && !this.isWall(room, dx, dy)) {
         room.visual.text("W", dx, dy);
       }
     }
-  }
-
-  private isInBounds(x: number, y: number) {
-    return 0 <= y && y < this.len && 0 <= x && x < this.len;
   }
 
   private isWall(room: Room, x: number, y: number): boolean {
