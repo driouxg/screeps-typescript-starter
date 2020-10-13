@@ -9,6 +9,7 @@ export default class RoadConstructionHandler implements IConstructionHandler {
 
       this.buildRoadToSources(spawn);
       this.buildRoadToController(spawn);
+      // build road to all ramparts, since we'll have 1 rampart per side
 
       this.updateCache(spawn);
     }
