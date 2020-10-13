@@ -19,14 +19,14 @@ export default class WallConstructionHandler implements IConstructionHandler {
   }
 
   public handle(): void {
-    // for every
+    // for every open edge, bfs and mark walls
 
     for (const roomName in Game.rooms) {
       const room: Room = Game.rooms[roomName];
 
       for (let y = 0; y < this.len; y++) {
         for (let x = 0; x < this.len; x++) {
-          if (!this.isEdge(x, y) || !this.isPlain(room, x, y) || this.isStructure(room, x, y)) continue;
+          if (!this.isEdge(x, y) || !this.isOpenSpot(x, y, room)) continue;
 
           this.markWallLocation(room, x, y);
         }
@@ -50,7 +50,7 @@ export default class WallConstructionHandler implements IConstructionHandler {
       const dy: number = y + dir[1];
 
       if (!this.isEdge(dx, dy) && this.isInBounds(dx, dy) && !this.isWall(room, dx, dy)) {
-        room.visual.text("w", dx, dy);
+        room.visual.text("W", dx, dy);
       }
     }
   }
@@ -63,8 +63,9 @@ export default class WallConstructionHandler implements IConstructionHandler {
     return room.getTerrain().get(x, y) === TERRAIN_MASK_WALL;
   }
 
-  private isPlain(room: Room, x: number, y: number) {
-    return room.getTerrain().get(x, y) === 0;
+  private isOpenSpot(x: number, y: number, room: Room): boolean {
+    const result: LookAtResult<LookConstant>[] = room.lookAt(x, y);
+    return result.length === 1 && result[0].type === "terrain" && result[0].terrain !== "wall";
   }
 
   private isStructure(room: Room, x: number, y: number): boolean {
