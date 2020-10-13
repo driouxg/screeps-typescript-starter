@@ -12,10 +12,10 @@ export default class SpawnHandler {
       if (this.getCreepCountByRole(creepRoles.HARVESTER, creepDict) < 1) {
         this.spawnHarvester();
       }
-      if (this.getCreepCountByRole(creepRoles.UPGRADER, creepDict) < 2) {
+      if (this.getCreepCountByRole(creepRoles.UPGRADER, creepDict) < 3) {
         this.spawnUpgrader();
       }
-      if (this.getCreepCountByRole(creepRoles.BUILDER, creepDict) < 1) {
+      if (this.getCreepCountByRole(creepRoles.BUILDER, creepDict) < 2) {
         this.spawnBuilder();
       }
       if (this.getCreepCountByRole(creepRoles.BRAWLER, creepDict) < 2) {

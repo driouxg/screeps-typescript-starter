@@ -1,6 +1,5 @@
 import IConstructionHandler from "./IConstructionHandler";
 import Queue from "utils/queue";
-import { spawn } from "child_process";
 
 export default class TowerConstructionHandler implements IConstructionHandler {
   public handle(): void {
@@ -10,16 +9,13 @@ export default class TowerConstructionHandler implements IConstructionHandler {
       if (!room.controller) continue;
 
       const myNumberOfTowers: number = this.findMyNumberOfTowers(room);
-      const desiredNumberOfTowers = 2;
-      if (desiredNumberOfTowers < myNumberOfTowers) return;
+      const maxTowers = this.getMaxTowersForControllerLevel(room.controller);
+      if (maxTowers <= myNumberOfTowers) return;
 
-      const positions: RoomPosition[] = this.findNClosestEmptyPositions(
-        room.controller,
-        desiredNumberOfTowers - myNumberOfTowers
-      );
+      const positions: number[][] = this.findNClosestEmptyPositions(room.controller, maxTowers - myNumberOfTowers);
 
       for (const position of positions) {
-        room.visual.text("T", position.x, position.y);
+        room.createConstructionSite(position[0], position[1], STRUCTURE_TOWER);
       }
     }
   }
@@ -28,7 +24,7 @@ export default class TowerConstructionHandler implements IConstructionHandler {
     return controller ? controller.my : false;
   }
 
-  private findNClosestEmptyPositions(controller: StructureController, numPositions: number): RoomPosition[] {
+  private findNClosestEmptyPositions(controller: StructureController, numPositions: number): number[][] {
     const dirs: number[][] = [
       [-1, -1],
       [-1, 1],
@@ -39,7 +35,7 @@ export default class TowerConstructionHandler implements IConstructionHandler {
     const q: Queue<number[]> = new Queue<number[]>();
     q.add([controller.pos.x, controller.pos.y]);
 
-    const positions: RoomPosition[] = [];
+    const positions: number[][] = [];
 
     while (!q.isEmpty()) {
       const size: number = q.size();
@@ -49,18 +45,13 @@ export default class TowerConstructionHandler implements IConstructionHandler {
 
         if (!pos) continue;
 
-        const x = pos[0];
-        const y = pos[1];
-
-        if (this.isOpenSpot(x, y, controller.room)) {
-          positions.push(new RoomPosition(x, y, controller.room.name));
-        }
+        if (this.isOpenSpot(pos[0], pos[1], controller.room)) positions.push(pos);
 
         if (numPositions <= positions.length) return positions;
 
         for (const dir of dirs) {
-          const dx: number = x + dir[0];
-          const dy: number = y + dir[1];
+          const dx: number = pos[0] + dir[0];
+          const dy: number = pos[1] + dir[1];
 
           if (!this.isInBounds(dx, dy) || visited[dx][dy]) continue;
 
@@ -107,5 +98,21 @@ export default class TowerConstructionHandler implements IConstructionHandler {
     });
 
     return myTowers.length + myTowerConstructionSites.length;
+  }
+
+  private getMaxTowersForControllerLevel(controller: StructureController): number {
+    const towerCapacityMax: { [key: number]: number } = {
+      0: 0,
+      1: 0,
+      2: 0,
+      3: 1,
+      4: 1,
+      5: 2,
+      6: 2,
+      7: 3,
+      8: 6
+    };
+
+    return towerCapacityMax[controller.level];
   }
 }
