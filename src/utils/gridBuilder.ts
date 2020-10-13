@@ -31,3 +31,8 @@ export function isEdge(x: number, y: number): boolean {
 export function isInBounds(x: number, y: number): boolean {
   return 0 <= y && y < 50 && 0 <= x && x < 50;
 }
+
+export function isOpenSpot(x: number, y: number, room: Room): boolean {
+  const result: LookAtResult<LookConstant>[] = room.lookAt(x, y);
+  return result.length === 1 && result[0].type === "terrain" && result[0].terrain !== "wall";
+}

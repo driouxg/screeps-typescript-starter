@@ -1,4 +1,4 @@
-import { buildBooleanGrid, isBuildablePos } from "../utils/gridBuilder";
+import { buildBooleanGrid, isBuildablePos, isOpenSpot } from "../utils/gridBuilder";
 import IConstructionHandler from "./IConstructionHandler";
 import Queue from "utils/queue";
 
@@ -46,7 +46,7 @@ export default class TowerConstructionHandler implements IConstructionHandler {
 
         if (!pos) continue;
 
-        if (this.isOpenSpot(pos[0], pos[1], controller.room)) positions.push(pos);
+        if (isOpenSpot(pos[0], pos[1], controller.room)) positions.push(pos);
 
         if (numPositions <= positions.length) return positions;
 
@@ -63,11 +63,6 @@ export default class TowerConstructionHandler implements IConstructionHandler {
     }
 
     return positions;
-  }
-
-  private isOpenSpot(x: number, y: number, room: Room): boolean {
-    const result: LookAtResult<LookConstant>[] = room.lookAt(x, y);
-    return result.length === 1 && result[0].type === "terrain" && result[0].terrain !== "wall";
   }
 
   private findMyNumberOfTowers(room: Room): number {

@@ -1,4 +1,4 @@
-import { isBuildablePos, isEdge, isInBounds } from "utils/gridBuilder";
+import { isBuildablePos, isEdge, isInBounds, isOpenSpot } from "utils/gridBuilder";
 import IConstructionHandler from "./IConstructionHandler";
 
 export default class WallConstructionHandler implements IConstructionHandler {
@@ -27,7 +27,7 @@ export default class WallConstructionHandler implements IConstructionHandler {
 
       for (let y = 0; y < this.len; y++) {
         for (let x = 0; x < this.len; x++) {
-          if (!isEdge(x, y) || !this.isOpenSpot(x, y, room)) continue;
+          if (!isEdge(x, y) || !isOpenSpot(x, y, room)) continue;
 
           this.markWallLocation(room, x, y);
         }
@@ -50,11 +50,6 @@ export default class WallConstructionHandler implements IConstructionHandler {
 
   private isWall(room: Room, x: number, y: number): boolean {
     return room.getTerrain().get(x, y) === TERRAIN_MASK_WALL;
-  }
-
-  private isOpenSpot(x: number, y: number, room: Room): boolean {
-    const result: LookAtResult<LookConstant>[] = room.lookAt(x, y);
-    return result.length === 1 && result[0].type === "terrain" && result[0].terrain !== "wall";
   }
 
   private isStructure(room: Room, x: number, y: number): boolean {
