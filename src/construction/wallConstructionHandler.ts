@@ -19,25 +19,30 @@ export default class WallConstructionHandler implements IConstructionHandler {
   }
 
   public handle(): void {
+    // for every
+
     for (const roomName in Game.rooms) {
       const room: Room = Game.rooms[roomName];
-      const visual = new RoomVisual(roomName);
 
       for (let y = 0; y < this.len; y++) {
         for (let x = 0; x < this.len; x++) {
           if (!this.isEdge(x, y) || !this.isPlain(room, x, y) || this.isStructure(room, x, y)) continue;
 
-          this.markWallLocation(visual, room, x, y);
+          this.markWallLocation(room, x, y);
         }
       }
     }
+  }
+
+  private isBuildableArea(x: number, y: number): boolean {
+    return 2 <= x && x < this.len - 1 && 2 <= y && y < this.len - 1;
   }
 
   private isEdge(x: number, y: number): boolean {
     return !(0 < y && y < this.len - 1 && 0 < x && x < this.len - 1);
   }
 
-  private markWallLocation(visual: RoomVisual, room: Room, x: number, y: number): void {
+  private markWallLocation(room: Room, x: number, y: number): void {
     if (!this.isInBounds(x, y)) return;
 
     for (const dir of this.dirs) {
@@ -45,7 +50,7 @@ export default class WallConstructionHandler implements IConstructionHandler {
       const dy: number = y + dir[1];
 
       if (!this.isEdge(dx, dy) && this.isInBounds(dx, dy) && !this.isWall(room, dx, dy)) {
-        visual.text("w", dx, dy);
+        room.visual.text("w", dx, dy);
       }
     }
   }
