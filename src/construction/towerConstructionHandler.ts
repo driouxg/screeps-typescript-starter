@@ -3,29 +3,21 @@ import IConstructionHandler from "./IConstructionHandler";
 import Queue from "utils/queue";
 
 export default class TowerConstructionHandler implements IConstructionHandler {
-  public handle(): void {
-    for (const roomName in Game.rooms) {
-      const room: Room = Game.rooms[roomName];
-      if (!this.isMyController(room.controller)) continue;
-      if (!room.controller) continue;
+  private maxTowersPerRoom = 6;
 
-      const myNumberOfTowers: number = this.findMyNumberOfTowers(room);
-      const maxTowers = this.getMaxTowersForControllerLevel(room.controller);
-      if (maxTowers <= myNumberOfTowers) return;
+  public handle(room: Room, desiredState: string[][]): string[][] {
+    if (!(room.controller && room.controller.my)) return desiredState;
 
-      const positions: number[][] = this.findNClosestEmptyPositions(room.controller, maxTowers - myNumberOfTowers);
+    const positions: number[][] = this.findClosestEmptyPositions(room.controller, desiredState);
 
-      for (const position of positions) {
-        room.createConstructionSite(position[0], position[1], STRUCTURE_TOWER);
-      }
+    for (const position of positions) {
+      desiredState[position[1]][position[0]] = STRUCTURE_TOWER;
     }
+
+    return desiredState;
   }
 
-  private isMyController(controller: StructureController | undefined): boolean {
-    return controller ? controller.my : false;
-  }
-
-  private findNClosestEmptyPositions(controller: StructureController, numPositions: number): number[][] {
+  private findClosestEmptyPositions(controller: StructureController, desiredState: string[][]): number[][] {
     const dirs: number[][] = [
       [-1, -1],
       [-1, 1],
@@ -46,9 +38,9 @@ export default class TowerConstructionHandler implements IConstructionHandler {
 
         if (!pos) continue;
 
-        if (isOpenSpot(pos[0], pos[1], controller.room)) positions.push(pos);
+        if (isOpenSpot(pos[0], pos[1], controller.room, desiredState)) positions.push(pos);
 
-        if (numPositions <= positions.length) return positions;
+        if (this.maxTowersPerRoom <= positions.length) return positions;
 
         for (const dir of dirs) {
           const dx: number = pos[0] + dir[0];
@@ -63,32 +55,5 @@ export default class TowerConstructionHandler implements IConstructionHandler {
     }
 
     return positions;
-  }
-
-  private findMyNumberOfTowers(room: Room): number {
-    const myTowers: AnyOwnedStructure[] = room.find(FIND_MY_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_TOWER
-    });
-    const myTowerConstructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, {
-      filter: s => s.structureType === STRUCTURE_TOWER
-    });
-
-    return myTowers.length + myTowerConstructionSites.length;
-  }
-
-  private getMaxTowersForControllerLevel(controller: StructureController): number {
-    const towerCapacityMax: { [key: number]: number } = {
-      0: 0,
-      1: 0,
-      2: 0,
-      3: 1,
-      4: 1,
-      5: 2,
-      6: 2,
-      7: 3,
-      8: 6
-    };
-
-    return towerCapacityMax[controller.level];
   }
 }

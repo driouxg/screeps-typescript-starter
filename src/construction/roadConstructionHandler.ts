@@ -1,55 +1,49 @@
 import IConstructionHandler from "./IConstructionHandler";
 
 export default class RoadConstructionHandler implements IConstructionHandler {
-  public handle(): void {
-    for (const spawnKey in Game.spawns) {
-      const spawn: StructureSpawn = Game.spawns[spawnKey];
+  public handle(room: Room, desiredState: string[][]): string[][] {
+    if (!(room.controller && room.controller.my)) return desiredState;
 
-      if (this.alreadyCreatedRoadConstructionSites(spawn)) continue;
+    const controller: StructureController = room.controller;
 
-      this.buildRoadToSources(spawn);
-      this.buildRoadToController(spawn);
-      // build road to all ramparts, since we'll have 1 rampart per side
+    this.buildRoadToSources(controller, desiredState);
+    this.buildRoadToRamparts(controller, desiredState);
+    // build road to all ramparts, since we'll have 1 rampart per side
 
-      this.updateCache(spawn);
-    }
+    return desiredState;
   }
 
-  private buildRoadToSources(spawn: StructureSpawn): void {
-    const sources: Source[] = spawn.room.find(FIND_SOURCES_ACTIVE);
+  private buildRoadToSources(controller: StructureController, desiredState: string[][]): void {
+    const sources: Source[] = controller.room.find(FIND_SOURCES);
 
     for (const source of sources) {
-      const path: PathStep[] = spawn.pos.findPathTo(source);
+      const path: PathStep[] = controller.pos.findPathTo(source);
 
       for (const step of path) {
-        spawn.room.createConstructionSite(step.x, step.y, STRUCTURE_ROAD);
+        desiredState[step.y][step.x] = STRUCTURE_ROAD;
       }
     }
   }
 
-  private buildRoadToController(spawn: StructureSpawn): void {
-    const structures: Structure[] = spawn.room.find(FIND_STRUCTURES, {
-      filter: s => s.structureType === STRUCTURE_CONTROLLER
-    });
+  private buildRoadToRamparts(controller: StructureController, desiredState: string[][]): void {
+    const rampartPositions: number[][] = [];
 
-    for (const structure of structures) {
-      const path: PathStep[] = spawn.pos.findPathTo(structure);
-
-      for (const step of path) {
-        spawn.room.createConstructionSite(step.x, step.y, STRUCTURE_ROAD);
+    for (let y = 0; y < desiredState.length; y++) {
+      for (let x = 0; x < desiredState[y].length; x++) {
+        if (desiredState[y][x] === STRUCTURE_RAMPART) {
+          rampartPositions.push([x, y]);
+        }
       }
     }
-  }
 
-  private getRoadConstructionTick(room: Room): number {
-    return room.memory.roadConstructionTick || 0;
-  }
+    for (const rampartPosition of rampartPositions) {
+      const path: PathStep[] = controller.pos.findPathTo(rampartPosition[0], rampartPosition[1]);
 
-  private updateCache(spawn: StructureSpawn): void {
-    spawn.room.memory.roadConstructionTick = Game.time;
-  }
+      for (const step of path) {
+        if (desiredState[step.y][step.x] !== "") continue;
 
-  private alreadyCreatedRoadConstructionSites(spawn: StructureSpawn): boolean {
-    return Game.time < this.getRoadConstructionTick(spawn.room) + 10000;
+        desiredState[step.y][step.x] = STRUCTURE_ROAD;
+      }
+    }
   }
 }

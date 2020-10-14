@@ -1,37 +1,23 @@
-import { buildStringGrid, isBuildablePos, isEdge, isInBounds, isOpenSpot } from "utils/gridBuilder";
+import { buildBooleanGrid, isEdge, isInBounds, isOpenSpot } from "utils/gridBuilder";
 import IConstructionHandler from "./IConstructionHandler";
 import Queue from "../utils/queue";
 
-const TAKEN = "X";
-const ADDED = "A";
-const OPEN = "O";
-
 export default class WallConstructionHandler implements IConstructionHandler {
-  private len: number;
+  public handle(room: Room, desiredState: string[][]): string[][] {
+    const visited: boolean[][] = buildBooleanGrid();
 
-  public constructor() {
-    this.len = 50;
-  }
-
-  public handle(): void {
-    for (const roomName in Game.rooms) {
-      const room: Room = Game.rooms[roomName];
-
-      if (this.alreadyCreatedWallsAndRamparts(room)) continue;
-      let grid: string[][] = buildStringGrid();
-      this.populateGrid(grid, room);
-
-      for (let y = 0; y < this.len; y++) {
-        for (let x = 0; x < this.len; x++) {
-          if (!isEdge(x, y) || grid[y][x] === TAKEN) continue;
-          grid = this.bfs(grid, x, y, room, 2);
-        }
+    for (let y = 0; y < 50; y++) {
+      for (let x = 0; x < 50; x++) {
+        if (!isEdge(x, y) || room.getTerrain().get(x, y) === TERRAIN_MASK_WALL) continue;
+        desiredState = this.bfs(desiredState, visited, x, y, room);
       }
-      this.updateCache(room);
     }
+
+    return desiredState;
   }
 
-  private bfs(grid: string[][], x: number, y: number, room: Room, numRamparts: number): string[][] {
+  private bfs(desiredState: string[][], visited: boolean[][], x: number, y: number, room: Room): string[][] {
+    let numRamparts = 2;
     const dirs: number[][] = [
       [-1, -1],
       [-1, 0],
@@ -52,46 +38,29 @@ export default class WallConstructionHandler implements IConstructionHandler {
 
         if (!pos) continue;
 
-        if (grid[pos[1]][pos[0]] !== TAKEN && isBuildablePos(pos[0], pos[1])) {
+        if (isOpenSpot(pos[0], pos[1], room, desiredState)) {
           if (0 < numRamparts) {
-            room.createConstructionSite(pos[0], pos[1], STRUCTURE_RAMPART);
+            desiredState[pos[1]][pos[0]] = STRUCTURE_RAMPART;
             numRamparts--;
           } else {
-            room.createConstructionSite(pos[0], pos[1], STRUCTURE_WALL);
+            desiredState[pos[1]][pos[0]] = STRUCTURE_WALL;
           }
-          grid[pos[1]][pos[0]] = TAKEN;
           continue;
         }
 
-        grid[pos[1]][pos[0]] = TAKEN;
+        visited[pos[1]][pos[0]] = true;
 
         for (const dir of dirs) {
           const dx: number = pos[0] + dir[0];
           const dy: number = pos[1] + dir[1];
 
-          if (!isInBounds(dx, dy) || grid[dy][dx] === TAKEN || grid[dy][dx] === ADDED) continue;
+          if (!isInBounds(dx, dy) || visited[dy][dx] || room.getTerrain().get(dx, dy) === TERRAIN_MASK_WALL) continue;
           q.add([dx, dy]);
-          grid[dy][dx] = ADDED;
+          visited[dy][dx] = true;
         }
       }
     }
 
-    return grid;
-  }
-
-  private populateGrid(grid: string[][], room: Room) {
-    for (let y = 0; y < this.len; y++) {
-      for (let x = 0; x < this.len; x++) {
-        grid[y][x] = isOpenSpot(x, y, room) ? OPEN : TAKEN;
-      }
-    }
-  }
-
-  private alreadyCreatedWallsAndRamparts(room: Room): boolean {
-    return room.memory.builtWallsAndRamparts || false;
-  }
-
-  private updateCache(room: Room) {
-    room.memory.builtWallsAndRamparts = true;
+    return desiredState;
   }
 }

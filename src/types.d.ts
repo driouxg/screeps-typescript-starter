@@ -13,8 +13,7 @@ interface Memory {
 }
 
 interface RoomMemory {
-  builtWallsAndRamparts: boolean;
-  roadConstructionTick: number;
+  desiredState: string[][];
 }
 
 // `global` extension samples

@@ -1,3 +1,3 @@
 export default interface IConstructionHandler {
-  handle(): void;
+  handle(room: Room, desiredState: string[][]): string[][];
 }

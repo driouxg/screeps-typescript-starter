@@ -1,30 +1,55 @@
-import RoadConstructionHandler from "./roadConstructionHandler";
-import TowerConstructionHandler from "./towerConstructionHandler";
-import WallConstructionHandler from "./wallConstructionHandler";
+import { buildStringGrid } from "utils/gridBuilder";
+import IConstructionHandler from "./IConstructionHandler";
 
 export default class ContructionHandler {
-  private roadConstructionHandler: RoadConstructionHandler;
-  private wallConstructionHandler: WallConstructionHandler;
-  private towerConstructionHandler: TowerConstructionHandler;
+  private constructionHandlers: IConstructionHandler[];
 
-  public constructor() {
-    this.roadConstructionHandler = new RoadConstructionHandler();
-    this.wallConstructionHandler = new WallConstructionHandler();
-    this.towerConstructionHandler = new TowerConstructionHandler();
+  public constructor(constructionHandlers: IConstructionHandler[]) {
+    this.constructionHandlers = constructionHandlers;
   }
 
   public handle(): void {
-    // for every room
-    // if grid isn't cached, create new grid
+    for (const roomName in Game.rooms) {
+      const room: Room = Game.rooms[roomName];
+      let desiredState: string[][] = this.getCachedDesiredState(room);
 
-    // for every construction handler calculate desired state and store in grid
+      // if (desiredState) return desiredState;
 
-    // store grid in cache
-    this.roadConstructionHandler.handle();
-    this.wallConstructionHandler.handle();
-    this.towerConstructionHandler.handle();
-    // containerConstructionHandler
-    // wallConstructionHandler
-    // spawnConstructionHandler
+      for (const constructionHandler of this.constructionHandlers) {
+        desiredState = constructionHandler.handle(room, desiredState);
+      }
+
+      for (let y = 0; y < desiredState.length; y++) {
+        for (let x = 0; x < desiredState[y].length; x++) {
+          switch (desiredState[y][x]) {
+            case STRUCTURE_TOWER:
+              room.visual.text("T", x, y);
+              break;
+            case STRUCTURE_WALL:
+              room.visual.text("W", x, y);
+              break;
+            case STRUCTURE_ROAD:
+              room.visual.text("r", x, y);
+              break;
+            case STRUCTURE_RAMPART:
+              room.visual.text("R", x, y);
+              break;
+            default:
+              room.visual.text(".", x, y);
+              break;
+          }
+        }
+      }
+
+      this.updateCachedDesiredState(room, desiredState);
+    }
+  }
+
+  private getCachedDesiredState(room: Room): string[][] {
+    return room.memory.desiredState || buildStringGrid();
+  }
+
+  private updateCachedDesiredState(room: Room, desiredState: string[][]): void {
+    room.memory.desiredState = desiredState;
   }
 }
