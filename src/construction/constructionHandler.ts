@@ -13,12 +13,12 @@ export default class ContructionHandler {
       const room: Room = Game.rooms[roomName];
       let desiredState: string[][] = this.getCachedDesiredState(room);
 
-      if (desiredState) {
-        this.print(room, desiredState);
-        return;
-      } else {
-        desiredState = buildStringGrid();
-      }
+      // if (desiredState) {
+      // this.print(room, desiredState);
+      // return;
+      // } else {
+      desiredState = buildStringGrid();
+      // }
 
       for (const constructionHandler of this.constructionHandlers) {
         desiredState = constructionHandler.handle(room, desiredState);
