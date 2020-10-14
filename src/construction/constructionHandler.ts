@@ -14,6 +14,12 @@ export default class ContructionHandler {
   }
 
   public handle(): void {
+    // for every room
+    // if grid isn't cached, create new grid
+
+    // for every construction handler calculate desired state and store in grid
+
+    // store grid in cache
     this.roadConstructionHandler.handle();
     this.wallConstructionHandler.handle();
     this.towerConstructionHandler.handle();
