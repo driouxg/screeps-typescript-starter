@@ -46,6 +46,9 @@ export default class ContructionHandler {
           case STRUCTURE_RAMPART:
             room.visual.text("R", x, y);
             break;
+          case STRUCTURE_STORAGE:
+            room.visual.text("S", x, y);
+            break;
           default:
             room.visual.text(".", x, y);
             break;

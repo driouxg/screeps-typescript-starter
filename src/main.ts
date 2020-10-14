@@ -4,6 +4,7 @@ import { ErrorMapper } from "utils/ErrorMapper";
 import IConstructionHandler from "construction/IConstructionHandler";
 import RoadConstructionHandler from "construction/roadConstructionHandler";
 import SpawnHandler from "./spawns/spawnHandler";
+import StorageConstructionHandler from "construction/storageConstructionHandler";
 import TowerConstructionHandler from "construction/towerConstructionHandler";
 import WallConstructionHandler from "construction/wallConstructionHandler";
 
@@ -24,7 +25,12 @@ export const loop = ErrorMapper.wrapLoop(() => {
 function constructionHandlers(): IConstructionHandler[] {
   // containerConstructionHandler
   // spawnConstructionHandler
-  return [new WallConstructionHandler(), new RoadConstructionHandler(), new TowerConstructionHandler()];
+  return [
+    new WallConstructionHandler(),
+    new RoadConstructionHandler(),
+    new StorageConstructionHandler(),
+    new TowerConstructionHandler()
+  ];
 }
 
 function deleteMissingCreepMemory(): void {
