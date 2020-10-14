@@ -12,6 +12,7 @@ import SpawnHandler from "./spawns/spawnHandler";
 import StorageConstructionHandler from "construction/storageConstructionHandler";
 import TowerConstructionHandler from "construction/towerConstructionHandler";
 import WallConstructionHandler from "construction/wallConstructionHandler";
+import ObserverConstructionHandler from "construction/observerConstructionHandler";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
@@ -37,6 +38,7 @@ function constructionHandlers(): IConstructionHandler[] {
     new SpawnConstructionHandler(),
     new TowerConstructionHandler(),
     new ContainerConstructionHandler(),
+    new ObserverConstructionHandler(),
     new ExtensionConstructionHandler()
   ];
 }

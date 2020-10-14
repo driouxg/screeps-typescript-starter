@@ -60,6 +60,8 @@ export default class ContructionHandler {
         return "E";
       case STRUCTURE_NUKER:
         return "N";
+      case STRUCTURE_OBSERVER:
+        return "O";
       default:
         return ".";
     }
