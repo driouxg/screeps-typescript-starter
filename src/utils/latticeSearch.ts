@@ -1,7 +1,7 @@
 import { buildBooleanGrid, isBuildablePos, isOpenSpot } from "./gridBuilder";
 import Queue from "./queue";
 
-export function findNClosestEmptyPositions(
+export function findNClosestEmptyPositionsLattice(
   controller: StructureController,
   desiredState: string[][],
   numPositions: number
@@ -12,6 +12,33 @@ export function findNClosestEmptyPositions(
     [1, -1],
     [1, 1]
   ];
+  return findNClosestEmptyPositions(controller, desiredState, numPositions, dirs);
+}
+
+export function findNClosestEmptyPositionsFill(
+  controller: StructureController,
+  desiredState: string[][],
+  numPositions: number
+): number[][] {
+  const dirs: number[][] = [
+    [-1, -1],
+    [-1, 1],
+    [-1, 0],
+    [0, -1],
+    [0, 1],
+    [1, 0],
+    [1, -1],
+    [1, 1]
+  ];
+  return findNClosestEmptyPositions(controller, desiredState, numPositions, dirs);
+}
+
+export function findNClosestEmptyPositions(
+  controller: StructureController,
+  desiredState: string[][],
+  numPositions: number,
+  dirs: number[][]
+): number[][] {
   const visited: boolean[][] = buildBooleanGrid();
   const q: Queue<number[]> = new Queue<number[]>();
   q.add([controller.pos.x, controller.pos.y]);

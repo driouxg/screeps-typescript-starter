@@ -1,8 +1,11 @@
 import ConstructionHandler from "./construction/constructionHandler";
+import ContainerConstructionHandler from "construction/containerConstructionHandler";
 import CreepHandler from "./creeps/creepHandler";
 import { ErrorMapper } from "utils/ErrorMapper";
 import IConstructionHandler from "construction/IConstructionHandler";
+import PowerSpawnConstructionHandler from "construction/powerSpawnConstructionHandler";
 import RoadConstructionHandler from "construction/roadConstructionHandler";
+import SpawnConstructionHandler from "construction/spawnConstructionHandler";
 import SpawnHandler from "./spawns/spawnHandler";
 import StorageConstructionHandler from "construction/storageConstructionHandler";
 import TowerConstructionHandler from "construction/towerConstructionHandler";
@@ -23,13 +26,14 @@ export const loop = ErrorMapper.wrapLoop(() => {
 });
 
 function constructionHandlers(): IConstructionHandler[] {
-  // containerConstructionHandler
-  // spawnConstructionHandler
   return [
     new WallConstructionHandler(),
     new RoadConstructionHandler(),
     new StorageConstructionHandler(),
-    new TowerConstructionHandler()
+    new PowerSpawnConstructionHandler(),
+    new SpawnConstructionHandler(),
+    new TowerConstructionHandler(),
+    new ContainerConstructionHandler()
   ];
 }
 

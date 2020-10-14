@@ -47,7 +47,16 @@ export default class ContructionHandler {
             room.visual.text("R", x, y);
             break;
           case STRUCTURE_STORAGE:
-            room.visual.text("S", x, y);
+            room.visual.text("Stg", x, y);
+            break;
+          case STRUCTURE_SPAWN:
+            room.visual.text("Sp", x, y);
+            break;
+          case STRUCTURE_POWER_SPAWN:
+            room.visual.text("pSp", x, y);
+            break;
+          case STRUCTURE_CONTAINER:
+            room.visual.text("C", x, y);
             break;
           default:
             room.visual.text(".", x, y);
