@@ -58,6 +58,8 @@ export default class ContructionHandler {
         return "C";
       case STRUCTURE_EXTENSION:
         return "E";
+      case STRUCTURE_NUKER:
+        return "N";
       default:
         return ".";
     }
