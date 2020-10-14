@@ -2,6 +2,7 @@ import ConstructionHandler from "./construction/constructionHandler";
 import ContainerConstructionHandler from "construction/containerConstructionHandler";
 import CreepHandler from "./creeps/creepHandler";
 import { ErrorMapper } from "utils/ErrorMapper";
+import ExtensionConstructionHandler from "construction/extensionConstructionHandler";
 import IConstructionHandler from "construction/IConstructionHandler";
 import PowerSpawnConstructionHandler from "construction/powerSpawnConstructionHandler";
 import RoadConstructionHandler from "construction/roadConstructionHandler";
@@ -33,7 +34,8 @@ function constructionHandlers(): IConstructionHandler[] {
     new PowerSpawnConstructionHandler(),
     new SpawnConstructionHandler(),
     new TowerConstructionHandler(),
-    new ContainerConstructionHandler()
+    new ContainerConstructionHandler(),
+    new ExtensionConstructionHandler()
   ];
 }
 

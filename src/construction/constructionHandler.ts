@@ -33,36 +33,33 @@ export default class ContructionHandler {
   private print(room: Room, desiredState: string[][]): void {
     for (let y = 0; y < desiredState.length; y++) {
       for (let x = 0; x < desiredState[y].length; x++) {
-        switch (desiredState[y][x]) {
-          case STRUCTURE_TOWER:
-            room.visual.text("T", x, y);
-            break;
-          case STRUCTURE_WALL:
-            room.visual.text("W", x, y);
-            break;
-          case STRUCTURE_ROAD:
-            room.visual.text("r", x, y);
-            break;
-          case STRUCTURE_RAMPART:
-            room.visual.text("R", x, y);
-            break;
-          case STRUCTURE_STORAGE:
-            room.visual.text("Stg", x, y);
-            break;
-          case STRUCTURE_SPAWN:
-            room.visual.text("Sp", x, y);
-            break;
-          case STRUCTURE_POWER_SPAWN:
-            room.visual.text("pSp", x, y);
-            break;
-          case STRUCTURE_CONTAINER:
-            room.visual.text("C", x, y);
-            break;
-          default:
-            room.visual.text(".", x, y);
-            break;
-        }
+        room.visual.text(this.displayText(desiredState[y][x]), x, y);
       }
+    }
+  }
+
+  private displayText(text: string): string {
+    switch (text) {
+      case STRUCTURE_TOWER:
+        return "T";
+      case STRUCTURE_WALL:
+        return "W";
+      case STRUCTURE_ROAD:
+        return "r";
+      case STRUCTURE_RAMPART:
+        return "R";
+      case STRUCTURE_STORAGE:
+        return "Stg";
+      case STRUCTURE_SPAWN:
+        return "Sp";
+      case STRUCTURE_POWER_SPAWN:
+        return "sPsp";
+      case STRUCTURE_CONTAINER:
+        return "C";
+      case STRUCTURE_EXTENSION:
+        return "E";
+      default:
+        return ".";
     }
   }
 
