@@ -13,6 +13,7 @@ interface Memory {
 }
 
 interface RoomMemory {
+  builtWallsAndRamparts: boolean;
   roadConstructionTick: number;
 }
 

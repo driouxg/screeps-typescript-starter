@@ -17,6 +17,10 @@ export function buildBooleanGrid(): boolean[][] {
 export function buildStringGrid(): string[][] {
   const grid: string[][] = new Array<string[]>(50);
 
+  for (let i = 0; i < 50; i++) {
+    grid[i] = new Array<string>(50);
+  }
+
   return grid;
 }
 
