@@ -8,7 +8,7 @@ export default class ContainerConstructionHandler implements IConstructionHandle
     if (!(room.controller && room.controller.my)) return desiredState;
 
     const positions: number[][] = findNClosestEmptyPositionsFill(
-      room.controller,
+      room.controller.pos,
       desiredState,
       this.maxContainersPerRoom
     );

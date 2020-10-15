@@ -2,7 +2,7 @@ import { buildBooleanGrid, isBuildablePos, isOpenSpot } from "./gridBuilder";
 import Queue from "./queue";
 
 export function findNClosestEmptyPositionsLattice(
-  controller: StructureController,
+  pos: RoomPosition,
   desiredState: string[][],
   numPositions: number
 ): number[][] {
@@ -12,11 +12,11 @@ export function findNClosestEmptyPositionsLattice(
     [1, -1],
     [1, 1]
   ];
-  return findNClosestEmptyPositions(controller, desiredState, numPositions, dirs);
+  return findNClosestEmptyPositions(pos, desiredState, numPositions, dirs);
 }
 
 export function findNClosestEmptyPositionsFill(
-  controller: StructureController,
+  pos: RoomPosition,
   desiredState: string[][],
   numPositions: number
 ): number[][] {
@@ -30,18 +30,18 @@ export function findNClosestEmptyPositionsFill(
     [1, -1],
     [1, 1]
   ];
-  return findNClosestEmptyPositions(controller, desiredState, numPositions, dirs);
+  return findNClosestEmptyPositions(pos, desiredState, numPositions, dirs);
 }
 
 export function findNClosestEmptyPositions(
-  controller: StructureController,
+  roomPosition: RoomPosition,
   desiredState: string[][],
   numPositions: number,
   dirs: number[][]
 ): number[][] {
   const visited: boolean[][] = buildBooleanGrid();
   const q: Queue<number[]> = new Queue<number[]>();
-  q.add([controller.pos.x, controller.pos.y]);
+  q.add([roomPosition.x, roomPosition.y]);
 
   const positions: number[][] = [];
 
@@ -53,7 +53,7 @@ export function findNClosestEmptyPositions(
 
       if (!pos) continue;
 
-      if (isOpenSpot(pos[0], pos[1], controller.room, desiredState)) positions.push(pos);
+      if (isOpenSpot(pos[0], pos[1], roomPosition.roomName, desiredState)) positions.push(pos);
 
       if (numPositions <= positions.length) return positions;
 

@@ -8,7 +8,7 @@ export default class TowerConstructionHandler implements IConstructionHandler {
     if (!(room.controller && room.controller.my)) return desiredState;
 
     const positions: number[][] = findNClosestEmptyPositionsLattice(
-      room.controller,
+      room.controller.pos,
       desiredState,
       this.maxTowersPerRoom
     );

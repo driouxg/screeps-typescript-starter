@@ -7,7 +7,7 @@ export default class SpawnConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
     if (!(room.controller && room.controller.my)) return desiredState;
     const positions: number[][] = findNClosestEmptyPositionsLattice(
-      room.controller,
+      room.controller.pos,
       desiredState,
       this.maxSpawnsPerRoom
     );

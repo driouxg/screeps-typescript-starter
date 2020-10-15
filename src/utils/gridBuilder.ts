@@ -42,6 +42,7 @@ export function isInBounds(x: number, y: number): boolean {
   return 0 <= y && y < 50 && 0 <= x && x < 50;
 }
 
-export function isOpenSpot(x: number, y: number, room: Room, desiredState: string[][]): boolean {
+export function isOpenSpot(x: number, y: number, roomName: string, desiredState: string[][]): boolean {
+  const room: Room = Game.rooms[roomName];
   return room.getTerrain().get(x, y) !== TERRAIN_MASK_WALL && desiredState[y][x] === "" && isBuildablePos(x, y);
 }

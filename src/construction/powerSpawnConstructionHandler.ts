@@ -8,7 +8,7 @@ export default class PowerSpawnConstructionHandler implements IConstructionHandl
     if (!(room.controller && room.controller.my)) return desiredState;
 
     const positions: number[][] = findNClosestEmptyPositionsLattice(
-      room.controller,
+      room.controller.pos,
       desiredState,
       this.maxPowerSpawnsPerRoom
     );

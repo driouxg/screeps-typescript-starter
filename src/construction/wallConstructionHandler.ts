@@ -38,7 +38,7 @@ export default class WallConstructionHandler implements IConstructionHandler {
 
         if (!pos) continue;
 
-        if (isOpenSpot(pos[0], pos[1], room, desiredState)) {
+        if (isOpenSpot(pos[0], pos[1], room.name, desiredState)) {
           if (0 < numRamparts) {
             desiredState[pos[1]][pos[0]] = STRUCTURE_RAMPART;
             numRamparts--;
