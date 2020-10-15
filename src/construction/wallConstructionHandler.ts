@@ -1,4 +1,4 @@
-import { buildBooleanGrid, isEdge, isInBounds, isOpenSpot } from "utils/gridBuilder";
+import { buildBooleanGrid, isBuildablePos, isEdge, isInBounds, isOpenSpot, isWall } from "utils/gridBuilder";
 import IConstructionHandler from "./IConstructionHandler";
 import Queue from "../utils/queue";
 
@@ -17,7 +17,6 @@ export default class WallConstructionHandler implements IConstructionHandler {
   }
 
   private bfs(desiredState: string[][], visited: boolean[][], x: number, y: number, room: Room): string[][] {
-    let numRamparts = 2;
     const dirs: number[][] = [
       [-1, -1],
       [-1, 0],
@@ -38,10 +37,9 @@ export default class WallConstructionHandler implements IConstructionHandler {
 
         if (!pos) continue;
 
-        if (isOpenSpot(pos[0], pos[1], room.name, desiredState)) {
-          if (0 < numRamparts) {
+        if (!isWall(pos[0], pos[1], room.name) && isBuildablePos(pos[0], pos[1])) {
+          if (desiredState[pos[1]][pos[0]] === STRUCTURE_ROAD) {
             desiredState[pos[1]][pos[0]] = STRUCTURE_RAMPART;
-            numRamparts--;
           } else {
             desiredState[pos[1]][pos[0]] = STRUCTURE_WALL;
           }

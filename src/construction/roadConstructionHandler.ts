@@ -1,5 +1,5 @@
+import { isBuildablePos, isInBounds, isWall } from "utils/gridBuilder";
 import IConstructionHandler from "./IConstructionHandler";
-import { isBuildablePos } from "utils/gridBuilder";
 
 export default class RoadConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
@@ -8,8 +8,7 @@ export default class RoadConstructionHandler implements IConstructionHandler {
     const controller: StructureController = room.controller;
 
     this.buildRoadToSources(controller, desiredState);
-    this.buildRoadToRamparts(controller, desiredState);
-    // build road to all ramparts, since we'll have 1 rampart per side
+    this.buildRoadsToExits(controller, desiredState);
 
     return desiredState;
   }
@@ -26,25 +25,48 @@ export default class RoadConstructionHandler implements IConstructionHandler {
     }
   }
 
-  private buildRoadToRamparts(controller: StructureController, desiredState: string[][]): void {
-    const rampartPositions: number[][] = [];
+  private buildRoadsToExits(controller: StructureController, desiredState: string[][]): void {
+    const exits: number[][] = [];
 
-    for (let y = 0; y < desiredState.length; y++) {
-      for (let x = 0; x < desiredState[y].length; x++) {
-        if (desiredState[y][x] === STRUCTURE_RAMPART) {
-          rampartPositions.push([x, y]);
-        }
-      }
-    }
+    const leftExit = this.findExit(controller, desiredState, "LEFT");
+    if (leftExit) exits.push([leftExit[0], leftExit[1]]);
 
-    for (const rampartPosition of rampartPositions) {
-      const path: PathStep[] = controller.pos.findPathTo(rampartPosition[0], rampartPosition[1]);
+    const topExit = this.findExit(controller, desiredState, "TOP");
+    if (topExit) exits.push([topExit[0], topExit[1]]);
+
+    const rightExit = this.findExit(controller, desiredState, "RIGHT");
+    if (rightExit) exits.push([rightExit[0], rightExit[1]]);
+
+    const bottomExit = this.findExit(controller, desiredState, "BOTTOM");
+    if (bottomExit) exits.push([bottomExit[0], bottomExit[1]]);
+
+    for (const exit of exits) {
+      const path: PathStep[] = controller.pos.findPathTo(exit[0], exit[1]);
 
       for (const step of path) {
-        if (desiredState[step.y][step.x] !== "") continue;
+        if (!isBuildablePos(step.x, step.y)) continue;
 
         desiredState[step.y][step.x] = STRUCTURE_ROAD;
       }
     }
+  }
+
+  private findExit(controller: StructureController, desiredState: string[][], exit: string): number[] | undefined {
+    const positions: { [key: string]: { [key: string]: number } } = {
+      TOP: { x: 0, y: 0 },
+      LEFT: { x: 0, y: 0 },
+      RIGHT: { x: 49, y: 0 },
+      BOTTOM: { x: 0, y: 49 }
+    };
+    let x = positions[exit].x;
+    let y = positions[exit].y;
+    const horizontal: boolean = exit === "TOP" || exit === "BOTTOM";
+    while (y < desiredState.length && x < desiredState[y].length && isWall(x, y, controller.room.name)) {
+      if (horizontal) x++;
+      else y++;
+    }
+
+    if (!isWall(x, y, controller.room.name) && isInBounds(x, y)) return [x, y];
+    else return undefined;
   }
 }

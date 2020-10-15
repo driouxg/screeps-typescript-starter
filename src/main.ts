@@ -35,8 +35,8 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
 function constructionHandlers(): IConstructionHandler[] {
   return [
-    new WallConstructionHandler(),
     new RoadConstructionHandler(),
+    new WallConstructionHandler(),
     new StorageConstructionHandler(),
     new LinkConstructionHandler(),
     new PowerSpawnConstructionHandler(),
