@@ -3,6 +3,7 @@ import ContainerConstructionHandler from "construction/containerConstructionHand
 import CreepHandler from "./creeps/creepHandler";
 import { ErrorMapper } from "utils/ErrorMapper";
 import ExtensionConstructionHandler from "construction/extensionConstructionHandler";
+import ExtractorConstructionHandler from "construction/extractorConstructionHandler";
 import IConstructionHandler from "construction/IConstructionHandler";
 import LabConstructionHandler from "construction/labConstructionHandler";
 import NukerConstructionHandler from "construction/nukerConstructionHandler";
@@ -41,7 +42,8 @@ function constructionHandlers(): IConstructionHandler[] {
     new ContainerConstructionHandler(),
     new ObserverConstructionHandler(),
     new ExtensionConstructionHandler(),
-    new LabConstructionHandler()
+    new LabConstructionHandler(),
+    new ExtractorConstructionHandler()
   ];
 }
 
