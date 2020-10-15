@@ -1,5 +1,24 @@
-import { buildBooleanGrid, isBuildablePos, isOpenSpot } from "./gridBuilder";
+import { buildBooleanGrid, isBuildablePos, isOpenSpot, isWall } from "./gridBuilder";
 import Queue from "./queue";
+
+export function findNClosestEmptyPositionsWithBuffer(
+  pos: RoomPosition,
+  desiredState: string[][],
+  numPositions: number
+): number[][] {
+  const dirs: number[][] = [
+    [-2, -2],
+    [-2, 2],
+    [-2, 0],
+    [0, -2],
+    [0, 2],
+    [2, 0],
+    [2, -2],
+    [2, 2]
+  ];
+
+  return findNClosestEmptyPositions(pos, desiredState, numPositions, dirs);
+}
 
 export function findNClosestEmptyPositionsLattice(
   pos: RoomPosition,
@@ -61,7 +80,7 @@ export function findNClosestEmptyPositions(
         const dx: number = pos[0] + dir[0];
         const dy: number = pos[1] + dir[1];
 
-        if (!isBuildablePos(dx, dy) || visited[dx][dy]) continue;
+        if (!isBuildablePos(dx, dy) || isWall(dx, dy, roomPosition.roomName) || visited[dx][dy]) continue;
 
         q.add([dx, dy]);
         visited[dx][dy] = true;

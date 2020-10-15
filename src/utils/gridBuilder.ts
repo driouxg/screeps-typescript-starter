@@ -43,6 +43,10 @@ export function isInBounds(x: number, y: number): boolean {
 }
 
 export function isOpenSpot(x: number, y: number, roomName: string, desiredState: string[][]): boolean {
+  return !isWall(x, y, roomName) && desiredState[y][x] === "" && isBuildablePos(x, y);
+}
+
+export function isWall(x: number, y: number, roomName: string): boolean {
   const room: Room = Game.rooms[roomName];
-  return room.getTerrain().get(x, y) !== TERRAIN_MASK_WALL && desiredState[y][x] === "" && isBuildablePos(x, y);
+  return room.getTerrain().get(x, y) === TERRAIN_MASK_WALL;
 }

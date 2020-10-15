@@ -1,5 +1,5 @@
+import { findNClosestEmptyPositionsLattice, findNClosestEmptyPositionsWithBuffer } from "../utils/latticeSearch";
 import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositions, findNClosestEmptyPositionsLattice } from "../utils/latticeSearch";
 
 export default class LinkConstructionHandler implements IConstructionHandler {
   private maxLinksPerRoom = 6;
@@ -7,24 +7,22 @@ export default class LinkConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
     if (!(room.controller && room.controller.my)) return desiredState;
 
-    let buildableLinksLeft = this.maxLinksPerRoom;
-    buildableLinksLeft -= this.markLinksNextToSources(room, desiredState); // 2
-    buildableLinksLeft -= this.markLinksNextToMinerals(room, desiredState); // 1
-    buildableLinksLeft -= this.markLinksNextToStorage(room, desiredState); // 1
-
-    // mark remaining somewhere // 2
+    this.markLinksNextToSources(room, desiredState);
+    this.markLinksNextToMinerals(room, desiredState);
+    this.markLinksNextToStorage(room, desiredState);
 
     return desiredState;
   }
 
   private markLinksNextToStorage(room: Room, desiredState: string[][]): number {
+    const desiredLinks = 1;
     for (let y = 0; y < desiredState.length; y++) {
       for (let x = 0; x < desiredState[y].length; x++) {
         if (desiredState[y][x] !== STRUCTURE_STORAGE) continue;
         const positions: number[][] = findNClosestEmptyPositionsLattice(
           new RoomPosition(x, y, room.name),
           desiredState,
-          1
+          desiredLinks
         );
 
         for (const position of positions) {
@@ -39,27 +37,29 @@ export default class LinkConstructionHandler implements IConstructionHandler {
   }
 
   private markLinksNextToSources(room: Room, desiredState: string[][]): number {
+    const desiredLinks = 1;
     const sources: Source[] = room.find(FIND_SOURCES);
 
     for (const source of sources) {
-      this.markPositions(source.pos, desiredState, 1);
+      this.markPositions(source.pos, desiredState, desiredLinks);
     }
 
     return sources.length;
   }
 
   private markLinksNextToMinerals(room: Room, desiredState: string[][]): number {
+    const desiredLinks = 2;
     const minerals: Mineral<MineralConstant>[] = room.find(FIND_MINERALS);
 
     for (const mineral of minerals) {
-      this.markPositions(mineral.pos, desiredState, 1);
+      this.markPositions(mineral.pos, desiredState, desiredLinks);
     }
 
     return minerals.length;
   }
 
   private markPositions(roomPosition: RoomPosition, desiredState: string[][], numPositions: number): string[][] {
-    const positions: number[][] = findNClosestEmptyPositionsLattice(roomPosition, desiredState, numPositions);
+    const positions: number[][] = findNClosestEmptyPositionsWithBuffer(roomPosition, desiredState, numPositions);
 
     for (const position of positions) {
       desiredState[position[1]][position[0]] = STRUCTURE_LINK;
