@@ -1,4 +1,5 @@
 import IConstructionHandler from "./IConstructionHandler";
+import { isBuildablePos } from "utils/gridBuilder";
 
 export default class RoadConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
@@ -20,7 +21,7 @@ export default class RoadConstructionHandler implements IConstructionHandler {
       const path: PathStep[] = controller.pos.findPathTo(source);
 
       for (const step of path) {
-        desiredState[step.y][step.x] = STRUCTURE_ROAD;
+        if (isBuildablePos(step.x, step.y)) desiredState[step.y][step.x] = STRUCTURE_ROAD;
       }
     }
   }

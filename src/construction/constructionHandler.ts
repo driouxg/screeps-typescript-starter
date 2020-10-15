@@ -23,7 +23,7 @@ export default class ContructionHandler {
       }
 
       this.buildToAchieveDesiredState(room, desiredState);
-      // this.print(room, desiredState);
+      this.print(room, desiredState);
 
       this.updateCachedDesiredState(room, desiredState);
     }
