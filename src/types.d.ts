@@ -13,6 +13,7 @@ interface Memory {
 }
 
 interface RoomMemory {
+  constructionPos: { [key: string]: number };
   desiredState: string[][];
 }
 
