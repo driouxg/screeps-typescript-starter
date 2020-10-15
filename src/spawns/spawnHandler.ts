@@ -9,7 +9,7 @@ export default class SpawnHandler {
       this.spawnKey = spawnKey;
       const creepDict = this.creepDict();
 
-      if (this.getCreepCountByRole(creepRoles.HARVESTER, creepDict) < 1) {
+      if (this.getCreepCountByRole(creepRoles.HARVESTER, creepDict) < 4) {
         this.spawnHarvester();
       }
       if (this.getCreepCountByRole(creepRoles.UPGRADER, creepDict) < 3) {

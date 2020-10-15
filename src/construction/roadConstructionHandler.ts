@@ -9,6 +9,8 @@ export default class RoadConstructionHandler implements IConstructionHandler {
 
     this.buildRoadToSources(controller, desiredState);
     this.buildRoadsToExits(controller, desiredState);
+    // build road to minerals
+    // build road to spawns
 
     return desiredState;
   }

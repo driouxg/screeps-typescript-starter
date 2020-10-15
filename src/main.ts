@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import ConstructionHandler from "./construction/constructionHandler";
 import ContainerConstructionHandler from "construction/containerConstructionHandler";
 import CreepHandler from "./creeps/creepHandler";
@@ -7,6 +10,7 @@ import ExtractorConstructionHandler from "construction/extractorConstructionHand
 import FactoryConstructionHandler from "construction/factoryConstructionHandler";
 import IConstructionHandler from "construction/IConstructionHandler";
 import LabConstructionHandler from "construction/labConstructionHandler";
+import LinkConstructionHandler from "construction/linkConstructionHandler";
 import NukerConstructionHandler from "construction/nukerConstructionHandler";
 import ObserverConstructionHandler from "construction/observerConstructionHandler";
 import PowerSpawnConstructionHandler from "construction/powerSpawnConstructionHandler";
@@ -17,7 +21,6 @@ import StorageConstructionHandler from "construction/storageConstructionHandler"
 import TerminalConstructionHandler from "construction/terminalConstructionHandler";
 import TowerConstructionHandler from "construction/towerConstructionHandler";
 import WallConstructionHandler from "construction/wallConstructionHandler";
-import LinkConstructionHandler from "construction/linkConstructionHandler";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
