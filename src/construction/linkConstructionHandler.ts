@@ -7,9 +7,9 @@ export default class LinkConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
     if (!(room.controller && room.controller.my)) return desiredState;
 
-    this.markLinksNextToSources(room, desiredState);
-    this.markLinksNextToMinerals(room, desiredState);
-    this.markLinksNextToStorage(room, desiredState);
+    this.markLinksNextToSources(room, desiredState); // uses up to 2 links
+    this.markLinksNextToMinerals(room, desiredState); // uses 2 links
+    this.markLinksNextToStorage(room, desiredState); // uses 1 link
 
     return desiredState;
   }
