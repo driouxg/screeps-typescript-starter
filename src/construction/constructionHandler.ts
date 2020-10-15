@@ -41,7 +41,7 @@ export default class ContructionHandler {
   private displayText(text: string): string {
     switch (text) {
       case STRUCTURE_TOWER:
-        return "T";
+        return "To";
       case STRUCTURE_WALL:
         return "W";
       case STRUCTURE_ROAD:
