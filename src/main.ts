@@ -4,6 +4,7 @@ import CreepHandler from "./creeps/creepHandler";
 import { ErrorMapper } from "utils/ErrorMapper";
 import ExtensionConstructionHandler from "construction/extensionConstructionHandler";
 import ExtractorConstructionHandler from "construction/extractorConstructionHandler";
+import FactoryConstructionHandler from "construction/factoryConstructionHandler";
 import IConstructionHandler from "construction/IConstructionHandler";
 import LabConstructionHandler from "construction/labConstructionHandler";
 import NukerConstructionHandler from "construction/nukerConstructionHandler";
@@ -16,7 +17,6 @@ import StorageConstructionHandler from "construction/storageConstructionHandler"
 import TerminalConstructionHandler from "construction/terminalConstructionHandler";
 import TowerConstructionHandler from "construction/towerConstructionHandler";
 import WallConstructionHandler from "construction/wallConstructionHandler";
-import FactoryConstructionHandler from "construction/factoryConstructionHandler";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
