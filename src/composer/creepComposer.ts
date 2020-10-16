@@ -5,7 +5,6 @@ import CreepBehavior from "creeps/commonCreepBehavior";
 import HarvesterHandler from "creeps/harvesterHandler";
 import HealerHandler from "creeps/healerHandler";
 import ICreepHandler from "creeps/ICreepHandler";
-import NoOpCreepHandler from "creeps/noOpCreepHandler";
 import RepairerHandler from "creeps/repairerHandler";
 import UpgraderHandler from "creeps/upgraderHandler";
 

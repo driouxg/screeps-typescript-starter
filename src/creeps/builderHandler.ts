@@ -27,8 +27,8 @@ export default class BuilderHandler implements ICreepHandler {
         creep.moveTo(constructionSite);
       }
     } else {
-      const upgradeHandler: UpgraderHandler = new UpgraderHandler(creep);
-      upgradeHandler.handle(creep);
+      // const upgradeHandler: UpgraderHandler = new UpgraderHandler();
+      // upgradeHandler.handle(creep);
     }
   }
 

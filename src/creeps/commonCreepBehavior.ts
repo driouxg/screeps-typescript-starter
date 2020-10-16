@@ -4,7 +4,7 @@ export default class CreepBehavior {
   }
 
   public hasEnergy(creep: Creep): boolean {
-    return creep.store.energy > 0;
+    return 0 < creep.store.energy;
   }
 
   public hasMaxEnergy(creep: Creep): boolean {

@@ -29,8 +29,8 @@ export default class RepairerHandler implements ICreepHandler {
         creep.moveTo(structure);
       }
     } else {
-      const builderHandler: BuilderHandler = new BuilderHandler(creep);
-      builderHandler.handle();
+      // const builderHandler: BuilderHandler = new BuilderHandler(creep);
+      // builderHandler.handle();
     }
   }
 
