@@ -22,6 +22,8 @@ import StorageConstructionHandler from "construction/storageConstructionHandler"
 import TerminalConstructionHandler from "construction/terminalConstructionHandler";
 import TowerConstructionHandler from "construction/towerConstructionHandler";
 import WallConstructionHandler from "construction/wallConstructionHandler";
+import generateGuid from "./utils/guidGenerator";
+import SpawnConfig from "spawns/SpawnConfig";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
@@ -32,17 +34,31 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const constructionHandler: ConstructionHandler = new ConstructionHandler(constructionHandlers());
 
   spawnHandler.handle();
+  // spawnCreeps();
   manageCreeps(creepHandlerDict);
   constructionHandler.handle();
 
   deleteMissingCreepMemory();
 });
 
-function manageCreeps(creepHandlerDict: { [creepRole: string]: ICreepHandler }) {
+function manageCreeps(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName];
     const handler: ICreepHandler = creepHandlerDict[creep.memory.role];
     handler.handle(creep);
+  }
+}
+
+function spawnCreeps(): void {
+  for (const spawnName in Game.spawns) {
+    const spawn: StructureSpawn = Game.spawns[spawnName];
+    if (spawn.spawning) continue;
+
+    const spawnConfig: SpawnConfig = new SpawnComposer().spawner();
+
+    spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
+      memory: { role: spawnConfig.getRole(), working: false, room: spawn.room.name }
+    });
   }
 }
 
