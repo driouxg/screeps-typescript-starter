@@ -1,8 +1,8 @@
-import * as creepRoles from "../creeps/roles";
+import * as creepRoles from "../roles";
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
 
-export default class RepairerSpawnHandler implements ISpawnHandler {
+export default class BuilderSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
   private nextSpawnHandler: ISpawnHandler;
 
@@ -12,8 +12,8 @@ export default class RepairerSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(): SpawnConfig {
-    if (this.creepPopulationDict[creepRoles.REPAIRER] < 2)
-      return new SpawnConfig([WORK, WORK, CARRY, MOVE], creepRoles.REPAIRER);
+    if (this.creepPopulationDict[creepRoles.BUILDER] < 2)
+      return new SpawnConfig([WORK, WORK, CARRY, MOVE], creepRoles.BUILDER);
     else return this.nextSpawnHandler.spawnCreep();
   }
 }

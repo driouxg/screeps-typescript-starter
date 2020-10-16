@@ -1,12 +1,12 @@
 import * as creepRoles from "creeps/roles";
-import BuilderSpawnHandler from "spawns/builderSpawnHandler";
-import HarvesterSpawnHandler from "spawns/harvesterSpawnHandler";
-import HealerSpawnHandler from "spawns/healerSpawnHandler";
-import ISpawnHandler from "spawns/ISpawnHandler";
-import MeleeDefenderSpawnHandler from "spawns/meleeDefenderSpawnHandler";
-import NoOpSpawnHandler from "spawns/noOpSpawnHandler";
-import RepairerSpawnHandler from "spawns/repairerSpawnHandler";
-import UpgraderSpawnHandler from "spawns/upgraderSpawnHandler";
+import BuilderSpawnHandler from "creeps/spawn/builderSpawnHandler";
+import HarvesterSpawnHandler from "creeps/spawn/harvesterSpawnHandler";
+import HealerSpawnHandler from "creeps/spawn/healerSpawnHandler";
+import ISpawnHandler from "creeps/spawn/ISpawnHandler";
+import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler";
+import NoOpSpawnHandler from "creeps/spawn/noOpSpawnHandler";
+import RepairerSpawnHandler from "creeps/spawn/repairerSpawnHandler";
+import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler";
 
 export default class SpawnComposer {
   public spawner(spawn: StructureSpawn): ISpawnHandler {

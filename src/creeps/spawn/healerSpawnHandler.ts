@@ -1,8 +1,8 @@
-import * as creepRoles from "../creeps/roles";
+import * as creepRoles from "../roles";
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
 
-export default class MeleeDefenderSpawnHandler implements ISpawnHandler {
+export default class HealerSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
   private nextSpawnHandler: ISpawnHandler;
   private spawn: StructureSpawn;
@@ -20,8 +20,8 @@ export default class MeleeDefenderSpawnHandler implements ISpawnHandler {
   public spawnCreep(): SpawnConfig {
     const enemies: Creep[] = this.spawn.room.find(FIND_HOSTILE_CREEPS);
 
-    if (this.creepPopulationDict[creepRoles.MELEE_DEFENDER] < Math.ceil(enemies.length / 2))
-      return new SpawnConfig([TOUGH, TOUGH, ATTACK, MOVE], creepRoles.MELEE_DEFENDER);
+    if (this.creepPopulationDict[creepRoles.HEALER] < Math.ceil(enemies.length / 2))
+      return new SpawnConfig([TOUGH, MOVE, HEAL], creepRoles.HEALER);
     else return this.nextSpawnHandler.spawnCreep();
   }
 }

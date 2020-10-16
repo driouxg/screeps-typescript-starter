@@ -1,4 +1,4 @@
-import * as creepRoles from "../creeps/roles";
+import * as creepRoles from "../roles";
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
 
