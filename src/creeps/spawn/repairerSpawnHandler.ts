@@ -12,7 +12,7 @@ export default class RepairerSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(): SpawnConfig {
-    if (this.creepPopulationDict[creepRoles.REPAIRER] < 2)
+    if (this.creepPopulationDict[creepRoles.REPAIRER] < 3)
       return new SpawnConfig([WORK, WORK, CARRY, MOVE], creepRoles.REPAIRER);
     else return this.nextSpawnHandler.spawnCreep();
   }
