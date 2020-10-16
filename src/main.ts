@@ -56,7 +56,7 @@ function spawnCreeps(spawnComposer: SpawnComposer): void {
 
     const spawner: ISpawnHandler = spawnComposer.spawner(spawn);
     const spawnConfig: SpawnConfig | null = spawner.spawnCreep();
-    if (!spawnConfig) continue;
+    if (spawnConfig.getBody().length === 0) continue;
 
     spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
       memory: { role: spawnConfig.getRole(), working: false, room: spawn.room.name }
