@@ -1,44 +1,29 @@
 import CreepBehavior from "./commonCreepBehavior";
 import ICreepHandler from "./ICreepHandler";
-import UpgraderHandler from "./upgraderHandler";
 
 export default class BuilderHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
+  private nextCreepHandler: ICreepHandler;
 
-  public constructor(commonCreepBehavior: CreepBehavior) {
+  public constructor(commonCreepBehavior: CreepBehavior, nextCreepHandler: ICreepHandler) {
     this.creepBehavior = commonCreepBehavior;
+    this.nextCreepHandler = nextCreepHandler;
   }
 
   public handle(creep: Creep): void {
     this.creepBehavior.updateWorkingState(creep);
 
-    if (this.creepBehavior.isWorking(creep)) {
-      this.buildConstructionSite(creep);
-    } else {
-      this.harvestEnergy(creep);
-    }
+    if (this.creepBehavior.isWorking(creep)) this.buildConstructionSite(creep);
+    else this.creepBehavior.harvestEnergy(creep);
   }
 
   private buildConstructionSite(creep: Creep): void {
     const constructionSite: ConstructionSite | null = creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES);
 
     if (constructionSite) {
-      if (creep.build(constructionSite) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(constructionSite);
-      }
+      if (creep.build(constructionSite) === ERR_NOT_IN_RANGE) creep.moveTo(constructionSite);
     } else {
-      // const upgradeHandler: UpgraderHandler = new UpgraderHandler();
-      // upgradeHandler.handle(creep);
-    }
-  }
-
-  private harvestEnergy(creep: Creep): void {
-    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-
-    if (!source) return;
-
-    if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-      creep.moveTo(source);
+      this.nextCreepHandler.handle(creep);
     }
   }
 }

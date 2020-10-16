@@ -13,15 +13,10 @@ export default class HarvesterHandler implements ICreepHandler {
 
     if (this.creepBehavior.isWorking(creep)) {
       const spawn: StructureSpawn | null = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
-
       if (!spawn) return;
       if (creep.transfer(spawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(spawn.pos);
     } else {
-      const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-
-      if (!source) return;
-
-      if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source);
+      this.creepBehavior.harvestEnergy(creep);
     }
   }
 }

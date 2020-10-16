@@ -32,7 +32,7 @@ export default class CreepComposer {
   }
 
   public builderHandler(creepBehavior: CreepBehavior): BuilderHandler {
-    return new BuilderHandler(creepBehavior);
+    return new BuilderHandler(creepBehavior, this.harvesterHandler(creepBehavior));
   }
 
   public brawlerHandler(creepBehavior: CreepBehavior): BrawlerHandler {
@@ -40,7 +40,7 @@ export default class CreepComposer {
   }
 
   public repairerHandler(creepBehavior: CreepBehavior): RepairerHandler {
-    return new RepairerHandler(creepBehavior);
+    return new RepairerHandler(creepBehavior, this.builderHandler(creepBehavior));
   }
 
   public healerHandler(creepBehavior: CreepBehavior): HealerHandler {
