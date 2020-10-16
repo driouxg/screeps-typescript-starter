@@ -10,31 +10,31 @@ import ExtractorConstructionHandler from "construction/extractorConstructionHand
 import FactoryConstructionHandler from "construction/factoryConstructionHandler";
 import IConstructionHandler from "construction/IConstructionHandler";
 import ICreepHandler from "creeps/ICreepHandler";
+import ISpawnHandler from "spawns/ISpawnHandler";
 import LabConstructionHandler from "construction/labConstructionHandler";
 import LinkConstructionHandler from "construction/linkConstructionHandler";
 import NukerConstructionHandler from "construction/nukerConstructionHandler";
 import ObserverConstructionHandler from "construction/observerConstructionHandler";
 import PowerSpawnConstructionHandler from "construction/powerSpawnConstructionHandler";
 import RoadConstructionHandler from "construction/roadConstructionHandler";
+import SpawnComposer from "composer/spawnComposer";
+import SpawnConfig from "spawns/SpawnConfig";
 import SpawnConstructionHandler from "construction/spawnConstructionHandler";
-import SpawnHandler from "./spawns/spawnHandler";
 import StorageConstructionHandler from "construction/storageConstructionHandler";
 import TerminalConstructionHandler from "construction/terminalConstructionHandler";
 import TowerConstructionHandler from "construction/towerConstructionHandler";
 import WallConstructionHandler from "construction/wallConstructionHandler";
 import generateGuid from "./utils/guidGenerator";
-import SpawnConfig from "spawns/SpawnConfig";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
   const creepComposer = new CreepComposer();
+  const spawnComposer: SpawnComposer = new SpawnComposer();
   const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict();
-  const spawnHandler: SpawnHandler = new SpawnHandler();
   const constructionHandler: ConstructionHandler = new ConstructionHandler(constructionHandlers());
 
-  spawnHandler.handle();
-  // spawnCreeps();
+  spawnCreeps(spawnComposer);
   manageCreeps(creepHandlerDict);
   constructionHandler.handle();
 
@@ -49,12 +49,14 @@ function manageCreeps(creepHandlerDict: { [creepRole: string]: ICreepHandler }):
   }
 }
 
-function spawnCreeps(): void {
+function spawnCreeps(spawnComposer: SpawnComposer): void {
   for (const spawnName in Game.spawns) {
     const spawn: StructureSpawn = Game.spawns[spawnName];
     if (spawn.spawning) continue;
 
-    const spawnConfig: SpawnConfig = new SpawnComposer().spawner();
+    const spawner: ISpawnHandler = spawnComposer.spawner(spawn);
+    const spawnConfig: SpawnConfig | null = spawner.spawnCreep();
+    if (!spawnConfig) continue;
 
     spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
       memory: { role: spawnConfig.getRole(), working: false, room: spawn.room.name }

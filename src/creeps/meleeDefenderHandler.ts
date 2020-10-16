@@ -1,7 +1,7 @@
 import CreepBehavior from "./commonCreepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
-export default class BrawlerHandler implements ICreepHandler {
+export default class MeleeDefenderHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
 
   public constructor(commonCreepBehavior: CreepBehavior) {
