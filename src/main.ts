@@ -20,14 +20,14 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const constructionComposer: ConstructionComposer = new ConstructionComposer();
   const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict();
 
-  manageSpawningCreeps(spawnComposer);
-  manageCreeps(creepHandlerDict);
+  manageCreepSpawning(spawnComposer);
+  manageCreepActions(creepHandlerDict);
   manageConstruction(constructionComposer.constructionHandlers());
 
   deleteMissingCreepMemory();
 });
 
-function manageCreeps(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
+function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName];
     const handler: ICreepHandler = creepHandlerDict[creep.memory.role];
@@ -40,7 +40,7 @@ function manageConstruction(constructionHandlers: IConstructionHandler[]): void 
   constructionHandler.handle();
 }
 
-function manageSpawningCreeps(spawnComposer: SpawnComposer): void {
+function manageCreepSpawning(spawnComposer: SpawnComposer): void {
   for (const spawnName in Game.spawns) {
     const spawn: StructureSpawn = Game.spawns[spawnName];
     if (spawn.spawning) continue;
