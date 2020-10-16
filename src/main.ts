@@ -5,7 +5,7 @@ import ConstructionComposer from "composer/constructionComposer";
 import ConstructionHandler from "./construction/constructionHandler";
 import CreepComposer from "composer/creepComposer";
 import { ErrorMapper } from "utils/ErrorMapper";
-import ICreepHandler from "creeps/ICreepHandler";
+import ICreepHandler from "creeps/action/ICreepHandler";
 import ISpawnHandler from "spawns/ISpawnHandler";
 import SpawnComposer from "composer/spawnComposer";
 import SpawnConfig from "spawns/SpawnConfig";

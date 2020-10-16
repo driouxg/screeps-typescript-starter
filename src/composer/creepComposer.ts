@@ -1,12 +1,12 @@
 import * as creepRoles from "../creeps/roles";
-import BuilderHandler from "creeps/builderHandler";
-import CreepBehavior from "creeps/commonCreepBehavior";
-import HarvesterHandler from "creeps/harvesterHandler";
-import HealerHandler from "creeps/healerHandler";
-import ICreepHandler from "creeps/ICreepHandler";
-import MeleeDefenderHandler from "creeps/meleeDefenderHandler";
-import RepairerHandler from "creeps/repairerHandler";
-import UpgraderHandler from "creeps/upgraderHandler";
+import BuilderHandler from "creeps/action/builderHandler";
+import CreepBehavior from "creeps/action/commonCreepBehavior";
+import HarvesterHandler from "creeps/action/harvesterHandler";
+import HealerHandler from "creeps/action/healerHandler";
+import ICreepHandler from "creeps/action/ICreepHandler";
+import MeleeDefenderHandler from "creeps/action/meleeDefenderHandler";
+import RepairerHandler from "creeps/action/repairerHandler";
+import UpgraderHandler from "creeps/action/upgraderHandler";
 
 export default class CreepComposer {
   public creepHandlerDict(): { [creepRole: string]: ICreepHandler } {
