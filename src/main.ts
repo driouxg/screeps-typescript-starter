@@ -3,12 +3,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import ConstructionHandler from "./construction/constructionHandler";
 import ContainerConstructionHandler from "construction/containerConstructionHandler";
-import CreepHandler from "./creeps/creepHandler";
+import CreepComposer from "composer/creepComposer";
 import { ErrorMapper } from "utils/ErrorMapper";
 import ExtensionConstructionHandler from "construction/extensionConstructionHandler";
 import ExtractorConstructionHandler from "construction/extractorConstructionHandler";
 import FactoryConstructionHandler from "construction/factoryConstructionHandler";
 import IConstructionHandler from "construction/IConstructionHandler";
+import ICreepHandler from "creeps/ICreepHandler";
 import LabConstructionHandler from "construction/labConstructionHandler";
 import LinkConstructionHandler from "construction/linkConstructionHandler";
 import NukerConstructionHandler from "construction/nukerConstructionHandler";
@@ -25,16 +26,25 @@ import WallConstructionHandler from "construction/wallConstructionHandler";
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
+  const creepComposer = new CreepComposer();
+  const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict();
   const spawnHandler: SpawnHandler = new SpawnHandler();
-  const creepHandler: CreepHandler = new CreepHandler();
   const constructionHandler: ConstructionHandler = new ConstructionHandler(constructionHandlers());
 
   spawnHandler.handle();
-  creepHandler.handle();
+  manageCreeps(creepHandlerDict);
   constructionHandler.handle();
 
   deleteMissingCreepMemory();
 });
+
+function manageCreeps(creepHandlerDict: { [creepRole: string]: ICreepHandler }) {
+  for (const creepName in Game.creeps) {
+    const creep: Creep = Game.creeps[creepName];
+    const handler: ICreepHandler = creepHandlerDict[creep.memory.role];
+    handler.handle(creep);
+  }
+}
 
 function constructionHandlers(): IConstructionHandler[] {
   return [

@@ -1,13 +1,14 @@
+import CreepBehavior from "./commonCreepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
 export default class WallRepairer implements ICreepHandler {
-  private creep: Creep;
+  private creepBehavior: CreepBehavior;
 
-  public constructor(creep: Creep) {
-    this.creep = creep;
+  public constructor(creepBehavior: CreepBehavior) {
+    this.creepBehavior = creepBehavior;
   }
 
-  public handle(): void {
+  public handle(creep: Creep): void {
     return;
   }
 }

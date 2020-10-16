@@ -1,44 +1,27 @@
+import CreepBehavior from "./commonCreepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
 export default class HarvesterHandler implements ICreepHandler {
-  private creep: Creep;
+  private creepBehavior: CreepBehavior;
 
-  public constructor(creep: Creep) {
-    this.creep = creep;
+  public constructor(creepBehavior: CreepBehavior) {
+    this.creepBehavior = creepBehavior;
   }
 
-  public handle(): void {
-    if (!this.hasEnergy()) {
-      this.creep.memory.working = false;
-    }
+  public handle(creep: Creep): void {
+    this.creepBehavior.updateWorkingState(creep);
 
-    if (this.hasMaxEnergy()) {
-      this.creep.memory.working = true;
-    }
-
-    if (this.isWorking()) {
-      const spawn: StructureSpawn | null = this.creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+    if (this.creepBehavior.isWorking(creep)) {
+      const spawn: StructureSpawn | null = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
 
       if (!spawn) return;
-      if (this.creep.transfer(spawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) this.creep.moveTo(spawn.pos);
+      if (creep.transfer(spawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(spawn.pos);
     } else {
-      const source: Source | null = this.creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+      const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
 
       if (!source) return;
 
-      if (this.creep.harvest(source) === ERR_NOT_IN_RANGE) this.creep.moveTo(source);
+      if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source);
     }
-  }
-
-  private isWorking() {
-    return this.creep.memory.working;
-  }
-
-  private hasEnergy(): boolean {
-    return this.creep.store.energy > 0;
-  }
-
-  private hasMaxEnergy(): boolean {
-    return this.creep.store.getFreeCapacity() === 0;
   }
 }

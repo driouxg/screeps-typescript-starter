@@ -1,61 +1,44 @@
+import CreepBehavior from "./commonCreepBehavior";
 import ICreepHandler from "./ICreepHandler";
 import UpgraderHandler from "./upgraderHandler";
 
 export default class BuilderHandler implements ICreepHandler {
-  private creep: Creep;
+  private creepBehavior: CreepBehavior;
 
-  public constructor(creep: Creep) {
-    this.creep = creep;
+  public constructor(commonCreepBehavior: CreepBehavior) {
+    this.creepBehavior = commonCreepBehavior;
   }
 
-  public handle(): void {
-    if (!this.hasEnergy()) {
-      this.creep.memory.working = false;
-    }
+  public handle(creep: Creep): void {
+    this.creepBehavior.updateWorkingState(creep);
 
-    if (this.hasMaxEnergy()) {
-      this.creep.memory.working = true;
-    }
-
-    if (this.isWorking()) {
-      this.buildConstructionSite();
+    if (this.creepBehavior.isWorking(creep)) {
+      this.buildConstructionSite(creep);
     } else {
-      this.harvestEnergy();
+      this.harvestEnergy(creep);
     }
   }
 
-  private isWorking() {
-    return this.creep.memory.working;
-  }
-
-  private hasEnergy(): boolean {
-    return this.creep.store.energy > 0;
-  }
-
-  private hasMaxEnergy(): boolean {
-    return this.creep.store.getFreeCapacity() === 0;
-  }
-
-  private buildConstructionSite(): void {
-    const constructionSite: ConstructionSite | null = this.creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES);
+  private buildConstructionSite(creep: Creep): void {
+    const constructionSite: ConstructionSite | null = creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES);
 
     if (constructionSite) {
-      if (this.creep.build(constructionSite) === ERR_NOT_IN_RANGE) {
-        this.creep.moveTo(constructionSite);
+      if (creep.build(constructionSite) === ERR_NOT_IN_RANGE) {
+        creep.moveTo(constructionSite);
       }
     } else {
-      const upgradeHandler: UpgraderHandler = new UpgraderHandler(this.creep);
-      upgradeHandler.handle();
+      const upgradeHandler: UpgraderHandler = new UpgraderHandler(creep);
+      upgradeHandler.handle(creep);
     }
   }
 
-  private harvestEnergy(): void {
-    const source: Source | null = this.creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+  private harvestEnergy(creep: Creep): void {
+    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
 
     if (!source) return;
 
-    if (this.creep.harvest(source) === ERR_NOT_IN_RANGE) {
-      this.creep.moveTo(source);
+    if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(source);
     }
   }
 }

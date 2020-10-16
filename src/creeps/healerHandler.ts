@@ -1,42 +1,25 @@
+import CreepBehavior from "./commonCreepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
 export default class HealerHandler implements ICreepHandler {
-  private creep: Creep;
+  private creepBehavior: CreepBehavior;
 
-  public constructor(creep: Creep) {
-    this.creep = creep;
+  public constructor(creepBehavior: CreepBehavior) {
+    this.creepBehavior = creepBehavior;
   }
 
-  public handle(): void {
-    if (!this.hasEnergy()) {
-      this.creep.memory.working = false;
-    }
+  public handle(creep: Creep): void {
+    this.creepBehavior.updateWorkingState(creep);
 
-    if (this.hasMaxEnergy()) {
-      this.creep.memory.working = true;
-    }
-
-    if (this.isWorking()) {
-      this.heal();
+    if (this.creepBehavior.isWorking(creep)) {
+      this.heal(creep);
     } else {
-      this.harvestEnergy();
+      this.harvestEnergy(creep);
     }
   }
 
-  private isWorking() {
-    return this.creep.memory.working;
-  }
-
-  private hasEnergy(): boolean {
-    return this.creep.store.energy > 0;
-  }
-
-  private hasMaxEnergy(): boolean {
-    return this.creep.store.getFreeCapacity() === 0;
-  }
-
-  private heal(): void {
-    const allies: Creep[] = this.creep.room.find(FIND_MY_CREEPS);
+  private heal(creep: Creep): void {
+    const allies: Creep[] = creep.room.find(FIND_MY_CREEPS);
 
     let allyToHeal: Creep | null = null;
 
@@ -49,18 +32,18 @@ export default class HealerHandler implements ICreepHandler {
 
     if (!allyToHeal) return;
 
-    if (this.creep.heal(allyToHeal) === ERR_NOT_IN_RANGE) {
-      this.creep.moveTo(allyToHeal);
+    if (creep.heal(allyToHeal) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(allyToHeal);
     }
   }
 
-  private harvestEnergy(): void {
-    const source: Source | null = this.creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+  private harvestEnergy(creep: Creep): void {
+    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
 
     if (!source) return;
 
-    if (this.creep.harvest(source) === ERR_NOT_IN_RANGE) {
-      this.creep.moveTo(source);
+    if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(source);
     }
   }
 }

@@ -1,57 +1,40 @@
+import CreepBehavior from "./commonCreepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
 export default class BrawlerHandler implements ICreepHandler {
-  private creep: Creep;
+  private creepBehavior: CreepBehavior;
 
-  public constructor(creep: Creep) {
-    this.creep = creep;
+  public constructor(commonCreepBehavior: CreepBehavior) {
+    this.creepBehavior = commonCreepBehavior;
   }
 
-  public handle(): void {
-    if (!this.hasEnergy()) {
-      this.creep.memory.working = false;
-    }
+  public handle(creep: Creep): void {
+    this.creepBehavior.updateWorkingState(creep);
 
-    if (this.hasMaxEnergy()) {
-      this.creep.memory.working = true;
-    }
-
-    if (this.isWorking()) {
-      this.fight();
+    if (this.creepBehavior.isWorking(creep)) {
+      this.fight(creep);
     } else {
-      this.harvestEnergy();
+      this.harvestEnergy(creep);
     }
   }
 
-  private isWorking() {
-    return this.creep.memory.working;
-  }
-
-  private hasEnergy(): boolean {
-    return this.creep.store.energy > 0;
-  }
-
-  private hasMaxEnergy(): boolean {
-    return this.creep.store.getFreeCapacity() === 0;
-  }
-
-  private fight(): void {
-    const enemy: Creep | null = this.creep.pos.findClosestByPath(FIND_HOSTILE_CREEPS);
+  private fight(creep: Creep): void {
+    const enemy: Creep | null = creep.pos.findClosestByPath(FIND_HOSTILE_CREEPS);
 
     if (!enemy) return;
 
-    if (this.creep.attack(enemy) === ERR_NOT_IN_RANGE) {
-      this.creep.moveTo(enemy);
+    if (creep.attack(enemy) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(enemy);
     }
   }
 
-  private harvestEnergy(): void {
-    const source: Source | null = this.creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+  private harvestEnergy(creep: Creep): void {
+    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
 
     if (!source) return;
 
-    if (this.creep.harvest(source) === ERR_NOT_IN_RANGE) {
-      this.creep.moveTo(source);
+    if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(source);
     }
   }
 }

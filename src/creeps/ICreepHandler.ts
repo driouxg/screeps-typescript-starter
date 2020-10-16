@@ -1,3 +1,3 @@
 export default interface ICreepHandler {
-  handle(): void;
+  handle(creep: Creep): void;
 }
