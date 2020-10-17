@@ -32,13 +32,14 @@ export default class ContructionHandler {
   private buildToAchieveDesiredState(room: Room, desiredState: string[][]): void {
     const constructionPos: ConstructionPosition = new ConstructionPosition(room.memory.constructionPos);
 
+    const desiredSitesConstructedPerTick = 10;
     let sitesReviewed = 0;
 
-    while (sitesReviewed < 5) {
+    while (sitesReviewed < desiredSitesConstructedPerTick) {
       const y: number = constructionPos.getY();
       let idx = constructionPos.getX();
 
-      while (idx < 50 && sitesReviewed < 10) {
+      while (idx < 50 && sitesReviewed < desiredSitesConstructedPerTick) {
         const x: number = constructionPos.getX();
         if (desiredState[y][x] !== "") {
           room.createConstructionSite(x, y, this.mapStringToStructureConstant(desiredState[y][x]));

@@ -5,12 +5,12 @@ import ConstructionComposer from "composer/constructionComposer";
 import ConstructionHandler from "./construction/constructionHandler";
 import CreepComposer from "composer/creepComposer";
 import { ErrorMapper } from "utils/ErrorMapper";
+import IConstructionHandler from "construction/IConstructionHandler";
 import ICreepHandler from "creeps/action/ICreepHandler";
 import ISpawnHandler from "creeps/spawn/ISpawnHandler";
 import SpawnComposer from "composer/spawnComposer";
 import SpawnConfig from "creeps/spawn/SpawnConfig";
 import generateGuid from "./utils/guidGenerator";
-import IConstructionHandler from "construction/IConstructionHandler";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
