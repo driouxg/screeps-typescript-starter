@@ -6,6 +6,7 @@ export default class HealerSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
   private nextSpawnHandler: ISpawnHandler;
   private spawn: StructureSpawn;
+  private role: string = creepRoles.HEALER;
 
   public constructor(
     creepPopulationDict: { [key: string]: number },
@@ -20,8 +21,8 @@ export default class HealerSpawnHandler implements ISpawnHandler {
   public spawnCreep(): SpawnConfig {
     const enemies: Creep[] = this.spawn.room.find(FIND_HOSTILE_CREEPS);
 
-    if (this.creepPopulationDict[creepRoles.HEALER] < Math.ceil(enemies.length / 2))
-      return new SpawnConfig([TOUGH, MOVE, HEAL], creepRoles.HEALER);
+    if (this.creepPopulationDict[this.role] < Math.ceil(enemies.length / 2))
+      return new SpawnConfig([TOUGH, MOVE, HEAL], this.role);
     else return this.nextSpawnHandler.spawnCreep();
   }
 }

@@ -5,6 +5,7 @@ import SpawnConfig from "./SpawnConfig";
 export default class BuilderSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
   private nextSpawnHandler: ISpawnHandler;
+  private role: string = creepRoles.BUILDER;
 
   public constructor(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
     this.creepPopulationDict = creepPopulationDict;
@@ -12,8 +13,7 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(): SpawnConfig {
-    if (this.creepPopulationDict[creepRoles.BUILDER] < 2)
-      return new SpawnConfig([WORK, WORK, CARRY, MOVE], creepRoles.BUILDER);
+    if (this.creepPopulationDict[this.role] < 2) return new SpawnConfig([WORK, WORK, CARRY, MOVE], this.role);
     else return this.nextSpawnHandler.spawnCreep();
   }
 }
