@@ -1,5 +1,5 @@
 import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../utils/latticeSearch";
+import { findNClosestEmptyPositionsLattice } from "../../utils/latticeSearch";
 
 export default class NukerConstructionHandler implements IConstructionHandler {
   private maxNukersPerRoom = 1;

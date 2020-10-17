@@ -1,8 +1,8 @@
 import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../utils/latticeSearch";
+import { findNClosestEmptyPositionsLattice } from "../../utils/latticeSearch";
 
-export default class ObserverConstructionHandler implements IConstructionHandler {
-  private maxObserversPerRoom = 1;
+export default class TowerConstructionHandler implements IConstructionHandler {
+  private maxTowersPerRoom = 6;
 
   public handle(room: Room, desiredState: string[][]): string[][] {
     if (!(room.controller && room.controller.my)) return desiredState;
@@ -10,11 +10,11 @@ export default class ObserverConstructionHandler implements IConstructionHandler
     const positions: number[][] = findNClosestEmptyPositionsLattice(
       room.controller.pos,
       desiredState,
-      this.maxObserversPerRoom
+      this.maxTowersPerRoom
     );
 
     for (const position of positions) {
-      desiredState[position[1]][position[0]] = STRUCTURE_OBSERVER;
+      desiredState[position[1]][position[0]] = STRUCTURE_TOWER;
     }
 
     return desiredState;

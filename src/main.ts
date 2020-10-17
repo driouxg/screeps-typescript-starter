@@ -2,10 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import ConstructionComposer from "composer/constructionComposer";
-import ConstructionHandler from "./construction/constructionHandler";
+import ConstructionHandler from "./structures/construction/constructionHandler";
 import CreepComposer from "composer/creepComposer";
 import { ErrorMapper } from "utils/ErrorMapper";
-import IConstructionHandler from "construction/IConstructionHandler";
+import IConstructionHandler from "structures/construction/IConstructionHandler";
 import ICreepHandler from "creeps/action/ICreepHandler";
 import ISpawnHandler from "creeps/spawn/ISpawnHandler";
 import SpawnComposer from "composer/spawnComposer";

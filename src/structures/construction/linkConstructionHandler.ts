@@ -1,4 +1,4 @@
-import { findNClosestEmptyPositionsLattice, findNClosestEmptyPositionsWithBuffer } from "../utils/latticeSearch";
+import { findNClosestEmptyPositionsLattice, findNClosestEmptyPositionsWithBuffer } from "../../utils/latticeSearch";
 import IConstructionHandler from "./IConstructionHandler";
 
 export default class LinkConstructionHandler implements IConstructionHandler {

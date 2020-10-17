@@ -1,5 +1,5 @@
 import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositionsFill } from "../utils/latticeSearch";
+import { findNClosestEmptyPositionsFill } from "../../utils/latticeSearch";
 
 export default class ContainerConstructionHandler implements IConstructionHandler {
   private maxContainersPerRoom = 5;

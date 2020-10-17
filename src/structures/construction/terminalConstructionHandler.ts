@@ -1,8 +1,8 @@
 import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../utils/latticeSearch";
+import { findNClosestEmptyPositionsLattice } from "../../utils/latticeSearch";
 
-export default class ExtensionConstructionHandler implements IConstructionHandler {
-  private maxExtensionsPerRoom = 60;
+export default class TerminalConstructionHandler implements IConstructionHandler {
+  private maxTerminalsPerRoom = 1;
 
   public handle(room: Room, desiredState: string[][]): string[][] {
     if (!(room.controller && room.controller.my)) return desiredState;
@@ -10,11 +10,11 @@ export default class ExtensionConstructionHandler implements IConstructionHandle
     const positions: number[][] = findNClosestEmptyPositionsLattice(
       room.controller.pos,
       desiredState,
-      this.maxExtensionsPerRoom
+      this.maxTerminalsPerRoom
     );
 
     for (const position of positions) {
-      desiredState[position[1]][position[0]] = STRUCTURE_EXTENSION;
+      desiredState[position[1]][position[0]] = STRUCTURE_TERMINAL;
     }
 
     return desiredState;
