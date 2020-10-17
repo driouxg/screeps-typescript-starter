@@ -8,8 +8,11 @@ import { ErrorMapper } from "utils/ErrorMapper";
 import IConstructionHandler from "structures/construction/IConstructionHandler";
 import ICreepHandler from "creeps/action/ICreepHandler";
 import ISpawnHandler from "creeps/spawn/ISpawnHandler";
+import IStructureActionHandler from "structures/action/IStructureActionHandler";
 import SpawnComposer from "composer/spawnComposer";
 import SpawnConfig from "creeps/spawn/SpawnConfig";
+import StructureActionComposer from "composer/structureActionComposer";
+import StructureActionHandler from "structures/action/structureActionHandler";
 import generateGuid from "./utils/guidGenerator";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
@@ -17,12 +20,14 @@ import generateGuid from "./utils/guidGenerator";
 export const loop = ErrorMapper.wrapLoop(() => {
   const creepComposer = new CreepComposer();
   const spawnComposer: SpawnComposer = new SpawnComposer();
+  const structureActionComposer: StructureActionComposer = new StructureActionComposer();
   const constructionComposer: ConstructionComposer = new ConstructionComposer();
   const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict();
 
   manageCreepSpawning(spawnComposer);
   manageCreepActions(creepHandlerDict);
   manageConstruction(constructionComposer.constructionHandlers());
+  manageStructureActions(structureActionComposer.structureActionHandlers());
 
   deleteMissingCreepMemory();
 });
@@ -52,6 +57,15 @@ function manageCreepSpawning(spawnComposer: SpawnComposer): void {
     spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
       memory: { role: spawnConfig.getRole(), working: false, room: spawn.room.name }
     });
+  }
+}
+
+function manageStructureActions(structureActionHandlers: IStructureActionHandler[]) {
+  // const structureActionHandler: StructureActionHandler = new StructureActionHandler(structureActionHandlers);
+  for (const roomName in Game.rooms) {
+    for (const structureActionHandler of structureActionHandlers) {
+      structureActionHandler.handle(Game.rooms[roomName]);
+    }
   }
 }
 

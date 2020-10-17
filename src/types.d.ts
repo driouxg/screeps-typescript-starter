@@ -13,6 +13,7 @@ interface Memory {
 }
 
 interface RoomMemory {
+  myTowerPositions: number[][];
   constructionPos: { [key: string]: number };
   desiredState: string[][];
 }
