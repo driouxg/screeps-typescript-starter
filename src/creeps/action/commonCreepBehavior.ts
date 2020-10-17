@@ -1,5 +1,3 @@
-import CreepComposer from "composer/creepComposer";
-
 export default class CreepBehavior {
   public isWorking(creep: Creep): boolean {
     return creep.memory.working;
@@ -24,7 +22,7 @@ export default class CreepBehavior {
   }
 
   private canStoreEnergy(creep: Creep): boolean {
-    return creep.store.getCapacity() !== 0;
+    return creep.store.getCapacity() !== 0 && creep.store.getCapacity() !== null;
   }
 
   public harvestEnergy(creep: Creep): void {

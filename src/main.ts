@@ -12,7 +12,6 @@ import IStructureActionHandler from "structures/action/IStructureActionHandler";
 import SpawnComposer from "composer/spawnComposer";
 import SpawnConfig from "creeps/spawn/SpawnConfig";
 import StructureActionComposer from "composer/structureActionComposer";
-import StructureActionHandler from "structures/action/structureActionHandler";
 import generateGuid from "./utils/guidGenerator";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
@@ -61,7 +60,6 @@ function manageCreepSpawning(spawnComposer: SpawnComposer): void {
 }
 
 function manageStructureActions(structureActionHandlers: IStructureActionHandler[]) {
-  // const structureActionHandler: StructureActionHandler = new StructureActionHandler(structureActionHandlers);
   for (const roomName in Game.rooms) {
     for (const structureActionHandler of structureActionHandlers) {
       structureActionHandler.handle(Game.rooms[roomName]);

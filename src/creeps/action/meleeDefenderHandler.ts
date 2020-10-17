@@ -19,8 +19,6 @@ export default class MeleeDefenderHandler implements ICreepHandler {
 
     if (!enemy) return;
 
-    if (creep.attack(enemy) === ERR_NOT_IN_RANGE) {
-      creep.moveTo(enemy);
-    }
+    if (creep.attack(enemy) === ERR_NOT_IN_RANGE) creep.moveTo(enemy);
   }
 }
