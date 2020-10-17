@@ -28,7 +28,9 @@ export default class TowerActionHandler implements IStructureActionHandler {
     const healerEnemies: Creep[] = enemies.filter(c => 0 < c.getActiveBodyparts(HEAL));
 
     if (0 < healerEnemies.length) tower.attack(healerEnemies[0]);
-    else tower.attack(enemies[0]);
+    else {
+      console.log(tower.attack(enemies[0]));
+    }
   }
 
   private repair(tower: StructureTower) {

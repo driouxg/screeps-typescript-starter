@@ -23,9 +23,8 @@ export default class RepairerHandler implements ICreepHandler {
     });
 
     if (0 < structures.length) {
-      if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE) {
-        creep.moveTo(structures[0]);
-      }
+      if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE)
+        this.creepBehavior.moveToWithSinglePath(creep, structures[0].pos);
     } else {
       this.nextCreepHandler.handle(creep);
     }

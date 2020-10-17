@@ -21,7 +21,8 @@ export default class BuilderHandler implements ICreepHandler {
     const constructionSite: ConstructionSite | null = creep.pos.findClosestByPath(FIND_CONSTRUCTION_SITES);
 
     if (constructionSite) {
-      if (creep.build(constructionSite) === ERR_NOT_IN_RANGE) creep.moveTo(constructionSite);
+      if (creep.build(constructionSite) === ERR_NOT_IN_RANGE)
+        this.creepBehavior.moveToWithSinglePath(creep, constructionSite.pos);
     } else {
       this.nextCreepHandler.handle(creep);
     }

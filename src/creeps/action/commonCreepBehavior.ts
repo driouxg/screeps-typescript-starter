@@ -30,4 +30,9 @@ export default class CreepBehavior {
     if (!source) return;
     if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source);
   }
+
+  public moveToWithSinglePath(creep: Creep, pos: RoomPosition): void {
+    // eslint-disable-next-line id-blacklist
+    creep.moveTo(pos, { reusePath: Number.MAX_SAFE_INTEGER });
+  }
 }

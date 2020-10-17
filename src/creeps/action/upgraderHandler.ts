@@ -21,7 +21,7 @@ export default class UpgraderHandler implements ICreepHandler {
     if (!controller) return;
 
     if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
-      creep.moveTo(controller);
+      this.creepBehavior.moveToWithSinglePath(creep, controller.pos);
     }
   }
 }
