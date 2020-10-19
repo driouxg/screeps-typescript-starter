@@ -4,7 +4,7 @@ export default class TowerActionHandler implements IStructureActionHandler {
   public handle(room: Room): void {
     const myTowerPositions: number[][] = this.getMyTowerPositions(room);
 
-    if (myTowerPositions.length === 0) return;
+    if (!this.canOperateTowersInThisRoom(room)) return;
 
     for (const pos of myTowerPositions) {
       const tower: StructureTower = this.getTowerAtPos(room, pos);
@@ -65,5 +65,10 @@ export default class TowerActionHandler implements IStructureActionHandler {
 
   private cacheMyTowerPositions(room: Room, myTowerPositions: number[][]) {
     room.memory.myTowerPositions = myTowerPositions;
+  }
+
+  private canOperateTowersInThisRoom(room: Room): boolean {
+    const myTowerPositions = this.getMyTowerPositions(room);
+    return !room.controller || !room.controller.my || room.controller.level < 3 || myTowerPositions.length === 0;
   }
 }
