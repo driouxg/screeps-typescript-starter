@@ -69,6 +69,8 @@ export default class TowerActionHandler implements IStructureActionHandler {
 
   private canOperateTowersInThisRoom(room: Room): boolean {
     const myTowerPositions = this.getMyTowerPositions(room);
-    return !room.controller || !room.controller.my || room.controller.level < 3 || myTowerPositions.length === 0;
+    return (
+      room.controller !== undefined && room.controller.my && 3 <= room.controller.level && 0 < myTowerPositions.length
+    );
   }
 }
