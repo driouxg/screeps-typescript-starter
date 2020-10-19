@@ -53,3 +53,8 @@ To visit the docs, [click here](https://screepers.gitbook.io/screeps-typescript-
 ## Contributing
 
 Issues, Pull Requests, and contribution to the docs are welcome! See our [Contributing Guidelines](CONTRIBUTING.md) for more details.
+
+## Useful Links
+
+https://gitlab.com/seancl/screeps-autobahn
+https://github.com/bencbartlett/Overmind/blob/master/src/algorithms/minCut.ts
