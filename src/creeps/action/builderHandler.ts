@@ -47,10 +47,12 @@ export default class BuilderHandler implements ICreepHandler {
 
   private buildPriorityDict(): { [structureName: string]: number } {
     const arr = [
+      STRUCTURE_TOWER,
+      STRUCTURE_WALL,
+      STRUCTURE_RAMPART,
       STRUCTURE_EXTENSION,
       STRUCTURE_STORAGE,
       STRUCTURE_CONTAINER,
-      STRUCTURE_TOWER,
       STRUCTURE_ROAD,
       STRUCTURE_LINK,
       STRUCTURE_EXTRACTOR,
