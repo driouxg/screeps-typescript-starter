@@ -12,9 +12,9 @@ export default class SpawnComposer {
   public spawner(spawn: StructureSpawn): ISpawnHandler {
     const creepPopulationDict: { [key: string]: number } = this.creepPopulationDict();
 
-    const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, this.noOpSpawnHandler());
-    const repairerSpawnHandler = this.repairerSpawnHandler(creepPopulationDict, builderSpawnHandler);
-    const upgraderSpawnHandler = this.upgraderSpawnHandler(creepPopulationDict, repairerSpawnHandler);
+    const repairerSpawnHandler = this.repairerSpawnHandler(creepPopulationDict, this.noOpSpawnHandler());
+    const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, repairerSpawnHandler);
+    const upgraderSpawnHandler = this.upgraderSpawnHandler(creepPopulationDict, builderSpawnHandler);
     const harvesterSpawnHandler = this.harvesterSpawnHandler(creepPopulationDict, upgraderSpawnHandler);
     const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, harvesterSpawnHandler, spawn);
     const meleeDefenderSpawnHandler = this.meleeDefenderSpawnHandler(creepPopulationDict, healerSpawnHandler, spawn);
