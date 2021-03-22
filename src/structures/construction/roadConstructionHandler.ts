@@ -22,7 +22,7 @@ export default class RoadConstructionHandler implements IConstructionHandler {
       const path: PathStep[] = controller.pos.findPathTo(source);
 
       for (const step of path) {
-        if (isBuildablePos(step.x, step.y)) desiredState[step.y][step.x] = STRUCTURE_ROAD;
+        if (isBuildablePos(step.x, step.y) && !this.posIsSource(source, step.x, step.y)) desiredState[step.y][step.x] = STRUCTURE_ROAD;
       }
     }
   }
@@ -70,5 +70,9 @@ export default class RoadConstructionHandler implements IConstructionHandler {
 
     if (!isWall(x, y, controller.room.name) && isInBounds(x, y)) return [x, y];
     else return undefined;
+  }
+
+  private posIsSource(source: Source, x: number, y: number): boolean {
+    return source.pos.x === x && source.pos.y === y;
   }
 }
