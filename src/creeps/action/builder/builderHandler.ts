@@ -1,5 +1,5 @@
-import CreepBehavior from "./commonCreepBehavior";
-import ICreepHandler from "./ICreepHandler";
+import CreepBehavior from "../commonCreepBehavior";
+import ICreepHandler from "../ICreepHandler";
 
 export default class BuilderHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
@@ -47,11 +47,11 @@ export default class BuilderHandler implements ICreepHandler {
 
   private buildPriorityDict(): { [structureName: string]: number } {
     const arr = [
+      STRUCTURE_CONTAINER,
       STRUCTURE_ROAD,
       STRUCTURE_TOWER,
       STRUCTURE_EXTENSION,
       STRUCTURE_STORAGE,
-      STRUCTURE_CONTAINER,
       STRUCTURE_LINK,
       STRUCTURE_EXTRACTOR,
       STRUCTURE_LAB,
