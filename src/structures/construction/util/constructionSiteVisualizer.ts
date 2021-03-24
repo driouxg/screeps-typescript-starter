@@ -1,17 +1,15 @@
-import IConstructionHandler from "../IConstructionHandler";
-
-export default class ConstructionSiteVisualizer implements IConstructionHandler {
+export default class ConstructionSiteVisualizer {
     private settings: ISettings;
 
     public constructor(settings: ISettings) {
         this.settings = settings;
     }
 
-    public handle(room: Room, desiredState: string[][]): string[][] {
-        if (this.settings.constructionSite.visualize !== "true") return desiredState;
+    public handle(room: Room): void {
+        if (this.settings.constructionSite.visualize !== "true") return;
 
         this.print(room);
-        return desiredState;
+        return;
     }
 
     private print(room: Room): void {

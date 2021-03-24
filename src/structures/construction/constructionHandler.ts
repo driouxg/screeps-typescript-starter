@@ -1,12 +1,18 @@
 import ConstructionPosition from "./constructionPosition";
 import IConstructionHandler from "./IConstructionHandler";
 import { buildStringGrid } from "utils/gridBuilder";
+import ConstructionSiteVisualizer from "./util/constructionSiteVisualizer";
 
 export default class ContructionHandler {
   private constructionHandlers: IConstructionHandler[];
+  private constructionSiteVisualizer: ConstructionSiteVisualizer;
 
-  public constructor(constructionHandlers: IConstructionHandler[]) {
+  public constructor(
+    constructionHandlers: IConstructionHandler[],
+    constructionSiteVisualizer: ConstructionSiteVisualizer
+  ) {
     this.constructionHandlers = constructionHandlers;
+    this.constructionSiteVisualizer = constructionSiteVisualizer;
   }
 
   public handle(): void {
@@ -24,6 +30,7 @@ export default class ContructionHandler {
 
       this.buildToAchieveDesiredState(room, desiredState);
       this.updateCachedDesiredState(room, desiredState);
+      this.constructionSiteVisualizer.handle(room);
     }
   }
 
