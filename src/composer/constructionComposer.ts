@@ -13,10 +13,22 @@ import SpawnConstructionHandler from "structures/construction/spawnConstructionH
 import StorageConstructionHandler from "structures/construction/storageConstructionHandler";
 import TerminalConstructionHandler from "structures/construction/terminalConstructionHandler";
 import TowerConstructionHandler from "structures/construction/towerConstructionHandler";
+import ConstructionSiteVisualizer from "structures/construction/util/constructionSiteVisualizer";
 import WallConstructionHandler from "structures/construction/wallConstructionHandler";
+import settings from "settings";
+import ConstructionHandler from "../structures/construction/constructionHandler";
+import DesiredStateConstructor from "structures/construction/desiredStateConstructor";
 
 export default class ConstructionComposer {
-  public constructionHandlers(): IConstructionHandler[] {
+  public compose(): ConstructionHandler {
+    return new ConstructionHandler(
+      this.constructionHandlers(),
+      new ConstructionSiteVisualizer(settings),
+      new DesiredStateConstructor()
+    );
+  }
+
+  private constructionHandlers(): IConstructionHandler[] {
     return [
       new RoadConstructionHandler(),
       new WallConstructionHandler(),

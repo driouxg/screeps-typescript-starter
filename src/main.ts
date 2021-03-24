@@ -13,8 +13,6 @@ import SpawnComposer from "composer/spawnComposer";
 import SpawnConfig from "creeps/spawn/SpawnConfig";
 import StructureActionComposer from "composer/structureActionComposer";
 import generateGuid from "./utils/guidGenerator";
-import ConstructionSiteVisualizer from "structures/construction/util/constructionSiteVisualizer";
-import settings from "settings";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
@@ -27,7 +25,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   manageCreepSpawning(spawnComposer);
   manageCreepActions(creepHandlerDict);
-  manageConstruction(constructionComposer.constructionHandlers());
+  constructionComposer.compose();
   manageStructureActions(structureActionComposer.structureActionHandlers());
 
   deleteMissingCreepMemory();
@@ -39,14 +37,6 @@ function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandl
     const handler: ICreepHandler = creepHandlerDict[creep.memory.role];
     handler.handle(creep);
   }
-}
-
-function manageConstruction(constructionHandlers: IConstructionHandler[]): void {
-  const constructionHandler: ConstructionHandler = new ConstructionHandler(
-    constructionHandlers,
-    new ConstructionSiteVisualizer(settings)
-  );
-  constructionHandler.handle();
 }
 
 function manageCreepSpawning(spawnComposer: SpawnComposer): void {

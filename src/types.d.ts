@@ -2,8 +2,9 @@
 
 interface ISettings {
   constructionSite: {
-    visualize: "true" | "false"
-  }
+    visualize: "true" | "false";
+    desiredSitesConstructedPerTick: number;
+  };
 }
 
 // memory extension samples
