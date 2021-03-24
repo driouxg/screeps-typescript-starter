@@ -13,7 +13,9 @@ import SpawnConstructionHandler from "structures/construction/spawnConstructionH
 import StorageConstructionHandler from "structures/construction/storageConstructionHandler";
 import TerminalConstructionHandler from "structures/construction/terminalConstructionHandler";
 import TowerConstructionHandler from "structures/construction/towerConstructionHandler";
+import ConstructionSiteVisualizer from "structures/construction/util/constructionSiteVisualizer";
 import WallConstructionHandler from "structures/construction/wallConstructionHandler";
+import {settings} from "../settings";
 
 export default class ConstructionComposer {
   public constructionHandlers(): IConstructionHandler[] {
@@ -32,7 +34,8 @@ export default class ConstructionComposer {
       new ObserverConstructionHandler(),
       new ExtensionConstructionHandler(),
       new LabConstructionHandler(),
-      new ExtractorConstructionHandler()
+      new ExtractorConstructionHandler(),
+      new ConstructionSiteVisualizer(settings)
     ];
   }
 }

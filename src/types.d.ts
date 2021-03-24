@@ -1,5 +1,11 @@
 // example declaration file - remove these and add your own custom typings
 
+interface ISettings {
+  constructionSite: {
+    visualize: "true" | "false"
+  }
+}
+
 // memory extension samples
 interface CreepMemory {
   role: string;
