@@ -1,5 +1,7 @@
-export const settings: ISettings = {
-    constructionSite: {
-        visualize: "true"
-    }
-}
+const settings: ISettings = {
+  constructionSite: {
+    visualize: "true"
+  }
+};
+
+export default settings;

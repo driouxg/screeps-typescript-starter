@@ -14,7 +14,7 @@ import SpawnConfig from "creeps/spawn/SpawnConfig";
 import StructureActionComposer from "composer/structureActionComposer";
 import generateGuid from "./utils/guidGenerator";
 import ConstructionSiteVisualizer from "structures/construction/util/constructionSiteVisualizer";
-import { settings } from "settings";
+import settings from "settings";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
