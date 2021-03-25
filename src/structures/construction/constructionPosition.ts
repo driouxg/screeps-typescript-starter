@@ -20,12 +20,17 @@ export default class ConstructionPosition {
     return this.y;
   }
 
-  public incrementX(): void {
+  private incrementX(): void {
     this.x = (this.x + 1) % 50;
   }
 
-  public incrementY(): void {
+  private incrementY(): void {
     this.y = (this.y + 1) % 50;
+  }
+
+  public increment(): void {
+    if (50 <= this.x + 1) this.incrementY();
+    this.incrementX();
   }
 
   public serialize(): { [key: string]: number } {

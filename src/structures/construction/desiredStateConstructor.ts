@@ -14,21 +14,15 @@ export default class DesiredStateConstructor {
     let sitesReviewed = 0;
 
     while (sitesReviewed < this.desiredSitesConstructedPerTick) {
-      const y: number = constructionPos.getY();
-      let idx = constructionPos.getX();
+      const x: number = constructionPos.getX(),
+        y = constructionPos.getY();
 
-      while (idx < 50 && sitesReviewed < this.desiredSitesConstructedPerTick) {
-        const x: number = constructionPos.getX();
-
-        if (desiredState[y][x] !== "") {
-          room.createConstructionSite(x, y, this.mapStringToStructureConstant(desiredState[y][x]));
-          sitesReviewed++;
-        }
-        idx++;
-        constructionPos.incrementX();
+      if (desiredState[y][x] !== "") {
+        room.createConstructionSite(x, y, this.mapStringToStructureConstant(desiredState[y][x]));
+        sitesReviewed++;
       }
 
-      if (sitesReviewed < this.desiredSitesConstructedPerTick) constructionPos.incrementY();
+      constructionPos.increment();
     }
     room.memory.constructionPos = constructionPos.serialize();
   }
