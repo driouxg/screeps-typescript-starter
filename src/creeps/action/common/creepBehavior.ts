@@ -1,4 +1,12 @@
+import ICreepEnergyRetrieval from "./ICommonCreepBehavior";
+
 export default class CreepBehavior {
+  private energyRetrieval: ICreepEnergyRetrieval;
+
+  public constructor(energyRetrieval: ICreepEnergyRetrieval) {
+    this.energyRetrieval = energyRetrieval;
+  }
+
   public isWorking(creep: Creep): boolean {
     return creep.memory.working;
   }
@@ -26,11 +34,7 @@ export default class CreepBehavior {
   }
 
   public harvestEnergy(creep: Creep): void {
-    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE, {
-      filter: s => s.room === creep.room
-    });
-    if (!source) return;
-    if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source);
+    this.energyRetrieval.retrieve(creep);
   }
 
   public moveToWithSinglePath(creep: Creep, pos: RoomPosition): void {

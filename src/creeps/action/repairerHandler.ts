@@ -1,6 +1,7 @@
-import CreepBehavior from "./common/commonCreepBehavior";
+import CreepBehavior from "./common/creepBehavior";
 import ICreepHandler from "./ICreepHandler";
-import { findTowers } from "../../utils/roomTowersUtil";
+import { findTowers } from "../../utils/structureUtils";
+
 export default class RepairerHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
   private nextCreepHandler: ICreepHandler;

@@ -1,1 +1,3 @@
-export default interface ICommonCreepBehavior {}
+export default interface ICreepEnergyRetrieval {
+  retrieve(creep: Creep): void;
+}

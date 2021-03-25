@@ -1,4 +1,4 @@
-import CreepBehavior from "./common/commonCreepBehavior";
+import CreepBehavior from "./common/creepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
 export default class HealerHandler implements ICreepHandler {
