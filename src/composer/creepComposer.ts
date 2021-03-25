@@ -1,6 +1,6 @@
 import * as creepRoles from "../creeps/roles";
 import BuilderHandler from "creeps/action/builder/builderHandler";
-import CreepBehavior from "creeps/action/commonCreepBehavior";
+import CreepBehavior from "creeps/action/common/commonCreepBehavior";
 import HarvesterHandler from "creeps/action/harvester/harvesterHandler";
 import HealerHandler from "creeps/action/healerHandler";
 import ICreepHandler from "creeps/action/ICreepHandler";

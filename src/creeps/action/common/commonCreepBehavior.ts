@@ -1,5 +1,3 @@
-import { filter } from "lodash";
-
 export default class CreepBehavior {
   public isWorking(creep: Creep): boolean {
     return creep.memory.working;
@@ -28,7 +26,9 @@ export default class CreepBehavior {
   }
 
   public harvestEnergy(creep: Creep): void {
-    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE, {filter: s => s.room === creep.room});
+    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE, {
+      filter: s => s.room === creep.room
+    });
     if (!source) return;
     if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source);
   }
