@@ -20,7 +20,12 @@ import ConstructionHandler from "../structures/construction/constructionHandler"
 import DesiredStateConstructor from "structures/construction/desiredStateConstructor";
 
 export default class ConstructionComposer {
-  public compose(): ConstructionHandler {
+  public compose(): void {
+    const constructionHandler: ConstructionHandler = this.constructionHandler();
+    constructionHandler.handle();
+  }
+
+  private constructionHandler(): ConstructionHandler {
     return new ConstructionHandler(
       this.constructionHandlers(),
       new ConstructionSiteVisualizer(settings),
