@@ -33,7 +33,14 @@ export default class TowerActionHandler implements IStructureActionHandler {
     const structures: AnyStructure[] = tower.room
       .find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
       .sort((s1, s2) => s1.hits - s2.hits);
-    tower.repair(structures[0]);
+
+    if (this.isEfficientlyRepairable(tower, structures[0])) tower.repair(structures[0]);
+  }
+
+  private isEfficientlyRepairable(tower: StructureTower, structure: AnyStructure): boolean {
+    const repairableHits = structure.hitsMax - structure.hitsMax;
+    const dist = this.dist(tower.pos, structure.pos);
+    return (dist <= 5 && 800 <= repairableHits) || (20 <= dist && repairableHits <= 200);
   }
 
   private heal(tower: StructureTower, myHealableCreeps: Creep[]): void {
@@ -49,5 +56,9 @@ export default class TowerActionHandler implements IStructureActionHandler {
     return (
       room.controller !== undefined && room.controller.my && 3 <= room.controller.level && 0 < myTowerPositions.length
     );
+  }
+
+  private dist(pos1: RoomPosition, pos2: RoomPosition): number {
+    return Math.sqrt(Math.pow(pos2.x - pos1.x, 2) + Math.pow(pos2.y - pos1.y, 2));
   }
 }
