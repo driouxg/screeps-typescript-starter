@@ -7,7 +7,6 @@ import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler";
 import NoOpSpawnHandler from "creeps/spawn/noOpSpawnHandler";
 import RepairerSpawnHandler from "creeps/spawn/repairerSpawnHandler";
 import SpawnConfig from "creeps/spawn/SpawnConfig";
-import SpawnHarvesterSpawnHandler from "creeps/spawn/SpawnHarvesterSpawnHandler";
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler";
 import generateGuid from "utils/guidGenerator";
 
@@ -84,10 +83,6 @@ export default class SpawnComposer {
     spawn: StructureSpawn
   ) {
     return new MeleeDefenderSpawnHandler(creepPopulationDict, nextSpawnHandler, spawn);
-  }
-
-  private spawnHarvesterSpawnHandler(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
-    return new SpawnHarvesterSpawnHandler(creepPopulationDict, nextSpawnHandler);
   }
 
   private noOpSpawnHandler(): ISpawnHandler {
