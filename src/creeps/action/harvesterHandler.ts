@@ -1,3 +1,4 @@
+import { findContainers, findExtensions, findSpawns, findStorage } from "utils/structureUtils";
 import CreepBehavior from "./common/creepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
@@ -11,15 +12,38 @@ export default class HarvesterHandler implements ICreepHandler {
   public handle(creep: Creep): void {
     this.creepBehavior.updateWorkingState(creep);
 
-    if (this.creepBehavior.isWorking(creep)) {
-      // const structure = findPrioritizedStructure
+    if (this.creepBehavior.hasMaxEnergy(creep)) {
+      // offload to storage
+      const storage = findStorage(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY));
+      if (0 < storage.length) {
+        if (creep.transfer(storage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+          this.creepBehavior.moveToWithSinglePath(creep, storage[0].pos);
+        return;
+      }
 
-      // transfer to structure
+      // offload to contain
+      const containers = findContainers(creep.room).filter(c => 0 < c.store.getFreeCapacity(RESOURCE_ENERGY));
+      if (0 < containers.length) {
+        if (creep.transfer(containers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+          this.creepBehavior.moveToWithSinglePath(creep, containers[0].pos);
+        return;
+      }
 
-      const spawn: StructureSpawn | null = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
-      if (!spawn) return;
-      if (creep.transfer(spawn, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        this.creepBehavior.moveToWithSinglePath(creep, spawn.pos);
+      // offload to extensions
+      const extensions = findExtensions(creep.room).filter(e => 0 < e.store.getFreeCapacity(RESOURCE_ENERGY));
+      if (0 < extensions.length) {
+        if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+          this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
+        return;
+      }
+
+      // offload to spawns
+      const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY));
+      if (0 < spawns.length) {
+        if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+          this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos);
+        return;
+      }
     } else {
       this.creepBehavior.harvestEnergy(creep);
     }

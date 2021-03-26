@@ -1,11 +1,12 @@
-import { findContainers, findSpawns } from "utils/structureUtils";
+import { findContainers, findSpawns, findStorage } from "utils/structureUtils";
 import ICreepEnergyRetrieval from "./ICommonCreepBehavior";
 
 export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
   retrieve(creep: Creep): void {
     // storage
-    if (creep.room.storage && 0 < creep.room.storage.store.getUsedCapacity(RESOURCE_ENERGY)) {
-      if (creep.withdraw(creep.room.storage, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(creep.room.storage);
+    const storage = findStorage(creep.room).filter(s => 0 < s.store.getUsedCapacity(RESOURCE_ENERGY));
+    if (0 < storage.length) {
+      if (creep.withdraw(storage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(storage[0]);
       return;
     }
 
@@ -29,7 +30,6 @@ export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
     const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getUsedCapacity(RESOURCE_ENERGY));
 
     if (0 < spawns.length) {
-      console.log(`${creep.withdraw(spawns[0], RESOURCE_ENERGY)}`);
       if (creep.withdraw(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(spawns[0]);
       return;
     }

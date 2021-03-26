@@ -16,7 +16,7 @@ export function findContainers(room: Room): StructureContainer[] {
   if (!room.memory.positions[STRUCTURE_CONTAINER]) return [];
 
   let containers: StructureContainer[] = [];
-  for (let pos of Memory.rooms[room.name].positions[STRUCTURE_CONTAINER]) {
+  for (let pos of room.memory.positions[STRUCTURE_CONTAINER]) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const container = structures.find(s => s.structureType === STRUCTURE_CONTAINER) as StructureContainer;
 
@@ -30,22 +30,21 @@ export function findSpawns(room: Room): StructureSpawn[] {
   if (!room.memory.positions[STRUCTURE_SPAWN]) return [];
 
   let spawns = [];
-  for (let pos of Memory.rooms[room.name].positions[STRUCTURE_SPAWN]) {
+  for (let pos of room.memory.positions[STRUCTURE_SPAWN]) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const spawn = structures.find(s => s.structureType === STRUCTURE_SPAWN) as StructureSpawn;
 
-    console.log(`spawnssss: ${JSON.stringify(spawn)}`);
     if (spawn) spawns.push(spawn);
   }
 
   return spawns;
 }
 
-export function extensions(room: Room): StructureExtension[] {
+export function findExtensions(room: Room): StructureExtension[] {
   if (!room.memory.positions[STRUCTURE_EXTENSION]) return [];
 
   let extensions = [];
-  for (let pos of Memory.rooms[room.name].positions[STRUCTURE_EXTENSION]) {
+  for (let pos of room.memory.positions[STRUCTURE_EXTENSION]) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const extension = structures.find(s => s.structureType === STRUCTURE_EXTENSION) as StructureExtension;
 
@@ -53,4 +52,18 @@ export function extensions(room: Room): StructureExtension[] {
   }
 
   return extensions;
+}
+
+export function findStorage(room: Room): StructureStorage[] {
+  if (!room.memory.positions[STRUCTURE_STORAGE]) return [];
+
+  let storages = [];
+  for (let pos of room.memory.positions[STRUCTURE_STORAGE]) {
+    const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
+    const storage = structures.find(s => s.structureType === STRUCTURE_STORAGE) as StructureStorage;
+
+    if (storage) storages.push(storage);
+  }
+
+  return storages;
 }

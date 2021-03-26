@@ -39,6 +39,6 @@ export default class CreepBehavior {
 
   public moveToWithSinglePath(creep: Creep, pos: RoomPosition): void {
     // eslint-disable-next-line id-blacklist
-    creep.moveTo(pos, { reusePath: Number.MAX_SAFE_INTEGER });
+    creep.moveTo(pos, { reusePath: 10 });
   }
 }
