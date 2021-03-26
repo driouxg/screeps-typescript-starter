@@ -30,8 +30,8 @@ export default class TowerActionHandler implements IStructureActionHandler {
   }
 
   private repair(tower: StructureTower) {
-    const structures: AnyOwnedStructure[] = tower.room
-      .find(FIND_MY_STRUCTURES, { filter: s => s.hits < s.hitsMax })
+    const structures: AnyStructure[] = tower.room
+      .find(FIND_STRUCTURES, { filter: s => s.hits < s.hitsMax })
       .sort((s1, s2) => s1.hits - s2.hits);
     tower.repair(structures[0]);
   }
