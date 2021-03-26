@@ -38,7 +38,7 @@ export default class TowerActionHandler implements IStructureActionHandler {
   }
 
   private isEfficientlyRepairable(tower: StructureTower, structure: AnyStructure): boolean {
-    const repairableHits = structure.hitsMax - structure.hitsMax;
+    const repairableHits = structure.hitsMax - structure.hits;
     const dist = this.dist(tower.pos, structure.pos);
     return (dist <= 5 && 800 <= repairableHits) || (20 <= dist && repairableHits <= 200);
   }
