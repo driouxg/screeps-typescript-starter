@@ -18,6 +18,7 @@ import WallConstructionHandler from "structures/construction/wallConstructionHan
 import settings from "settings";
 import ConstructionHandler from "../structures/construction/constructionHandler";
 import DesiredStateConstructor from "structures/construction/desiredStateConstructor";
+import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdater";
 
 export default class ConstructionComposer {
   public compose(): void {
@@ -29,7 +30,8 @@ export default class ConstructionComposer {
     return new ConstructionHandler(
       this.constructionHandlers(),
       new ConstructionSiteVisualizer(settings),
-      new DesiredStateConstructor()
+      new DesiredStateConstructor(),
+      new StructurePositionsMemoryUpdater()
     );
   }
 

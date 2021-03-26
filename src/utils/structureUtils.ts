@@ -1,46 +1,54 @@
 export function findTowers(room: Room): StructureTower[] {
+  if (!room.memory.positions[STRUCTURE_TOWER]) return [];
   let towers: StructureTower[] = [];
-  for (let pos of Memory.rooms[room.name].myTowerPositions) {
-    const structures = room.lookForAt(LOOK_STRUCTURES, pos[0], pos[1]);
+
+  for (let pos of room.memory.positions[STRUCTURE_TOWER]) {
+    const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const tower = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureTower;
 
-    towers.push(tower);
+    if (tower) towers.push(tower);
   }
 
   return towers;
 }
 
 export function findContainers(room: Room): StructureContainer[] {
+  if (!room.memory.positions[STRUCTURE_CONTAINER]) return [];
+
   let containers: StructureContainer[] = [];
-  for (let pos of Memory.rooms[room.name].myContainerPositions) {
-    const structures = room.lookForAt(LOOK_STRUCTURES, pos[0], pos[1]);
+  for (let pos of Memory.rooms[room.name].positions[STRUCTURE_CONTAINER]) {
+    const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const container = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureContainer;
 
-    containers.push(container);
+    if (container) containers.push(container);
   }
 
   return containers;
 }
 
 export function findSpawns(room: Room): StructureSpawn[] {
+  if (!room.memory.positions[STRUCTURE_SPAWN]) return [];
+
   let spawns = [];
-  for (let pos of Memory.rooms[room.name].mySpawnPositions) {
-    const structures = room.lookForAt(LOOK_STRUCTURES, pos[0], pos[1]);
+  for (let pos of Memory.rooms[room.name].positions[STRUCTURE_SPAWN]) {
+    const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const spawn = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureSpawn;
 
-    spawns.push(spawn);
+    if (spawn) spawns.push(spawn);
   }
 
   return spawns;
 }
 
 export function extensions(room: Room): StructureExtension[] {
+  if (!room.memory.positions[STRUCTURE_EXTENSION]) return [];
+
   let extensions = [];
-  for (let pos of Memory.rooms[room.name].myExtensionPositions) {
-    const structures = room.lookForAt(LOOK_STRUCTURES, pos[0], pos[1]);
+  for (let pos of Memory.rooms[room.name].positions[STRUCTURE_EXTENSION]) {
+    const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const extension = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureExtension;
 
-    extensions.push(extension);
+    if (extension) extensions.push(extension);
   }
 
   return extensions;

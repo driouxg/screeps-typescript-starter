@@ -20,13 +20,14 @@ interface Memory {
 }
 
 interface RoomMemory {
-  myTowerPositions: number[][];
-  myContainerPositions: number[][];
-  myStoragePosition: number[][];
-  myExtensionPositions: number[][];
-  mySpawnPositions: number[][];
   constructionPos: { [key: string]: number };
   desiredState: string[][];
+  positions: { [structure: string]: Position[] };
+}
+
+interface Position {
+  x: number;
+  y: number;
 }
 
 // `global` extension samples
