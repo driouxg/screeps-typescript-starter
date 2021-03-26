@@ -1,5 +1,5 @@
-import CreepBehavior from "../common/creepBehavior";
-import ICreepHandler from "../ICreepHandler";
+import CreepBehavior from "./common/creepBehavior";
+import ICreepHandler from "./ICreepHandler";
 
 export default class HarvesterHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
