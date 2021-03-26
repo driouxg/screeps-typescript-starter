@@ -6,6 +6,7 @@ import ISpawnHandler from "creeps/spawn/ISpawnHandler";
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler";
 import NoOpSpawnHandler from "creeps/spawn/noOpSpawnHandler";
 import RepairerSpawnHandler from "creeps/spawn/repairerSpawnHandler";
+import SpawnHarvesterSpawnHandler from "creeps/spawn/SpawnHarvesterSpawnHandler";
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler";
 
 export default class SpawnComposer {
@@ -16,7 +17,8 @@ export default class SpawnComposer {
     const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, repairerSpawnHandler);
     const upgraderSpawnHandler = this.upgraderSpawnHandler(creepPopulationDict, builderSpawnHandler);
     const harvesterSpawnHandler = this.harvesterSpawnHandler(creepPopulationDict, upgraderSpawnHandler);
-    const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, harvesterSpawnHandler, spawn);
+    const spawnHarvesterSpawnHandler = this.spawnHarvesterSpawnHandler(creepPopulationDict, harvesterSpawnHandler);
+    const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, spawnHarvesterSpawnHandler, spawn);
     const meleeDefenderSpawnHandler = this.meleeDefenderSpawnHandler(creepPopulationDict, healerSpawnHandler, spawn);
     return meleeDefenderSpawnHandler;
   }
@@ -65,6 +67,10 @@ export default class SpawnComposer {
     spawn: StructureSpawn
   ) {
     return new MeleeDefenderSpawnHandler(creepPopulationDict, nextSpawnHandler, spawn);
+  }
+
+  private spawnHarvesterSpawnHandler(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
+    return new SpawnHarvesterSpawnHandler(creepPopulationDict, nextSpawnHandler);
   }
 
   private noOpSpawnHandler(): ISpawnHandler {
