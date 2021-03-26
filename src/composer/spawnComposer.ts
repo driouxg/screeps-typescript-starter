@@ -33,8 +33,7 @@ export default class SpawnComposer {
     const repairerSpawnHandler = this.repairerSpawnHandler(creepPopulationDict, upgraderSpawnHandler);
     const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, repairerSpawnHandler);
     const harvesterSpawnHandler = this.harvesterSpawnHandler(creepPopulationDict, builderSpawnHandler);
-    const spawnHarvesterSpawnHandler = this.spawnHarvesterSpawnHandler(creepPopulationDict, harvesterSpawnHandler);
-    const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, spawnHarvesterSpawnHandler, spawn);
+    const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, harvesterSpawnHandler, spawn);
     const meleeDefenderSpawnHandler = this.meleeDefenderSpawnHandler(creepPopulationDict, healerSpawnHandler, spawn);
     return meleeDefenderSpawnHandler;
   }
