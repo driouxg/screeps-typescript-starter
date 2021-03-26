@@ -22,7 +22,6 @@ export default class CreepComposer {
     dictionary[creepRoles.MELEE_DEFENDER] = this.meleeDefenderHandler(structureCreepBehavior);
     dictionary[creepRoles.REPAIRER] = this.repairerHandler(structureCreepBehavior);
     dictionary[creepRoles.HEALER] = this.healerHandler(structureCreepBehavior);
-    dictionary[creepRoles.SPAWN_HARVESTER] = this.spawnHarvesterHandler(nearbySourceCreepBehavior);
 
     return dictionary;
   }
