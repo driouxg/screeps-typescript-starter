@@ -9,6 +9,7 @@ import RepairerHandler from "creeps/action/repairerHandler";
 import UpgraderHandler from "creeps/action/upgraderHandler";
 import StructureEnergyCollector from "creeps/action/common/structureEnergyHarvester";
 import NearbySourceEnergyHarvester from "creeps/action/common/NearbySourceEnergyHarvester";
+import SpawnHarvesterHandler from "creeps/action/spawnHarvesterHandler";
 
 export default class CreepComposer {
   public creepHandlerDict(): { [creepRole: string]: ICreepHandler } {
@@ -22,6 +23,7 @@ export default class CreepComposer {
     dictionary[creepRoles.MELEE_DEFENDER] = this.meleeDefenderHandler(structureCreepBehavior);
     dictionary[creepRoles.REPAIRER] = this.repairerHandler(structureCreepBehavior);
     dictionary[creepRoles.HEALER] = this.healerHandler(structureCreepBehavior);
+    dictionary[creepRoles.SPAWN_HARVESTER] = this.spawnHarvesterHandler(nearbySourceCreepBehavior);
 
     return dictionary;
   }
@@ -48,5 +50,9 @@ export default class CreepComposer {
 
   public healerHandler(creepBehavior: CreepBehavior): HealerHandler {
     return new HealerHandler(creepBehavior);
+  }
+
+  public spawnHarvesterHandler(creepBehavior: CreepBehavior): SpawnHarvesterHandler {
+    return new SpawnHarvesterHandler(creepBehavior);
   }
 }
