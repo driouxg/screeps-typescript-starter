@@ -27,11 +27,11 @@ export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
     }
 
     // spawns
-    const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getUsedCapacity(RESOURCE_ENERGY));
+    // const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getUsedCapacity(RESOURCE_ENERGY));
 
-    if (0 < spawns.length) {
-      if (creep.withdraw(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(spawns[0]);
-      return;
-    }
+    // if (0 < spawns.length) {
+    //   if (creep.withdraw(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(spawns[0]);
+    //   return;
+    // }
   }
 }

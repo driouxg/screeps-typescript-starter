@@ -8,7 +8,7 @@ import MeleeDefenderHandler from "creeps/action/meleeDefenderHandler";
 import RepairerHandler from "creeps/action/repairerHandler";
 import UpgraderHandler from "creeps/action/upgraderHandler";
 import StructureEnergyCollector from "creeps/action/common/structureEnergyHarvester";
-import NearbySourceEnergyHarvester from "creeps/action/common/NearbySourceEnergyHarvester";
+import NearbySourceEnergyHarvester from "creeps/action/common/nearbySourceEnergyHarvester";
 import SpawnHarvesterHandler from "creeps/action/spawnHarvesterHandler";
 
 export default class CreepComposer {
