@@ -34,11 +34,11 @@ export default class ContructionHandler {
           desiredState = constructionHandler.handle(room, desiredState);
         }
 
+        this.updateCachedDesiredState(room, desiredState);
         this.structurePositionsMemoryUpdater.update(room);
       }
 
       this.desiredStateConstructor.construct(room, desiredState);
-      this.updateCachedDesiredState(room, desiredState);
       this.constructionSiteVisualizer.handle(room);
     }
   }
