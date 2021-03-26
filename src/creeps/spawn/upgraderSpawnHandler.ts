@@ -13,7 +13,7 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(): SpawnConfig {
-    if (this.creepPopulationDict[this.role] < 3) return new SpawnConfig([WORK, CARRY, MOVE, MOVE], this.role);
+    if (this.creepPopulationDict[this.role] < 1) return new SpawnConfig([WORK, CARRY, MOVE, MOVE], this.role);
     else return this.nextSpawnHandler.spawnCreep();
   }
 }
