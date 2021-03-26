@@ -21,6 +21,14 @@ export default class HarvesterHandler implements ICreepHandler {
         return;
       }
 
+      // offload to extensions
+      const extensions = findExtensions(creep.room).filter(e => 0 < e.store.getFreeCapacity(RESOURCE_ENERGY));
+      if (0 < extensions.length) {
+        if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+          this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
+        return;
+      }
+
       // offload to storage
       const storage = findStorage(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY));
       if (0 < storage.length) {
@@ -34,14 +42,6 @@ export default class HarvesterHandler implements ICreepHandler {
       if (0 < containers.length) {
         if (creep.transfer(containers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
           this.creepBehavior.moveToWithSinglePath(creep, containers[0].pos);
-        return;
-      }
-
-      // offload to extensions
-      const extensions = findExtensions(creep.room).filter(e => 0 < e.store.getFreeCapacity(RESOURCE_ENERGY));
-      if (0 < extensions.length) {
-        if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-          this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
         return;
       }
     } else {
