@@ -22,7 +22,8 @@ export default class RoadConstructionHandler implements IConstructionHandler {
       const path: PathStep[] = controller.pos.findPathTo(source);
 
       for (const step of path) {
-        if (isBuildablePos(step.x, step.y) && !this.posIsSource(source, step.x, step.y)) desiredState[step.y][step.x] = STRUCTURE_ROAD;
+        if (isBuildablePos(step.x, step.y) && !this.posIsSource(source, step.x, step.y))
+          desiredState[step.y][step.x] = STRUCTURE_ROAD;
       }
     }
   }
