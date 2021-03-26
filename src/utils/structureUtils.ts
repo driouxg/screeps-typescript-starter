@@ -18,7 +18,7 @@ export function findContainers(room: Room): StructureContainer[] {
   let containers: StructureContainer[] = [];
   for (let pos of Memory.rooms[room.name].positions[STRUCTURE_CONTAINER]) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
-    const container = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureContainer;
+    const container = structures.find(s => s.structureType === STRUCTURE_CONTAINER) as StructureContainer;
 
     if (container) containers.push(container);
   }
@@ -32,8 +32,9 @@ export function findSpawns(room: Room): StructureSpawn[] {
   let spawns = [];
   for (let pos of Memory.rooms[room.name].positions[STRUCTURE_SPAWN]) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
-    const spawn = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureSpawn;
+    const spawn = structures.find(s => s.structureType === STRUCTURE_SPAWN) as StructureSpawn;
 
+    console.log(`spawnssss: ${JSON.stringify(spawn)}`);
     if (spawn) spawns.push(spawn);
   }
 
@@ -46,7 +47,7 @@ export function extensions(room: Room): StructureExtension[] {
   let extensions = [];
   for (let pos of Memory.rooms[room.name].positions[STRUCTURE_EXTENSION]) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
-    const extension = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureExtension;
+    const extension = structures.find(s => s.structureType === STRUCTURE_EXTENSION) as StructureExtension;
 
     if (extension) extensions.push(extension);
   }
