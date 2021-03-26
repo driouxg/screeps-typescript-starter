@@ -12,7 +12,7 @@ export default class HarvesterHandler implements ICreepHandler {
   public handle(creep: Creep): void {
     this.creepBehavior.updateWorkingState(creep);
 
-    if (this.creepBehavior.hasMaxEnergy(creep)) this.offloadEnergy(creep);
+    if (this.creepBehavior.isWorking(creep)) this.offloadEnergy(creep);
     else this.creepBehavior.harvestEnergy(creep);
   }
 
