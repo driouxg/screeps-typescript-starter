@@ -1,5 +1,5 @@
 import SpawnConfig from "./SpawnConfig";
 
 export default interface ISpawnHandler {
-  spawnCreep(): SpawnConfig;
+  spawnCreep(room: Room): SpawnConfig;
 }

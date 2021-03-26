@@ -12,8 +12,8 @@ export default class SpawnHarvesterSpawnHandler implements ISpawnHandler {
     this.nextSpawnHandler = nextSpawnHandler;
   }
 
-  public spawnCreep(): SpawnConfig {
-    if (this.creepPopulationDict[this.role] < 1) return new SpawnConfig([WORK, WORK, CARRY, MOVE], this.role);
-    else return this.nextSpawnHandler.spawnCreep();
+  public spawnCreep(room: Room): SpawnConfig {
+    if (this.creepPopulationDict[this.role] < 0) return new SpawnConfig([WORK, WORK, CARRY, MOVE], this.role);
+    else return this.nextSpawnHandler.spawnCreep(room);
   }
 }

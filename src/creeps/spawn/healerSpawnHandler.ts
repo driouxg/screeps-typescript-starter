@@ -18,11 +18,11 @@ export default class HealerSpawnHandler implements ISpawnHandler {
     this.spawn = spawn;
   }
 
-  public spawnCreep(): SpawnConfig {
+  public spawnCreep(room: Room): SpawnConfig {
     const enemies: Creep[] = this.spawn.room.find(FIND_HOSTILE_CREEPS);
 
     if (this.creepPopulationDict[this.role] < Math.ceil(enemies.length / 2))
       return new SpawnConfig([TOUGH, MOVE, HEAL], this.role);
-    else return this.nextSpawnHandler.spawnCreep();
+    else return this.nextSpawnHandler.spawnCreep(room);
   }
 }

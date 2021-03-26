@@ -12,8 +12,19 @@ export default class HarvesterSpawnHandler implements ISpawnHandler {
     this.nextSpawnHandler = nextSpawnHandler;
   }
 
-  public spawnCreep(): SpawnConfig {
-    if (this.creepPopulationDict[this.role] < 4) return new SpawnConfig([WORK, WORK, CARRY, MOVE], this.role);
-    else return this.nextSpawnHandler.spawnCreep();
+  public spawnCreep(room: Room): SpawnConfig {
+    const bodyParts = [WORK, WORK, CARRY, MOVE];
+    let parts: BodyPartConstant[] = [];
+    let cost = 0,
+      idx = 0;
+
+    while (cost + BODYPART_COST[bodyParts[idx]] < room.energyAvailable) {
+      parts.push(bodyParts[idx]);
+      cost += BODYPART_COST[bodyParts[idx]];
+      idx = (idx + 1) % bodyParts.length;
+    }
+
+    if (this.creepPopulationDict[this.role] <= 4) return new SpawnConfig(parts, this.role);
+    else return this.nextSpawnHandler.spawnCreep(room);
   }
 }

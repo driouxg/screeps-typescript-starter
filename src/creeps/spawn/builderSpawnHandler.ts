@@ -12,8 +12,8 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
     this.nextSpawnHandler = nextSpawnHandler;
   }
 
-  public spawnCreep(): SpawnConfig {
+  public spawnCreep(room: Room): SpawnConfig {
     if (this.creepPopulationDict[this.role] < 1) return new SpawnConfig([WORK, WORK, CARRY, MOVE], this.role);
-    else return this.nextSpawnHandler.spawnCreep();
+    else return this.nextSpawnHandler.spawnCreep(room);
   }
 }
