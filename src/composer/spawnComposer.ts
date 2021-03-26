@@ -6,10 +6,27 @@ import ISpawnHandler from "creeps/spawn/ISpawnHandler";
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler";
 import NoOpSpawnHandler from "creeps/spawn/noOpSpawnHandler";
 import RepairerSpawnHandler from "creeps/spawn/repairerSpawnHandler";
+import SpawnConfig from "creeps/spawn/SpawnConfig";
 import SpawnHarvesterSpawnHandler from "creeps/spawn/SpawnHarvesterSpawnHandler";
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler";
+import generateGuid from "utils/guidGenerator";
 
 export default class SpawnComposer {
+  public compose(): void {
+    for (const spawnName in Game.spawns) {
+      const spawn: StructureSpawn = Game.spawns[spawnName];
+      if (spawn.spawning) continue;
+
+      const spawner: ISpawnHandler = this.spawner(spawn);
+      const spawnConfig: SpawnConfig = spawner.spawnCreep();
+      if (spawnConfig.getBody().length === 0) continue;
+
+      spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
+        memory: { role: spawnConfig.getRole(), working: false, room: spawn.room.name }
+      });
+    }
+  }
+
   public spawner(spawn: StructureSpawn): ISpawnHandler {
     const creepPopulationDict: { [key: string]: number } = this.creepPopulationDict();
 

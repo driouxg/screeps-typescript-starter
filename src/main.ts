@@ -2,17 +2,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import ConstructionComposer from "composer/constructionComposer";
-import ConstructionHandler from "./structures/construction/constructionHandler";
 import CreepComposer from "composer/creepComposer";
 import { ErrorMapper } from "utils/ErrorMapper";
-import IConstructionHandler from "structures/construction/IConstructionHandler";
 import ICreepHandler from "creeps/action/ICreepHandler";
-import ISpawnHandler from "creeps/spawn/ISpawnHandler";
 import IStructureActionHandler from "structures/action/IStructureActionHandler";
 import SpawnComposer from "composer/spawnComposer";
-import SpawnConfig from "creeps/spawn/SpawnConfig";
 import StructureActionComposer from "composer/structureActionComposer";
-import generateGuid from "./utils/guidGenerator";
 
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
@@ -23,7 +18,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const constructionComposer: ConstructionComposer = new ConstructionComposer();
   const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict();
 
-  manageCreepSpawning(spawnComposer);
+  spawnComposer.compose();
   manageCreepActions(creepHandlerDict);
   constructionComposer.compose();
   manageStructureActions(structureActionComposer.structureActionHandlers());
@@ -36,21 +31,6 @@ function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandl
     const creep: Creep = Game.creeps[creepName];
     const handler: ICreepHandler = creepHandlerDict[creep.memory.role];
     handler.handle(creep);
-  }
-}
-
-function manageCreepSpawning(spawnComposer: SpawnComposer): void {
-  for (const spawnName in Game.spawns) {
-    const spawn: StructureSpawn = Game.spawns[spawnName];
-    if (spawn.spawning) continue;
-
-    const spawner: ISpawnHandler = spawnComposer.spawner(spawn);
-    const spawnConfig: SpawnConfig = spawner.spawnCreep();
-    if (spawnConfig.getBody().length === 0) continue;
-
-    spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
-      memory: { role: spawnConfig.getRole(), working: false, room: spawn.room.name }
-    });
   }
 }
 
