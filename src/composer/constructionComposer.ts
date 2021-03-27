@@ -19,6 +19,7 @@ import settings from "settings";
 import ConstructionHandler from "../structures/construction/constructionHandler";
 import DesiredStateConstructor from "structures/construction/desiredStateConstructor";
 import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdater";
+import RoadExtensionConstructionHandler from "structures/construction/road/roadExtensionConstructionHandler";
 
 export default class ConstructionComposer {
   public compose(): void {
@@ -50,6 +51,7 @@ export default class ConstructionComposer {
       new ContainerConstructionHandler(),
       new ObserverConstructionHandler(),
       new ExtensionConstructionHandler(),
+      new RoadExtensionConstructionHandler(),
       new LabConstructionHandler(),
       new ExtractorConstructionHandler()
     ];
