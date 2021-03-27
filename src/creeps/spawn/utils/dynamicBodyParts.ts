@@ -1,4 +1,8 @@
 export function buildDynamicBodyParts(bluePrint: BodyPartConstant[], room: Room): BodyPartConstant[] {
+  if (room.energyAvailable < 300) return bluePrint;
+
+  bluePrint.sort((b1, b2) => BODYPART_COST[b1] - BODYPART_COST[b2]);
+
   let parts: BodyPartConstant[] = [];
   let cost = 0,
     idx = 0;
