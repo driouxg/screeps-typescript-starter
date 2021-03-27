@@ -16,8 +16,8 @@ export default class RoadExtensionConstructionHandler implements IConstructionHa
         if (desiredState[y][x] !== STRUCTURE_EXTENSION) continue;
 
         for (let dir of dirs) {
-          if (desiredState[dir[1]][dir[0]] !== "") continue;
-          desiredState[dir[1]][dir[0]] = STRUCTURE_ROAD;
+          if (desiredState[y + dir[1]][x + dir[0]] !== "") continue;
+          desiredState[y + dir[1]][x + dir[0]] = STRUCTURE_ROAD;
         }
       }
     }
