@@ -8,7 +8,7 @@ import LinkConstructionHandler from "structures/construction/linkConstructionHan
 import NukerConstructionHandler from "structures/construction/nukerConstructionHandler";
 import ObserverConstructionHandler from "structures/construction/observerConstructionHandler";
 import PowerSpawnConstructionHandler from "structures/construction/powerSpawnConstructionHandler";
-import RoadConstructionHandler from "structures/construction/roadConstructionHandler";
+import RoadConstructionHandler from "structures/construction/road/roadConstructionHandler";
 import SpawnConstructionHandler from "structures/construction/spawnConstructionHandler";
 import StorageConstructionHandler from "structures/construction/storageConstructionHandler";
 import TerminalConstructionHandler from "structures/construction/terminalConstructionHandler";

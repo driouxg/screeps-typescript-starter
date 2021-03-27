@@ -1,5 +1,5 @@
 import { isBuildablePos, isInBounds, isWall } from "utils/gridBuilder";
-import IConstructionHandler from "./IConstructionHandler";
+import IConstructionHandler from "../IConstructionHandler";
 
 export default class RoadConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
