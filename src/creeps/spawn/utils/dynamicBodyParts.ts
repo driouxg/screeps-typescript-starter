@@ -3,7 +3,7 @@ export function buildDynamicBodyParts(bluePrint: BodyPartConstant[], room: Room)
   let cost = 0,
     idx = 0;
 
-  while (cost + BODYPART_COST[bluePrint[idx]] < room.energyAvailable) {
+  while (cost + BODYPART_COST[bluePrint[idx]] <= room.energyAvailable) {
     parts.push(bluePrint[idx]);
     cost += BODYPART_COST[bluePrint[idx]];
     idx = (idx + 1) % bluePrint.length;
