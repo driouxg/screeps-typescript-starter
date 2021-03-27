@@ -18,9 +18,9 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const constructionComposer: ConstructionComposer = new ConstructionComposer();
   const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict();
 
+  constructionComposer.compose();
   spawnComposer.compose();
   manageCreepActions(creepHandlerDict);
-  constructionComposer.compose();
   manageStructureActions(structureActionComposer.structureActionHandlers());
 
   deleteMissingCreepMemory();
