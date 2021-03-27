@@ -4,17 +4,18 @@ import Queue from "./queue";
 export function findNClosestEmptyPositionsWithBuffer(
   pos: RoomPosition,
   desiredState: string[][],
-  numPositions: number
+  numPositions: number,
+  buffer: number
 ): number[][] {
   const dirs: number[][] = [
-    [-2, -2],
-    [-2, 2],
-    [-2, 0],
-    [0, -2],
-    [0, 2],
-    [2, 0],
-    [2, -2],
-    [2, 2]
+    [-buffer, -buffer],
+    [-buffer, buffer],
+    [-buffer, 0],
+    [0, -buffer],
+    [0, buffer],
+    [buffer, 0],
+    [buffer, -buffer],
+    [buffer, buffer]
   ];
 
   return findNClosestEmptyPositions(pos, desiredState, numPositions, dirs);

@@ -59,7 +59,7 @@ export default class LinkConstructionHandler implements IConstructionHandler {
   }
 
   private markPositions(roomPosition: RoomPosition, desiredState: string[][], numPositions: number): string[][] {
-    const positions: number[][] = findNClosestEmptyPositionsWithBuffer(roomPosition, desiredState, numPositions);
+    const positions: number[][] = findNClosestEmptyPositionsWithBuffer(roomPosition, desiredState, numPositions, 2);
 
     for (const position of positions) {
       desiredState[position[1]][position[0]] = STRUCTURE_LINK;

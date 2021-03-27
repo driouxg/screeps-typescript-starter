@@ -20,6 +20,7 @@ import ConstructionHandler from "../structures/construction/constructionHandler"
 import DesiredStateConstructor from "structures/construction/desiredStateConstructor";
 import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdater";
 import RoadExtensionConstructionHandler from "structures/construction/road/roadExtensionConstructionHandler";
+import InitialSpawnConstructionHandler from "structures/construction/initialSpawnConstructionHandler";
 
 export default class ConstructionComposer {
   public compose(): void {
@@ -38,6 +39,7 @@ export default class ConstructionComposer {
 
   private constructionHandlers(): IConstructionHandler[] {
     return [
+      new InitialSpawnConstructionHandler(),
       new RoadConstructionHandler(),
       new WallConstructionHandler(),
       new StorageConstructionHandler(),
