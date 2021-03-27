@@ -17,19 +17,19 @@ export default class HarvesterHandler implements ICreepHandler {
   }
 
   private offloadEnergy(creep: Creep): void {
-    // offload to spawns
-    const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY));
-    if (0 < spawns.length) {
-      if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos);
-      return;
-    }
-
     // offload to extensions
     const extensions = findExtensions(creep.room).filter(e => 0 < e.store.getFreeCapacity(RESOURCE_ENERGY));
     if (0 < extensions.length) {
       if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
+      return;
+    }
+
+    // offload to spawns
+    const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY));
+    if (0 < spawns.length) {
+      if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+        this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos);
       return;
     }
 
