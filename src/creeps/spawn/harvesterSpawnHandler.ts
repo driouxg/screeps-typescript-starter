@@ -1,7 +1,7 @@
 import * as creepRoles from "../roles";
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
-import { dynamicBodyPartsList } from "./utils/dynamicBodyParts";
+import { buildDynamicBodyParts } from "./utils/dynamicBodyParts";
 
 export default class HarvesterSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
@@ -17,7 +17,7 @@ export default class HarvesterSpawnHandler implements ISpawnHandler {
     const bluePrint = [WORK, WORK, CARRY, MOVE];
 
     if (this.creepPopulationDict[this.role] <= 4)
-      return new SpawnConfig(dynamicBodyPartsList(bluePrint, room), this.role);
+      return new SpawnConfig(buildDynamicBodyParts(bluePrint, room), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
 }

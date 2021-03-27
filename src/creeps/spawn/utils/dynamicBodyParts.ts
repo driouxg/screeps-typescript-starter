@@ -1,4 +1,4 @@
-export function dynamicBodyPartsList(bluePrint: BodyPartConstant[], room: Room): BodyPartConstant[] {
+export function buildDynamicBodyParts(bluePrint: BodyPartConstant[], room: Room): BodyPartConstant[] {
   let parts: BodyPartConstant[] = [];
   let cost = 0,
     idx = 0;

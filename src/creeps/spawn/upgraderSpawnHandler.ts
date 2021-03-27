@@ -1,6 +1,7 @@
 import * as creepRoles from "../roles";
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
+import { buildDynamicBodyParts } from "./utils/dynamicBodyParts";
 
 export default class UpgraderSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
@@ -13,7 +14,8 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(room: Room): SpawnConfig {
-    if (this.creepPopulationDict[this.role] < 1) return new SpawnConfig([WORK, CARRY, MOVE, MOVE], this.role);
+    if (this.creepPopulationDict[this.role] < 1)
+      return new SpawnConfig(buildDynamicBodyParts([WORK, CARRY, MOVE, MOVE], room), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
 }
