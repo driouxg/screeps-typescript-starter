@@ -24,6 +24,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   manageStructureActions(structureActionComposer.structureActionHandlers());
 
   deleteMissingCreepMemory();
+  deleteRoomEvents();
 });
 
 function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
@@ -44,8 +45,12 @@ function manageStructureActions(structureActionHandlers: IStructureActionHandler
 
 function deleteMissingCreepMemory(): void {
   for (const name in Memory.creeps) {
-    if (!(name in Game.creeps)) {
-      delete Memory.creeps[name];
-    }
+    if (!(name in Game.creeps)) delete Memory.creeps[name];
+  }
+}
+
+function deleteRoomEvents(): void {
+  for (const room in Game.rooms) {
+    Game.rooms[room].memory.events = Game.rooms[room].memory.events.filter(e => Game.time < e.tick + 1);
   }
 }

@@ -4,6 +4,7 @@ import HarvesterSpawnHandler from "creeps/spawn/harvesterSpawnHandler";
 import HealerSpawnHandler from "creeps/spawn/healerSpawnHandler";
 import ISpawnHandler from "creeps/spawn/ISpawnHandler";
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler";
+import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler";
 import NoOpSpawnHandler from "creeps/spawn/noOpSpawnHandler";
 import RepairerSpawnHandler from "creeps/spawn/repairerSpawnHandler";
 import SpawnConfig from "creeps/spawn/SpawnConfig";
@@ -33,7 +34,8 @@ export default class SpawnComposer {
     const repairerSpawnHandler = this.repairerSpawnHandler(creepPopulationDict, upgraderSpawnHandler);
     const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, repairerSpawnHandler);
     const harvesterSpawnHandler = this.harvesterSpawnHandler(creepPopulationDict, builderSpawnHandler);
-    const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, harvesterSpawnHandler, spawn);
+    const minerSpawnHandler = new MinerSpawnHandler(creepPopulationDict, harvesterSpawnHandler, spawn);
+    const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, minerSpawnHandler, spawn);
     const meleeDefenderSpawnHandler = this.meleeDefenderSpawnHandler(creepPopulationDict, healerSpawnHandler, spawn);
     return meleeDefenderSpawnHandler;
   }

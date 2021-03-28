@@ -23,7 +23,17 @@ interface RoomMemory {
   constructionPos: { [key: string]: number };
   desiredState: string[][];
   positions: { [structure: string]: Position[] };
+  events: RoomEvent[];
 }
+
+interface RoomEvent {
+  type: RoomEventType;
+  tick: number;
+}
+
+type RoomEventType = PULL_REQUEST;
+
+type PULL_REQUEST = "PULL_REQUEST";
 
 interface Position {
   x: number;
