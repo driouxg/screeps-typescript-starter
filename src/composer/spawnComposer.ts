@@ -34,9 +34,9 @@ export default class SpawnComposer {
     const upgraderSpawnHandler = this.upgraderSpawnHandler(creepPopulationDict, this.noOpSpawnHandler());
     const repairerSpawnHandler = this.repairerSpawnHandler(creepPopulationDict, upgraderSpawnHandler);
     const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, repairerSpawnHandler);
-    const haulerSpawnHandler = new HaulerSpawnHandler(creepPopulationDict, builderSpawnHandler);
-    const minerSpawnHandler = new MinerSpawnHandler(creepPopulationDict, haulerSpawnHandler, spawn);
-    const pullerSpawnHandler = new PullerSpawnHandler(creepPopulationDict, minerSpawnHandler);
+    const minerSpawnHandler = new MinerSpawnHandler(creepPopulationDict, builderSpawnHandler, spawn);
+    const haulerSpawnHandler = new HaulerSpawnHandler(creepPopulationDict, minerSpawnHandler);
+    const pullerSpawnHandler = new PullerSpawnHandler(creepPopulationDict, haulerSpawnHandler);
     const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, pullerSpawnHandler, spawn);
     const meleeDefenderSpawnHandler = this.meleeDefenderSpawnHandler(creepPopulationDict, healerSpawnHandler, spawn);
     return meleeDefenderSpawnHandler;

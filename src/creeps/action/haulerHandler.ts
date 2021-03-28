@@ -62,7 +62,7 @@ export default class HaulerHandler implements ICreepHandler {
   }
 
   private filterPositionsThatHaveEnoughEnergyOnGround(creep: Creep, energyPiles: Resource[]): boolean {
-    return energyPiles && creep.store.getFreeCapacity() <= energyPiles[0].amount;
+    return energyPiles && energyPiles.length === 1 && creep.store.getFreeCapacity() <= energyPiles[0].amount;
   }
 
   private findContainersNextToSource(creep: Creep): StructureContainer[] {
