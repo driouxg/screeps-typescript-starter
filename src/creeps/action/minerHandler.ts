@@ -6,7 +6,7 @@ export default class MinerHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const nearbyMineableSource = this.retrieveNearbyMineableSource(creep);
     if (nearbyMineableSource) {
-      creep.harvest(nearbyMineableSource as Source);
+      creep.harvest(nearbyMineableSource);
       return;
     }
 
