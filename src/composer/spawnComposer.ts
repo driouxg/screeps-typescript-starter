@@ -1,6 +1,6 @@
 import * as creepRoles from "creeps/roles";
 import BuilderSpawnHandler from "creeps/spawn/builderSpawnHandler";
-import HarvesterSpawnHandler from "creeps/spawn/harvesterSpawnHandler";
+import HaulerSpawnHandler from "creeps/spawn/haulerSpawnHandler";
 import HealerSpawnHandler from "creeps/spawn/healerSpawnHandler";
 import ISpawnHandler from "creeps/spawn/ISpawnHandler";
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler";
@@ -34,8 +34,8 @@ export default class SpawnComposer {
     const upgraderSpawnHandler = this.upgraderSpawnHandler(creepPopulationDict, this.noOpSpawnHandler());
     const repairerSpawnHandler = this.repairerSpawnHandler(creepPopulationDict, upgraderSpawnHandler);
     const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, repairerSpawnHandler);
-    const harvesterSpawnHandler = this.harvesterSpawnHandler(creepPopulationDict, builderSpawnHandler);
-    const minerSpawnHandler = new MinerSpawnHandler(creepPopulationDict, harvesterSpawnHandler, spawn);
+    const haulerSpawnHandler = new HaulerSpawnHandler(creepPopulationDict, builderSpawnHandler);
+    const minerSpawnHandler = new MinerSpawnHandler(creepPopulationDict, haulerSpawnHandler, spawn);
     const pullerSpawnHandler = new PullerSpawnHandler(creepPopulationDict, minerSpawnHandler);
     const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, pullerSpawnHandler, spawn);
     const meleeDefenderSpawnHandler = this.meleeDefenderSpawnHandler(creepPopulationDict, healerSpawnHandler, spawn);
@@ -66,10 +66,6 @@ export default class SpawnComposer {
 
   private builderSpawnHandler(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
     return new BuilderSpawnHandler(creepPopulationDict, nextSpawnHandler);
-  }
-
-  private harvesterSpawnHandler(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
-    return new HarvesterSpawnHandler(creepPopulationDict, nextSpawnHandler);
   }
 
   private healerSpawnHandler(
