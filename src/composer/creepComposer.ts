@@ -10,6 +10,7 @@ import UpgraderHandler from "creeps/action/upgraderHandler";
 import StructureEnergyCollector from "creeps/action/common/structureEnergyHarvester";
 import NearbySourceEnergyHarvester from "creeps/action/common/nearbySourceEnergyHarvester";
 import MinerHandler from "creeps/action/minerHandler";
+import PullerHandler from "creeps/action/pullerHandler";
 
 export default class CreepComposer {
   public creepHandlerDict(): { [creepRole: string]: ICreepHandler } {
@@ -24,6 +25,7 @@ export default class CreepComposer {
     dictionary[creepRoles.REPAIRER] = this.repairerHandler(structureCreepBehavior);
     dictionary[creepRoles.HEALER] = this.healerHandler(structureCreepBehavior);
     dictionary[creepRoles.MINER] = this.minerHandler();
+    dictionary[creepRoles.PULLER] = new PullerHandler();
 
     return dictionary;
   }

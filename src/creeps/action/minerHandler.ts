@@ -43,7 +43,7 @@ export default class MinerHandler implements ICreepHandler {
         if (!creep.room.memory.events) creep.room.memory.events = [];
 
         creep.room.memory.events.push(
-          new PullRequestEvent(new RoomPosition(containerPos.x, containerPos.y, creep.room.name), creep.id)
+          new PullRequestEvent(new RoomPosition(containerPos.x, containerPos.y, creep.room.name), creep.name)
         );
         sentPullRequest = true;
         break;
