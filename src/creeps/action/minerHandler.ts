@@ -24,10 +24,10 @@ export default class MinerHandler implements ICreepHandler {
   }
 
   private sendPullRequestRoomEvent(creep: Creep): void {
-    const minerPos = this.findAvailableMinerPosition(creep);
-    if (!minerPos) return;
+    const targetPos = this.findAvailableMinerPosition(creep);
+    if (!targetPos) return;
 
-    creep.room.memory.events.push(new PullRequestEvent(minerPos, creep.name));
+    creep.room.memory.events.push(new PullRequestEvent(targetPos, creep.name));
   }
 
   private findAvailableMinerPosition(creep: Creep): RoomPosition | null {
