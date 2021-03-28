@@ -12,6 +12,8 @@ import StructureActionComposer from "composer/structureActionComposer";
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
+  initRoomMemory();
+
   const creepComposer = new CreepComposer();
   const spawnComposer: SpawnComposer = new SpawnComposer();
   const structureActionComposer: StructureActionComposer = new StructureActionComposer();
@@ -52,5 +54,11 @@ function deleteMissingCreepMemory(): void {
 function deleteRoomEvents(): void {
   for (const room in Game.rooms) {
     Game.rooms[room].memory.events = Game.rooms[room].memory.events.filter(e => Game.time < e.tick + 1);
+  }
+}
+
+function initRoomMemory(): void {
+  for (const room in Game.rooms) {
+    Game.rooms[room].memory.events = Game.rooms[room].memory.events || [];
   }
 }
