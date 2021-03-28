@@ -13,9 +13,7 @@ export default class UpgraderHandler implements ICreepHandler {
       return;
     }
 
-    if (creep.store.energy === 0) {
-      this.collectEnergy(creep);
-    }
+    if (creep.store.energy === 0) this.collectEnergy(creep);
 
     creep.upgradeController(controller);
   }
