@@ -7,28 +7,67 @@ export default class RoadConstructionHandler implements IConstructionHandler {
 
     const controller: StructureController = room.controller;
 
-    this.buildRoadToSources(controller, desiredState);
-    this.buildRoadsToExits(controller, desiredState);
+    this.buildRoadsBetweenControllerAndSources(controller, desiredState);
+    this.buildRoadsBetweenControllAndExits(controller, desiredState);
     // build road to minerals
-    // build road to spawns
+    this.buildRoadsBetweenControllerAndSpawns(controller, desiredState);
+    this.buildRoadsBetweenSourcesAndSpawns(controller, desiredState);
 
     return desiredState;
   }
 
-  private buildRoadToSources(controller: StructureController, desiredState: string[][]): void {
+  private buildRoadsBetweenControllerAndSources(controller: StructureController, desiredState: string[][]): void {
     const sources: Source[] = controller.room.find(FIND_SOURCES);
 
-    for (const source of sources) {
-      const path: PathStep[] = controller.pos.findPathTo(source);
+    this.markRoadsBetweenPositions(
+      [controller.pos],
+      sources.map(s => s.pos),
+      desiredState
+    );
+  }
 
-      for (const step of path) {
-        if (isBuildablePos(step.x, step.y) && !this.posIsSource(source, step.x, step.y))
-          desiredState[step.y][step.x] = STRUCTURE_ROAD;
+  private buildRoadsBetweenControllerAndSpawns(controller: StructureController, desiredState: string[][]): void {
+    const spawns = this.spawnPositions(controller, desiredState);
+
+    this.markRoadsBetweenPositions([controller.pos], spawns, desiredState);
+  }
+
+  private spawnPositions(controller: StructureController, desiredState: string[][]): RoomPosition[] {
+    const spawns = [];
+
+    for (let y = 0; y < 50; y++) {
+      for (let x = 0; x < 50; x++) {
+        if (desiredState[y][x] === STRUCTURE_SPAWN) spawns.push(new RoomPosition(x, y, controller.room.name));
+      }
+    }
+    return spawns;
+  }
+
+  private buildRoadsBetweenSourcesAndSpawns(controller: StructureController, desiredState: string[][]): void {
+    const spawnPositions = this.spawnPositions(controller, desiredState);
+
+    this.markRoadsBetweenPositions(
+      controller.room.find(FIND_SOURCES).map(s => s.pos),
+      spawnPositions,
+      desiredState
+    );
+  }
+
+  private markRoadsBetweenPositions(from: RoomPosition[], to: RoomPosition[], desiredState: string[][]): void {
+    for (const fromPos of from) {
+      for (const toPos of to) {
+        const path: PathStep[] = fromPos.findPathTo(toPos);
+
+        for (let i = 0; i < path.length - 1; i++) {
+          const step = path[i];
+          if (desiredState[step.y][step.x] === STRUCTURE_ROAD) break;
+          if (isBuildablePos(step.x, step.y)) desiredState[step.y][step.x] = STRUCTURE_ROAD;
+        }
       }
     }
   }
 
-  private buildRoadsToExits(controller: StructureController, desiredState: string[][]): void {
+  private buildRoadsBetweenControllAndExits(controller: StructureController, desiredState: string[][]): void {
     const exits: number[][] = [];
 
     const leftExit = this.findExit(controller, desiredState, "LEFT");
@@ -71,9 +110,5 @@ export default class RoadConstructionHandler implements IConstructionHandler {
 
     if (!isWall(x, y, controller.room.name) && isInBounds(x, y)) return [x, y];
     else return undefined;
-  }
-
-  private posIsSource(source: Source, x: number, y: number): boolean {
-    return source.pos.x === x && source.pos.y === y;
   }
 }
