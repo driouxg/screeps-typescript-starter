@@ -7,13 +7,12 @@ export default class UpgraderHandler implements ICreepHandler {
 
     if (!controller) return;
 
-    const controllerContainerPosition = this.findControllerContainerPosition(creep, controller);
+    const targetPos = this.findTargetRoomPosition(creep, controller);
 
-    if (!controllerContainerPosition) return;
+    if (!targetPos) return;
 
-    if (!creep.pos.isEqualTo(controllerContainerPosition.x, controllerContainerPosition.y)) {
-      const controllerContainer = this.findControllerContainerRoomPosition(creep, controller);
-      if (controllerContainer) creep.room.memory.events.push(new PullRequestEvent(controllerContainer, creep.name));
+    if (!creep.pos.isEqualTo(targetPos.x, targetPos.y)) {
+      creep.room.memory.events.push(new PullRequestEvent(targetPos, creep.name));
       return;
     }
 
@@ -39,14 +38,23 @@ export default class UpgraderHandler implements ICreepHandler {
     }
   }
 
-  private findControllerContainerRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
-    const pos = this.findControllerContainerPosition(creep, controller);
-    return pos ? new RoomPosition(pos?.x, pos?.y, creep.room.name) : null;
-  }
+  private findTargetRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
+    const dirs = [
+      [-1, 0],
+      [-1, -1],
+      [0, -1],
+      [-1, 1],
+      [1, -1],
+      [1, 0],
+      [0, 1],
+      [1, 1]
+    ];
 
-  private findControllerContainerPosition(creep: Creep, controller: StructureController): Position | null {
-    for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
-      if (controller.pos.isNearTo(containerPos.x, containerPos.y)) return containerPos;
+    for (const dir of dirs) {
+      for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
+        const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], creep.room.name);
+        if (pos.isNearTo(controller.pos.x, controller.pos.y)) return pos;
+      }
     }
 
     return null;

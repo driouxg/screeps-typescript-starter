@@ -46,7 +46,7 @@ export default class MinerHandler implements ICreepHandler {
     return null;
   }
 
-  private sourceAlreadyHasMiner(room: Room, containerPos: Position): boolean {
+  private sourceAlreadyHasMiner(room: Room, containerPos: RoomPosition): boolean {
     const creeps = room.lookForAt(LOOK_CREEPS, containerPos.x, containerPos.y).filter(c => c.my);
 
     for (const creep of creeps) {

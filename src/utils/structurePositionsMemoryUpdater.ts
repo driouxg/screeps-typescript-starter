@@ -9,9 +9,10 @@ export default class StructurePositionsMemoryUpdater {
         if (this.isStructure(desiredState[y][x])) continue;
 
         const structure: StructureConstant = desiredState[y][x] as StructureConstant;
+        const pos = new RoomPosition(x, y, room.name);
         room.memory.positions[structure] = room.memory.positions[structure]
-          ? [...room.memory.positions[structure], { x, y }]
-          : [{ x, y }];
+          ? [...room.memory.positions[structure], pos]
+          : [pos];
       }
     }
   }

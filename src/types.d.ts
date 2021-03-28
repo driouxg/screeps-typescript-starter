@@ -22,7 +22,7 @@ interface Memory {
 interface RoomMemory {
   constructionPos: { [key: string]: number };
   desiredState: string[][];
-  positions: { [structure: string]: Position[] };
+  positions: { [structure: string]: RoomPosition[] };
   events: RoomEvent[];
 }
 
@@ -34,11 +34,6 @@ interface RoomEvent {
 type RoomEventType = PULL_REQUEST;
 
 type PULL_REQUEST = "PULL_REQUEST";
-
-interface Position {
-  x: number;
-  y: number;
-}
 
 // `global` extension samples
 declare namespace NodeJS {

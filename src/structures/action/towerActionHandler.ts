@@ -52,7 +52,7 @@ export default class TowerActionHandler implements IStructureActionHandler {
     tower.heal(myHealableCreeps[0]);
   }
 
-  private getMyTowerPositions(room: Room): Position[] {
+  private getMyTowerPositions(room: Room): RoomPosition[] {
     return room.memory.positions[STRUCTURE_TOWER];
   }
 
