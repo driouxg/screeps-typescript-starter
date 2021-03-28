@@ -45,7 +45,8 @@ export default class HaulerHandler implements ICreepHandler {
   private collectEnergy(creep: Creep): void {
     const energyPiles = this.findContainerPositionsNextToSource(creep)
       .map(p => creep.room.lookForAt(RESOURCE_ENERGY, p.x, p.y))
-      .filter(e => this.filterPositionsThatHaveEnoughEnergyOnGround(creep, e));
+      .filter(e => this.filterPositionsThatHaveEnoughEnergyOnGround(creep, e))
+      .sort((ep1, ep2) => ep2[0].amount - ep1[0].amount);
 
     if (0 < energyPiles.length) {
       if (creep.pickup(energyPiles[0][0]) == ERR_NOT_IN_RANGE) creep.moveTo(energyPiles[0][0]);
