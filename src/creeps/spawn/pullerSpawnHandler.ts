@@ -13,9 +13,17 @@ export default class PullerSpawnHandler implements ISpawnHandler {
   }
 
   spawnCreep(room: Room): SpawnConfig {
-    const bluePrint = [MOVE, MOVE, MOVE];
+    const bluePrint = [MOVE, MOVE];
 
-    if (this.creepPopulationDict[this.role] < 1) return new SpawnConfig(bluePrint, this.role);
+    if (this.creepPopulationDict[this.role] < 1 && this.isPendingPullRequestsExist(room))
+      return new SpawnConfig(bluePrint, this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
+  }
+
+  private isPendingPullRequestsExist(room: Room): boolean {
+    if (!room.memory.events) room.memory.events = [];
+
+    for (const req of room.memory.events) if (req.type === "PULL_REQUEST") return true;
+    return false;
   }
 }
