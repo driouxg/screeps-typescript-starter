@@ -22,6 +22,7 @@ import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdat
 import RoadExtensionConstructionHandler from "structures/construction/road/roadExtensionConstructionHandler";
 import InitialSpawnConstructionHandler from "structures/construction/initialSpawnConstructionHandler";
 import EnergySourceContainerConstructionHandler from "structures/construction/container/energySourceContainerConstructionHandler";
+import ControllerContainerConstructionHandler from "structures/construction/container/controllerContainerConstructionHandler";
 
 export default class ConstructionComposer {
   public compose(): void {
@@ -42,6 +43,7 @@ export default class ConstructionComposer {
     return [
       new InitialSpawnConstructionHandler(),
       new EnergySourceContainerConstructionHandler(),
+      new ControllerContainerConstructionHandler(),
       new RoadConstructionHandler(),
       new WallConstructionHandler(),
       new StorageConstructionHandler(),
