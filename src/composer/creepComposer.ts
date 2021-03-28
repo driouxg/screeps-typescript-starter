@@ -1,7 +1,6 @@
 import * as creepRoles from "../creeps/roles";
 import BuilderHandler from "creeps/action/builderHandler";
 import CreepBehavior from "creeps/action/common/creepBehavior";
-import HarvesterHandler from "creeps/action/harvesterHandler";
 import HealerHandler from "creeps/action/healerHandler";
 import ICreepHandler from "creeps/action/ICreepHandler";
 import MeleeDefenderHandler from "creeps/action/meleeDefenderHandler";
@@ -19,7 +18,6 @@ export default class CreepComposer {
     const nearbySourceCreepBehavior = new CreepBehavior(new NearbySourceEnergyHarvester());
 
     const dictionary: { [creepRole: string]: ICreepHandler } = {};
-    dictionary[creepRoles.HARVESTER] = this.harvesterHandler(nearbySourceCreepBehavior);
     dictionary[creepRoles.UPGRADER] = this.upgraderHandler(structureCreepBehavior);
     dictionary[creepRoles.BUILDER] = this.builderHandler(structureCreepBehavior);
     dictionary[creepRoles.MELEE_DEFENDER] = this.meleeDefenderHandler(structureCreepBehavior);
@@ -32,16 +30,12 @@ export default class CreepComposer {
     return dictionary;
   }
 
-  public harvesterHandler(creepBehavior: CreepBehavior): HarvesterHandler {
-    return new HarvesterHandler(creepBehavior);
-  }
-
   public upgraderHandler(creepBehavior: CreepBehavior): UpgraderHandler {
     return new UpgraderHandler(creepBehavior);
   }
 
   public builderHandler(creepBehavior: CreepBehavior): BuilderHandler {
-    return new BuilderHandler(creepBehavior, this.harvesterHandler(creepBehavior));
+    return new BuilderHandler(creepBehavior);
   }
 
   public meleeDefenderHandler(creepBehavior: CreepBehavior): MeleeDefenderHandler {

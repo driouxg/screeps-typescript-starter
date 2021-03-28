@@ -1,4 +1,3 @@
-export const HARVESTER = "HARVESTER";
 export const UPGRADER = "UPGRADER";
 export const BUILDER = "BUILDER";
 export const HEALER = "HEALER";

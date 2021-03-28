@@ -3,12 +3,10 @@ import ICreepHandler from "./ICreepHandler";
 
 export default class BuilderHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
-  private nextCreepHandler: ICreepHandler;
   private priorityDict: { [structureName: string]: number };
 
-  public constructor(commonCreepBehavior: CreepBehavior, nextCreepHandler: ICreepHandler) {
+  public constructor(commonCreepBehavior: CreepBehavior) {
     this.creepBehavior = commonCreepBehavior;
-    this.nextCreepHandler = nextCreepHandler;
     this.priorityDict = this.buildPriorityDict();
   }
 
@@ -20,12 +18,11 @@ export default class BuilderHandler implements ICreepHandler {
   }
 
   private buildConstructionSite(creep: Creep): void {
-    const constructionSites: ConstructionSite<BuildableStructureConstant>[] = creep.room.find(FIND_CONSTRUCTION_SITES);
+    const constructionSites: ConstructionSite<BuildableStructureConstant>[] = creep.room.find(
+      FIND_MY_CONSTRUCTION_SITES
+    );
 
-    if (constructionSites.length <= 0) {
-      this.nextCreepHandler.handle(creep);
-      return;
-    }
+    if (constructionSites.length <= 0) creep.suicide();
 
     const constructionSite: ConstructionSite = this.getPrioritizedConstructionSite(constructionSites);
 
