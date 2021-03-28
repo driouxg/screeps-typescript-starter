@@ -7,8 +7,12 @@ export default class UpgraderHandler implements ICreepHandler {
 
     if (!controller) return;
 
-    if (!creep.pos.isNearTo(controller.pos)) {
-      const controllerContainer = this.findControllerContainerPosition(creep, controller);
+    const controllerContainerPosition = this.findControllerContainerPosition(creep, controller);
+
+    if (!controllerContainerPosition) return;
+
+    if (!creep.pos.isEqualTo(controllerContainerPosition.x, controllerContainerPosition.y)) {
+      const controllerContainer = this.findControllerContainerRoomPosition(creep, controller);
       if (controllerContainer) creep.room.memory.events.push(new PullRequestEvent(controllerContainer, creep.name));
       return;
     }
@@ -35,10 +39,14 @@ export default class UpgraderHandler implements ICreepHandler {
     }
   }
 
-  private findControllerContainerPosition(creep: Creep, controller: StructureController): RoomPosition | null {
+  private findControllerContainerRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
+    const pos = this.findControllerContainerPosition(creep, controller);
+    return pos ? new RoomPosition(pos?.x, pos?.y, creep.room.name) : null;
+  }
+
+  private findControllerContainerPosition(creep: Creep, controller: StructureController): Position | null {
     for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
-      if (controller.pos.isNearTo(containerPos.x, containerPos.y))
-        return new RoomPosition(containerPos.x, containerPos.y, creep.room.name);
+      if (controller.pos.isNearTo(containerPos.x, containerPos.y)) return containerPos;
     }
 
     return null;
