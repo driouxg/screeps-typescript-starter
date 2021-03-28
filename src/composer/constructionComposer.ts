@@ -1,4 +1,4 @@
-import ContainerConstructionHandler from "structures/construction/containerConstructionHandler";
+import ContainerConstructionHandler from "structures/construction/container/containerConstructionHandler";
 import ExtensionConstructionHandler from "structures/construction/extensionConstructionHandler";
 import ExtractorConstructionHandler from "structures/construction/extractorConstructionHandler";
 import FactoryConstructionHandler from "structures/construction/factoryConstructionHandler";
@@ -21,7 +21,7 @@ import DesiredStateConstructor from "structures/construction/desiredStateConstru
 import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdater";
 import RoadExtensionConstructionHandler from "structures/construction/road/roadExtensionConstructionHandler";
 import InitialSpawnConstructionHandler from "structures/construction/initialSpawnConstructionHandler";
-import EnergySourceContainerConstructionHandler from "structures/construction/energySourceContainerConstructionHandler";
+import EnergySourceContainerConstructionHandler from "structures/construction/container/energySourceContainerConstructionHandler";
 
 export default class ConstructionComposer {
   public compose(): void {
