@@ -11,10 +11,12 @@ export default class PullerHandler implements ICreepHandler {
 
       if (!target) continue;
 
+      const targetPos = new RoomPosition(pullRequest.destination.x, pullRequest.destination.y, target.room.name);
+      if (target.pos.isEqualTo(targetPos)) continue;
+
       if (creep.pull(target) === ERR_NOT_IN_RANGE) creep.moveTo(target);
       else {
         target.move(creep);
-        const targetPos = new RoomPosition(pullRequest.destination.x, pullRequest.destination.y, target.room.name);
         if (creep.pos.isEqualTo(targetPos)) creep.move(creep.pos.getDirectionTo(target));
         else creep.moveTo(targetPos);
       }
