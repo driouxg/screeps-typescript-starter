@@ -21,16 +21,18 @@ export default class MinerHandler implements ICreepHandler {
       return;
     }
 
-    const pullingCreep = this.findNearbyPullerCreep(creep);
+    this.sendPullRequestRoomEvent(creep);
+  }
 
-    if (pullingCreep) {
-      creep.move(pullingCreep);
-    }
+  private sendPullRequestRoomEvent(creep: Creep): void {
+    const minerPos = this.findAvailableMinerPosition(creep);
+    if (!minerPos) return;
 
-    let sentPullRequest = false;
+    creep.room.memory.events.push(new PullRequestEvent(minerPos, creep.name));
+  }
+
+  private findAvailableMinerPosition(creep: Creep): RoomPosition | null {
     for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
-      if (sentPullRequest) break;
-
       const sources = creep.room.find(FIND_SOURCES);
 
       for (const source of sources) {
@@ -40,36 +42,7 @@ export default class MinerHandler implements ICreepHandler {
 
         if (creeps.length === 1 && creeps[0].memory.role === creepRoles.MINER) continue;
 
-        if (!creep.room.memory.events) creep.room.memory.events = [];
-
-        creep.room.memory.events.push(
-          new PullRequestEvent(new RoomPosition(containerPos.x, containerPos.y, creep.room.name), creep.name)
-        );
-        sentPullRequest = true;
-        break;
-      }
-    }
-  }
-
-  private findNearbyPullerCreep(creep: Creep): Creep | null {
-    const dirs = [
-      [-1, -1],
-      [-1, 0],
-      [0, -1],
-      [-1, 1],
-      [1, 1],
-      [1, -1],
-      [1, 0],
-      [0, 1]
-    ];
-
-    for (const dir of dirs) {
-      const creeps = creep.room.lookForAt(LOOK_CREEPS, creep.pos.x + dir[0], creep.pos.y + dir[1]);
-
-      for (const nearbyCreep of creeps) {
-        if (nearbyCreep.my && nearbyCreep.memory.role === creepRoles.PULLER) {
-          return nearbyCreep;
-        }
+        return new RoomPosition(containerPos.x, containerPos.y, creep.room.name);
       }
     }
 

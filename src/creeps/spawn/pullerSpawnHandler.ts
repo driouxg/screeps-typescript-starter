@@ -21,8 +21,6 @@ export default class PullerSpawnHandler implements ISpawnHandler {
   }
 
   private isPendingPullRequestsExist(room: Room): boolean {
-    if (!room.memory.events) room.memory.events = [];
-
     for (const req of room.memory.events) if (req.type === "PULL_REQUEST") return true;
     return false;
   }
