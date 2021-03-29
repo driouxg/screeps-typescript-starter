@@ -9,6 +9,8 @@ export default class DesiredStateConstructor {
   }
 
   public construct(room: Room, desiredState: string[][]): void {
+    if (!desiredState) return;
+
     const constructionPos: ConstructionPosition = new ConstructionPosition(room.memory.constructionPos);
 
     let sitesReviewed = 0;
@@ -17,11 +19,10 @@ export default class DesiredStateConstructor {
       const x: number = constructionPos.getX(),
         y = constructionPos.getY();
 
-      if (desiredState[y][x] !== "") {
+      if (desiredState[y][x] !== "")
         room.createConstructionSite(x, y, this.mapStringToStructureConstant(desiredState[y][x]));
-        sitesReviewed++;
-      }
 
+      sitesReviewed++;
       constructionPos.increment();
     }
     room.memory.constructionPos = constructionPos.serialize();

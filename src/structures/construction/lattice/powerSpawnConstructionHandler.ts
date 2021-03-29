@@ -1,5 +1,5 @@
-import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../../utils/latticeSearch";
+import IConstructionHandler from "../IConstructionHandler";
+import { findNClosestEmptyPositionsLattice } from "../../../utils/latticeSearch";
 
 export default class PowerSpawnConstructionHandler implements IConstructionHandler {
   private maxPowerSpawnsPerRoom = 1;

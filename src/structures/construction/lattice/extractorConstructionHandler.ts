@@ -1,4 +1,4 @@
-import IConstructionHandler from "./IConstructionHandler";
+import IConstructionHandler from "../IConstructionHandler";
 
 export default class ExtractorConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {

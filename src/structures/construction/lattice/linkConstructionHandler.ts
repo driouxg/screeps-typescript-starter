@@ -1,5 +1,5 @@
-import { findNClosestEmptyPositionsLattice, findNClosestEmptyPositionsWithBuffer } from "../../utils/latticeSearch";
-import IConstructionHandler from "./IConstructionHandler";
+import { findNClosestEmptyPositionsLattice, findNClosestEmptyPositionsWithBuffer } from "../../../utils/latticeSearch";
+import IConstructionHandler from "../IConstructionHandler";
 
 export default class LinkConstructionHandler implements IConstructionHandler {
   private maxLinksPerRoom = 6;

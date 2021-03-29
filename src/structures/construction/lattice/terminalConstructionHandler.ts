@@ -1,5 +1,5 @@
-import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../../utils/latticeSearch";
+import IConstructionHandler from "../IConstructionHandler";
+import { findNClosestEmptyPositionsLattice } from "../../../utils/latticeSearch";
 
 export default class TerminalConstructionHandler implements IConstructionHandler {
   private maxTerminalsPerRoom = 1;
