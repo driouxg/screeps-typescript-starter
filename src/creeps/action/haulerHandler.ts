@@ -46,9 +46,8 @@ export default class HaulerHandler implements ICreepHandler {
     );
 
     if (0 < containerPositions.length) {
-      if (creep.pos.isEqualTo(containerPositions[0].x, containerPositions[0].y)) {
-        console.log(creep.drop(RESOURCE_ENERGY));
-      } else creep.moveTo(containerPositions[0].x, containerPositions[0].y);
+      if (creep.pos.isEqualTo(containerPositions[0].x, containerPositions[0].y)) creep.drop(RESOURCE_ENERGY);
+      else creep.moveTo(containerPositions[0].x, containerPositions[0].y);
       return;
     }
   }

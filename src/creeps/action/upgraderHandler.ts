@@ -22,20 +22,21 @@ export default class UpgraderHandler implements ICreepHandler {
   }
 
   private collectEnergy(creep: Creep): void {
+    const containerPos = this.findContainerPosition(creep);
+
+    if (!containerPos) return;
+
     const containers = creep.room
-      .lookForAt(LOOK_STRUCTURES, creep.pos)
+      .lookForAt(LOOK_STRUCTURES, containerPos.x, containerPos.y)
       .filter(s => s.structureType === STRUCTURE_CONTAINER);
 
-    if (containers) {
+    if (0 < containers.length) {
       creep.withdraw(containers[0], RESOURCE_ENERGY);
       return;
     }
 
-    const energyPiles = creep.room.lookForAt(RESOURCE_ENERGY, creep.pos);
-
-    if (energyPiles) {
-      creep.pickup(energyPiles[0]);
-    }
+    const energyPiles = creep.room.lookForAt(LOOK_ENERGY, containerPos.x, containerPos.y);
+    if (energyPiles) creep.pickup(energyPiles[0]);
   }
 
   private findTargetRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
@@ -55,6 +56,14 @@ export default class UpgraderHandler implements ICreepHandler {
         const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], creep.room.name);
         if (pos.isNearTo(controller.pos.x, controller.pos.y)) return pos;
       }
+    }
+
+    return null;
+  }
+
+  private findContainerPosition(creep: Creep): RoomPosition | null {
+    for (const pos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
+      if (creep.pos.isNearTo(pos.x, pos.y)) return pos;
     }
 
     return null;
