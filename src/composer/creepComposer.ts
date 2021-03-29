@@ -6,24 +6,23 @@ import ICreepHandler from "creeps/action/ICreepHandler";
 import MeleeDefenderHandler from "creeps/action/meleeDefenderHandler";
 import RepairerHandler from "creeps/action/repairerHandler";
 import UpgraderHandler from "creeps/action/upgraderHandler";
-import StructureEnergyCollector from "creeps/action/common/structureEnergyHarvester";
 import MinerHandler from "creeps/action/minerHandler";
 import PullerHandler from "creeps/action/pullerHandler";
 import HaulerHandler from "creeps/action/haulerHandler";
 
 export default class CreepComposer {
   public creepHandlerDict(): { [creepRole: string]: ICreepHandler } {
-    const structureCreepBehavior = new CreepBehavior(new StructureEnergyCollector());
+    const creepBehavior = new CreepBehavior();
 
     const dictionary: { [creepRole: string]: ICreepHandler } = {};
     dictionary[creepRoles.UPGRADER] = new UpgraderHandler();
-    dictionary[creepRoles.BUILDER] = this.builderHandler(structureCreepBehavior);
-    dictionary[creepRoles.MELEE_DEFENDER] = this.meleeDefenderHandler(structureCreepBehavior);
-    dictionary[creepRoles.REPAIRER] = this.repairerHandler(structureCreepBehavior);
-    dictionary[creepRoles.HEALER] = this.healerHandler(structureCreepBehavior);
-    dictionary[creepRoles.MINER] = this.minerHandler();
+    dictionary[creepRoles.BUILDER] = this.builderHandler(creepBehavior);
+    dictionary[creepRoles.MELEE_DEFENDER] = new MeleeDefenderHandler();
+    dictionary[creepRoles.REPAIRER] = this.repairerHandler(creepBehavior);
+    dictionary[creepRoles.HEALER] = new HealerHandler();
+    dictionary[creepRoles.MINER] = new MinerHandler();
     dictionary[creepRoles.PULLER] = new PullerHandler();
-    dictionary[creepRoles.HAULER] = new HaulerHandler(structureCreepBehavior);
+    dictionary[creepRoles.HAULER] = new HaulerHandler(creepBehavior);
 
     return dictionary;
   }
@@ -32,19 +31,7 @@ export default class CreepComposer {
     return new BuilderHandler(creepBehavior);
   }
 
-  public meleeDefenderHandler(creepBehavior: CreepBehavior): MeleeDefenderHandler {
-    return new MeleeDefenderHandler(creepBehavior);
-  }
-
   public repairerHandler(creepBehavior: CreepBehavior): RepairerHandler {
     return new RepairerHandler(creepBehavior, this.builderHandler(creepBehavior));
-  }
-
-  public healerHandler(creepBehavior: CreepBehavior): HealerHandler {
-    return new HealerHandler(creepBehavior);
-  }
-
-  public minerHandler(): MinerHandler {
-    return new MinerHandler();
   }
 }

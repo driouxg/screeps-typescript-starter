@@ -1,20 +1,24 @@
 import CreepBehavior from "./common/creepBehavior";
+import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval";
+import StructureEnergyCollector from "./common/structureEnergyHarvester";
 import ICreepHandler from "./ICreepHandler";
 
 export default class BuilderHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
   private priorityDict: { [structureName: string]: number };
+  private creepEnergyRetrieval: ICreepEnergyRetrieval;
 
   public constructor(commonCreepBehavior: CreepBehavior) {
     this.creepBehavior = commonCreepBehavior;
     this.priorityDict = this.buildPriorityDict();
+    this.creepEnergyRetrieval = new StructureEnergyCollector();
   }
 
   public handle(creep: Creep): void {
     this.creepBehavior.updateWorkingState(creep);
 
     if (this.creepBehavior.isWorking(creep)) this.buildConstructionSite(creep);
-    else this.creepBehavior.harvestEnergy(creep);
+    else this.creepEnergyRetrieval.retrieve(creep);
   }
 
   private buildConstructionSite(creep: Creep): void {

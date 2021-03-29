@@ -1,12 +1,4 @@
-import ICreepEnergyRetrieval from "./ICreepEnergyRetrieval";
-
 export default class CreepBehavior {
-  private energyRetrieval: ICreepEnergyRetrieval;
-
-  public constructor(energyRetrieval: ICreepEnergyRetrieval) {
-    this.energyRetrieval = energyRetrieval;
-  }
-
   public isWorking(creep: Creep): boolean {
     return creep.memory.working;
   }
@@ -31,10 +23,6 @@ export default class CreepBehavior {
 
   private canStoreEnergy(creep: Creep): boolean {
     return creep.store.getCapacity() !== 0 && creep.store.getCapacity() !== null;
-  }
-
-  public harvestEnergy(creep: Creep): void {
-    this.energyRetrieval.retrieve(creep);
   }
 
   public moveToWithSinglePath(creep: Creep, pos: RoomPosition): void {

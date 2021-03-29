@@ -1,19 +1,8 @@
-import CreepBehavior from "./common/creepBehavior";
 import ICreepHandler from "./ICreepHandler";
 
 export default class HealerHandler implements ICreepHandler {
-  private creepBehavior: CreepBehavior;
-
-  public constructor(creepBehavior: CreepBehavior) {
-    this.creepBehavior = creepBehavior;
-  }
-
   public handle(creep: Creep): void {
-    this.creepBehavior.updateWorkingState(creep);
-
-    if (this.creepBehavior.isWorking(creep)) {
-      this.heal(creep);
-    } else this.creepBehavior.harvestEnergy(creep);
+    this.heal(creep);
   }
 
   private heal(creep: Creep): void {
