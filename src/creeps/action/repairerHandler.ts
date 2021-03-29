@@ -25,11 +25,8 @@ export default class RepairerHandler implements ICreepHandler {
   private repair(creep: Creep): void {
     const towers = findTowers(creep.room).filter(tower => this.canSupplyTower(tower));
 
-    if (0 < towers.length) {
-      this.supplyTower(towers, creep);
-    } else {
-      this.repairStructure(creep);
-    }
+    if (0 < towers.length) this.supplyTower(towers, creep);
+    else this.repairStructure(creep);
   }
 
   private canSupplyTower(tower: StructureTower): boolean {
