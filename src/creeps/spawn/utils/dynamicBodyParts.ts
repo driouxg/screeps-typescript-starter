@@ -12,7 +12,7 @@ export function buildCappedBodyParts(
   cap: number,
   minBluePrint?: BodyPartConstant[]
 ): BodyPartConstant[] {
-  if (room.energyAvailable < 300) return bluePrint;
+  if (room.energyAvailable < 300) return [];
 
   bluePrint.sort((b1, b2) => BODYPART_COST[b1] - BODYPART_COST[b2]);
 
