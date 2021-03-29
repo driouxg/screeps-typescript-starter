@@ -22,8 +22,6 @@ export default class BuilderHandler implements ICreepHandler {
       FIND_MY_CONSTRUCTION_SITES
     );
 
-    if (constructionSites.length <= 0) creep.suicide();
-
     const constructionSite: ConstructionSite = this.getPrioritizedConstructionSite(constructionSites);
 
     if (creep.build(constructionSite) === ERR_NOT_IN_RANGE)
@@ -44,10 +42,10 @@ export default class BuilderHandler implements ICreepHandler {
 
   private buildPriorityDict(): { [structureName: string]: number } {
     const arr = [
-      STRUCTURE_CONTAINER,
-      STRUCTURE_ROAD,
-      STRUCTURE_TOWER,
       STRUCTURE_EXTENSION,
+      STRUCTURE_CONTAINER,
+      STRUCTURE_TOWER,
+      STRUCTURE_ROAD,
       STRUCTURE_STORAGE,
       STRUCTURE_LINK,
       STRUCTURE_EXTRACTOR,
