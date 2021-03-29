@@ -14,7 +14,7 @@ export default class RepairerSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(room: Room): SpawnConfig {
-    if (this.creepPopulationDict[this.role] < 1)
+    if (this.creepPopulationDict[this.role] < 0)
       return new SpawnConfig(buildDynamicBodyParts([WORK, WORK, CARRY, MOVE], room), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
