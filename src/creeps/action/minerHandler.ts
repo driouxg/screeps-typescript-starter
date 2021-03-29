@@ -1,26 +1,17 @@
 import ICreepHandler from "./ICreepHandler";
 import * as creepRoles from "../roles";
 import PullRequestEvent from "room/pullRequestEvent";
+import NearbySourceEnergyHarvester from "./common/nearbySourceEnergyHarvester";
 
 export default class MinerHandler implements ICreepHandler {
-  handle(creep: Creep): void {
-    const nearbyMineableSource = this.retrieveNearbyMineableSource(creep);
-    if (nearbyMineableSource) {
-      creep.harvest(nearbyMineableSource);
-      return;
-    }
+  private nearbySourceEnergyHarvester: NearbySourceEnergyHarvester;
 
-    this.sendPullRequestRoomEvent(creep);
+  public constructor() {
+    this.nearbySourceEnergyHarvester = new NearbySourceEnergyHarvester();
   }
 
-  private retrieveNearbyMineableSource(creep: Creep): Source | null {
-    const sources = creep.room.find(FIND_SOURCES);
-
-    for (const source of sources) {
-      if (creep.pos.isNearTo(source.pos)) return source;
-    }
-
-    return null;
+  handle(creep: Creep): void {
+    if (this.nearbySourceEnergyHarvester.retrieve(creep) === ERR_NOT_IN_RANGE) this.sendPullRequestRoomEvent(creep);
   }
 
   private sendPullRequestRoomEvent(creep: Creep): void {

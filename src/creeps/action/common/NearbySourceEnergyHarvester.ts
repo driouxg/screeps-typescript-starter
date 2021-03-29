@@ -1,11 +1,15 @@
-import ICreepEnergyRetrieval from "./ICommonCreepBehavior";
+import ICreepEnergyRetrieval from "./ICreepEnergyRetrieval";
 
 export default class NearbySourceEnergyHarvester implements ICreepEnergyRetrieval {
-  retrieve(creep: Creep): void {
-    const source: Source | null = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE, {
-      filter: s => s.room === creep.room
-    });
-    if (!source) return;
-    if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source);
+  retrieve(
+    creep: Creep
+  ): CreepActionReturnCode | CreepMoveReturnCode | ERR_NO_PATH | ERR_NOT_FOUND | ERR_NOT_ENOUGH_RESOURCES {
+    const sources = creep.room.find(FIND_SOURCES);
+
+    for (const source of sources) {
+      if (creep.pos.isNearTo(source.pos)) return creep.harvest(source);
+    }
+
+    return ERR_NOT_IN_RANGE;
   }
 }

@@ -1,4 +1,4 @@
-import ICreepEnergyRetrieval from "./ICommonCreepBehavior";
+import ICreepEnergyRetrieval from "./ICreepEnergyRetrieval";
 
 export default class CreepBehavior {
   private energyRetrieval: ICreepEnergyRetrieval;
