@@ -11,7 +11,6 @@ export default class HaulerHandler implements ICreepHandler {
 
   handle(creep: Creep): void {
     this.creepBehavior.updateWorkingState(creep);
-
     if (this.creepBehavior.isWorking(creep)) this.offloadEnergy(creep);
     else this.collectEnergy(creep);
   }
@@ -38,6 +37,18 @@ export default class HaulerHandler implements ICreepHandler {
     if (0 < storage.length) {
       if (creep.transfer(storage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         this.creepBehavior.moveToWithSinglePath(creep, storage[0].pos);
+      return;
+    }
+
+    // offload to containers positions that are not next to sources
+    const containerPositions = creep.room.memory.positions[STRUCTURE_CONTAINER].filter(
+      c => !this.isPositionNextToSource(creep, c)
+    );
+
+    if (0 < containerPositions.length) {
+      if (creep.pos.isEqualTo(containerPositions[0].x, containerPositions[0].y)) {
+        console.log(creep.drop(RESOURCE_ENERGY));
+      } else creep.moveTo(containerPositions[0].x, containerPositions[0].y);
       return;
     }
   }
@@ -84,13 +95,13 @@ export default class HaulerHandler implements ICreepHandler {
     for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
       if (!this.isPositionNextToSource(creep, containerPos)) continue;
 
-      const pos = new RoomPosition(containerPos.x, containerPos.y, creep.room.name);
-      containerPositions.push(pos);
+      containerPositions.push(containerPos);
     }
+
     return containerPositions;
   }
 
-  private isPositionNextToSource(creep: Creep, pos: Position): boolean {
+  private isPositionNextToSource(creep: Creep, pos: RoomPosition): boolean {
     const sources = creep.room.find(FIND_SOURCES);
 
     for (const source of sources) {
