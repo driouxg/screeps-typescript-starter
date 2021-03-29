@@ -15,7 +15,7 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
 
   public spawnCreep(room: Room): SpawnConfig {
     if (this.creepPopulationDict[this.role] < 1) {
-      const bodyParts = buildDynamicBodyParts([WORK], room, [MOVE]);
+      const bodyParts = buildDynamicBodyParts([WORK, WORK, WORK], room, [CARRY]);
       return new SpawnConfig(bodyParts, this.role);
     } else return this.nextSpawnHandler.spawnCreep(room);
   }

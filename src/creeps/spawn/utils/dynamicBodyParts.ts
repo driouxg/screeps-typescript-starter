@@ -16,9 +16,9 @@ export function buildCappedBodyParts(
 
   bluePrint.sort((b1, b2) => BODYPART_COST[b1] - BODYPART_COST[b2]);
 
-  let parts: BodyPartConstant[] = minBluePrint || [];
-  let cost = 0,
-    idx = 0;
+  let parts = minBluePrint || [];
+  let cost = minBluePrint ? minBluePrint.reduce((acc, val) => acc + BODYPART_COST[val], 0) : 0;
+  let idx = 0;
 
   while (parts.length < cap && cost + BODYPART_COST[bluePrint[idx]] <= room.energyAvailable) {
     parts.push(bluePrint[idx]);
