@@ -1,6 +1,6 @@
 import { isBuildablePos } from "utils/gridBuilder";
 import { findNClosestEmptyPositionsWithBuffer } from "utils/latticeSearch";
-import IConstructionHandler from "./IConstructionHandler";
+import IConstructionHandler from "../IConstructionHandler";
 
 export default class InitialSpawnConstructionHandler implements IConstructionHandler {
   handle(room: Room, desiredState: string[][]): string[][] {

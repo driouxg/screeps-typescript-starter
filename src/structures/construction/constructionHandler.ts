@@ -23,24 +23,25 @@ export default class ContructionHandler {
   }
 
   public handle(): void {
-    for (const roomName in Game.rooms) {
-      const room: Room = Game.rooms[roomName];
-      let desiredState: string[][] = room.memory.desiredState;
+    for (const roomName in Game.rooms) this.construct(Game.rooms[roomName]);
+  }
 
-      if (!desiredState) {
-        desiredState = buildStringGrid();
+  private construct(room: Room): void {
+    let desiredState: string[][] = room.memory.desiredState;
 
-        for (const constructionHandler of this.constructionHandlers) {
-          desiredState = constructionHandler.handle(room, desiredState);
-        }
+    if (desiredState) return;
 
-        this.updateCachedDesiredState(room, desiredState);
-        this.structurePositionsMemoryUpdater.update(room);
-      }
+    desiredState = buildStringGrid();
 
-      this.desiredStateConstructor.construct(room, desiredState);
-      this.constructionSiteVisualizer.handle(room);
+    for (const constructionHandler of this.constructionHandlers) {
+      desiredState = constructionHandler.handle(room, desiredState);
     }
+
+    this.updateCachedDesiredState(room, desiredState);
+    this.structurePositionsMemoryUpdater.update(room);
+
+    this.desiredStateConstructor.construct(room, desiredState);
+    this.constructionSiteVisualizer.handle(room);
   }
 
   private updateCachedDesiredState(room: Room, desiredState: string[][]): void {

@@ -1,9 +1,9 @@
 import ContainerConstructionHandler from "structures/construction/container/containerConstructionHandler";
-import ExtensionConstructionHandler from "structures/construction/extensionConstructionHandler";
+import ExtensionConstructionHandler from "structures/construction/lattice/extensionConstructionHandler";
 import ExtractorConstructionHandler from "structures/construction/extractorConstructionHandler";
 import FactoryConstructionHandler from "structures/construction/factoryConstructionHandler";
 import IConstructionHandler from "structures/construction/IConstructionHandler";
-import LabConstructionHandler from "structures/construction/labConstructionHandler";
+import LabConstructionHandler from "structures/construction/lattice/labConstructionHandler";
 import LinkConstructionHandler from "structures/construction/linkConstructionHandler";
 import NukerConstructionHandler from "structures/construction/nukerConstructionHandler";
 import ObserverConstructionHandler from "structures/construction/observerConstructionHandler";
@@ -20,7 +20,7 @@ import ConstructionHandler from "../structures/construction/constructionHandler"
 import DesiredStateConstructor from "structures/construction/desiredStateConstructor";
 import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdater";
 import RoadExtensionConstructionHandler from "structures/construction/road/roadExtensionConstructionHandler";
-import InitialSpawnConstructionHandler from "structures/construction/initialSpawnConstructionHandler";
+import InitialSpawnConstructionHandler from "structures/construction/lattice/initialSpawnConstructionHandler";
 import EnergySourceContainerConstructionHandler from "structures/construction/container/energySourceContainerConstructionHandler";
 import ControllerContainerConstructionHandler from "structures/construction/container/controllerContainerConstructionHandler";
 

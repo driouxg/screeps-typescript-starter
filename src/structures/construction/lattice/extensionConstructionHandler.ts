@@ -1,5 +1,5 @@
-import IConstructionHandler from "./IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../../utils/latticeSearch";
+import IConstructionHandler from "../IConstructionHandler";
+import { findNClosestEmptyPositionsLattice } from "../../../utils/latticeSearch";
 
 export default class ExtensionConstructionHandler implements IConstructionHandler {
   private maxExtensionsPerRoom = 60;
