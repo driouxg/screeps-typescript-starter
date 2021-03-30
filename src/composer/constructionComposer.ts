@@ -25,7 +25,8 @@ import ControllerContainerConstructionHandler from "structures/construction/cont
 import LatticeLayoutHandler from "structures/construction/lattice/latticeLayoutHandler";
 import ILayoutHandler from "structures/construction/ILayoutHandler";
 import BunkerConstructionHandler from "structures/construction/bunker/bunkerLayoutHandler";
-import SourceLinkConstructionHandler from "structures/construction/lattice/sourceLinkConstructionHandler";
+import SourceLinkConstructionHandler from "structures/construction/link/sourceLinkConstructionHandler";
+import ControllerLinkConstructionHandler from "structures/construction/link/controllerLinkConstructionHandler";
 
 export default class ConstructionComposer {
   private positionsMemoryUpdater = new StructurePositionsMemoryUpdater();
@@ -70,7 +71,8 @@ export default class ConstructionComposer {
       new InitialSpawnConstructionHandler(),
       new EnergySourceContainerConstructionHandler(),
       new ControllerContainerConstructionHandler(),
-      new SourceLinkConstructionHandler()
+      new SourceLinkConstructionHandler(),
+      new ControllerLinkConstructionHandler()
     ];
   }
 
@@ -95,7 +97,8 @@ export default class ConstructionComposer {
       new RoadExtensionConstructionHandler(),
       new LabConstructionHandler(),
       new ExtractorConstructionHandler(),
-      new SourceLinkConstructionHandler()
+      new SourceLinkConstructionHandler(),
+      new ControllerLinkConstructionHandler()
     ];
   }
 }
