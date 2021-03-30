@@ -73,7 +73,8 @@ export default class ConstructionComposer {
       new ControllerContainerConstructionHandler(),
       new SourceLinkConstructionHandler(),
       new ControllerLinkConstructionHandler(),
-      new RoadConstructionHandler()
+      new RoadConstructionHandler(),
+      new ExtractorConstructionHandler()
     ];
   }
 

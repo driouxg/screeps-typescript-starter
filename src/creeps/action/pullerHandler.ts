@@ -1,11 +1,12 @@
 import PullRequestEvent from "room/pullRequestEvent";
+import { findCachedStructurePositions } from "utils/structureUtils";
 import ICreepHandler from "./ICreepHandler";
 
 export default class PullerHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const pullRequest = this.getFirstPullRequest(creep);
     if (!pullRequest) {
-      creep.suicide();
+      this.idleNearExtension(creep);
       return;
     }
 
@@ -22,6 +23,15 @@ export default class PullerHandler implements ICreepHandler {
       if (creep.pos.isEqualTo(targetPos)) creep.move(creep.pos.getDirectionTo(target));
       else creep.moveTo(targetPos);
     }
+  }
+
+  private idleNearExtension(creep: Creep): void {
+    const extensionPositions = findCachedStructurePositions(creep.room, STRUCTURE_EXTENSION);
+
+    if (extensionPositions.length <= 0) creep.suicide;
+
+    if (!creep.pos.isNearTo(extensionPositions[0].x, extensionPositions[0].y))
+      creep.moveTo(extensionPositions[0].x, extensionPositions[0].y);
   }
 
   private getFirstPullRequest(creep: Creep): PullRequestEvent | null {
