@@ -16,9 +16,7 @@ export default class UpgraderHandler implements ICreepHandler {
       creep.room.memory.events.push(new PullRequestEvent(targetPos, creep.name));
       return;
     }
-
-    if (creep.store.energy === 0) this.collectEnergy(creep);
-
+    this.collectEnergy(creep);
     creep.upgradeController(controller);
   }
 
