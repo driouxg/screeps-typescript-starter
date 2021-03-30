@@ -25,6 +25,7 @@ import ControllerContainerConstructionHandler from "structures/construction/cont
 import LatticeLayoutHandler from "structures/construction/lattice/latticeLayoutHandler";
 import ILayoutHandler from "structures/construction/ILayoutHandler";
 import BunkerConstructionHandler from "structures/construction/bunker/bunkerLayoutHandler";
+import SourceLinkConstructionHandler from "structures/construction/lattice/sourceLinkConstructionHandler";
 
 export default class ConstructionComposer {
   private positionsMemoryUpdater = new StructurePositionsMemoryUpdater();
@@ -45,7 +46,6 @@ export default class ConstructionComposer {
 
     room.memory.desiredState = layout.handle(room);
 
-    console.log(`updating positions`);
     this.positionsMemoryUpdater.update(room);
   }
 
@@ -54,20 +54,27 @@ export default class ConstructionComposer {
       if (layout.isRoomForLayout(room)) return layout;
     }
 
-    console.log(`found layout!`);
-
     return this.latticeLayoutHandler();
   }
 
   private layoutHandlers(): ILayoutHandler[] {
-    return [new BunkerConstructionHandler(), this.latticeLayoutHandler()];
+    return [new BunkerConstructionHandler(this.bunkerConstructionHandlers()), this.latticeLayoutHandler()];
   }
 
   private latticeLayoutHandler(): ILayoutHandler {
-    return new LatticeLayoutHandler(this.constructionHandlers());
+    return new LatticeLayoutHandler(this.latticeConstructionHandlers());
   }
 
-  private constructionHandlers(): IConstructionHandler[] {
+  private bunkerConstructionHandlers(): IConstructionHandler[] {
+    return [
+      new InitialSpawnConstructionHandler(),
+      new EnergySourceContainerConstructionHandler(),
+      new ControllerContainerConstructionHandler(),
+      new SourceLinkConstructionHandler()
+    ];
+  }
+
+  private latticeConstructionHandlers(): IConstructionHandler[] {
     return [
       new InitialSpawnConstructionHandler(),
       new EnergySourceContainerConstructionHandler(),
@@ -87,7 +94,8 @@ export default class ConstructionComposer {
       new ExtensionConstructionHandler(),
       new RoadExtensionConstructionHandler(),
       new LabConstructionHandler(),
-      new ExtractorConstructionHandler()
+      new ExtractorConstructionHandler(),
+      new SourceLinkConstructionHandler()
     ];
   }
 }

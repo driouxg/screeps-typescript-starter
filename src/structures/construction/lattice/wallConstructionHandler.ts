@@ -1,6 +1,7 @@
 import { buildBooleanGrid, isBuildablePos, isEdge, isInBounds, isWall } from "utils/gridBuilder";
 import IConstructionHandler from "../IConstructionHandler";
 import Queue from "../../../utils/queue";
+import { dirs } from "utils/directions";
 
 export default class WallConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
@@ -17,16 +18,6 @@ export default class WallConstructionHandler implements IConstructionHandler {
   }
 
   private bfs(desiredState: string[][], visited: boolean[][], x: number, y: number, room: Room): string[][] {
-    const dirs: number[][] = [
-      [-1, -1],
-      [-1, 0],
-      [-1, 1],
-      [0, -1],
-      [0, 1],
-      [1, 1],
-      [1, -1],
-      [1, 0]
-    ];
     const q: Queue<number[]> = new Queue<number[]>();
     q.add([x, y]);
 
@@ -48,7 +39,7 @@ export default class WallConstructionHandler implements IConstructionHandler {
 
         visited[pos[1]][pos[0]] = true;
 
-        for (const dir of dirs) {
+        for (const dir of dirs()) {
           const dx: number = pos[0] + dir[0];
           const dy: number = pos[1] + dir[1];
 

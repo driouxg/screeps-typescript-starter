@@ -7,7 +7,6 @@ export default class LinkConstructionHandler implements IConstructionHandler {
   public handle(room: Room, desiredState: string[][]): string[][] {
     if (!(room.controller && room.controller.my)) return desiredState;
 
-    this.markLinksNextToSources(room, desiredState); // uses up to 2 links
     this.markLinksNextToMinerals(room, desiredState); // uses 2 links
     this.markLinksNextToStorage(room, desiredState); // uses 1 link
 
@@ -34,17 +33,6 @@ export default class LinkConstructionHandler implements IConstructionHandler {
     }
 
     return 0;
-  }
-
-  private markLinksNextToSources(room: Room, desiredState: string[][]): number {
-    const desiredLinks = 1;
-    const sources: Source[] = room.find(FIND_SOURCES);
-
-    for (const source of sources) {
-      this.markPositions(source.pos, desiredState, desiredLinks);
-    }
-
-    return sources.length;
   }
 
   private markLinksNextToMinerals(room: Room, desiredState: string[][]): number {

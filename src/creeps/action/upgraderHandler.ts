@@ -1,4 +1,5 @@
 import PullRequestEvent from "room/pullRequestEvent";
+import { dirs } from "utils/directions";
 import ICreepHandler from "./ICreepHandler";
 
 export default class UpgraderHandler implements ICreepHandler {
@@ -40,18 +41,7 @@ export default class UpgraderHandler implements ICreepHandler {
   }
 
   private findTargetRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
-    const dirs = [
-      [-1, 0],
-      [-1, -1],
-      [0, -1],
-      [-1, 1],
-      [1, -1],
-      [1, 0],
-      [0, 1],
-      [1, 1]
-    ];
-
-    for (const dir of dirs) {
+    for (const dir of dirs()) {
       for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
         const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], creep.room.name);
         if (pos.isNearTo(controller.pos.x, controller.pos.y)) return pos;
