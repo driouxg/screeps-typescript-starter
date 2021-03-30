@@ -25,8 +25,8 @@ export default class CreepBehavior {
     return creep.store.getCapacity() !== 0 && creep.store.getCapacity() !== null;
   }
 
-  public moveToWithSinglePath(creep: Creep, pos: RoomPosition): void {
+  public moveToWithSinglePath(creep: Creep, pos: RoomPosition): CreepReturnCode {
     // eslint-disable-next-line id-blacklist
-    creep.moveTo(pos.x, pos.y, { reusePath: 50 });
+    return creep.moveTo(pos.x, pos.y, { reusePath: 50 });
   }
 }

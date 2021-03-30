@@ -19,29 +19,26 @@ export default class HaulerHandler implements ICreepHandler {
     else this.creepEnergyRetrieval.retrieve(creep);
   }
 
-  private offloadEnergy(creep: Creep): void {
+  private offloadEnergy(creep: Creep): CreepReturnCode {
     // offload to extensions
     const extensions = findExtensions(creep.room).filter(e => 0 < e.store.getFreeCapacity(RESOURCE_ENERGY));
     if (0 < extensions.length) {
       if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
-      return;
+        return this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
     }
 
     // offload to spawns
     const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY));
     if (0 < spawns.length) {
       if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos);
-      return;
+        return this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos);
     }
 
     // offload to storage
     const storage = findStorage(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY));
     if (0 < storage.length) {
       if (creep.transfer(storage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        this.creepBehavior.moveToWithSinglePath(creep, storage[0].pos);
-      return;
+        return this.creepBehavior.moveToWithSinglePath(creep, storage[0].pos);
     }
 
     // offload to containers positions that are not next to sources
@@ -50,10 +47,13 @@ export default class HaulerHandler implements ICreepHandler {
     );
 
     if (0 < containerPositions.length) {
-      if (creep.pos.isEqualTo(containerPositions[0].x, containerPositions[0].y)) creep.drop(RESOURCE_ENERGY);
-      else this.creepBehavior.moveToWithSinglePath(creep, containerPositions[0]);
-      return;
+      if (creep.pos.isEqualTo(containerPositions[0].x, containerPositions[0].y)) {
+        creep.drop(RESOURCE_ENERGY);
+        return this.creepEnergyRetrieval.retrieve(creep);
+      } else return this.creepBehavior.moveToWithSinglePath(creep, containerPositions[0]);
     }
+
+    return ERR_NOT_FOUND;
   }
 
   private isPositionNextToSource(creep: Creep, pos: RoomPosition): boolean {
