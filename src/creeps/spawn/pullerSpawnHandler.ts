@@ -1,6 +1,7 @@
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
 import * as creepRoles from "../roles";
+import PullRequestEvent from "room/pullRequestEvent";
 
 export default class PullerSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
@@ -13,15 +14,21 @@ export default class PullerSpawnHandler implements ISpawnHandler {
   }
 
   spawnCreep(room: Room): SpawnConfig {
-    const bluePrint = [MOVE, MOVE];
+    const pullRequestEvent = this.getPendingPullRequest(room);
 
-    if (this.creepPopulationDict[this.role] < 1 && this.isPendingPullRequestsExist(room))
-      return new SpawnConfig(bluePrint, this.role);
+    if (!pullRequestEvent) return this.nextSpawnHandler.spawnCreep(room);
+
+    if (this.creepPopulationDict[this.role] < 1)
+      return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
 
-  private isPendingPullRequestsExist(room: Room): boolean {
-    for (const req of room.memory.events) if (req.type === "PULL_REQUEST") return true;
-    return false;
+  private getPendingPullRequest(room: Room): PullRequestEvent | null {
+    for (const req of room.memory.events) if (req.type === "PULL_REQUEST") return req as PullRequestEvent;
+    return null;
+  }
+
+  private createAppropriateBlueprint(pullRequest: PullRequestEvent): BodyPartConstant[] {
+    return Array.from({ length: Game.creeps[pullRequest.creepId].body.length }, (_, _) => MOVE);
   }
 }
