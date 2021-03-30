@@ -1,4 +1,4 @@
-import { findExtensions, findSpawns, findStorage } from "utils/structureUtils";
+import { findCachedStructurePositions, findExtensions, findSpawns, findStorage } from "utils/structureUtils";
 import CreepBehavior from "./common/creepBehavior";
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval";
 import StructureEnergyCollector from "./common/structureEnergyHarvester";
@@ -45,7 +45,7 @@ export default class HaulerHandler implements ICreepHandler {
     }
 
     // offload to containers positions that are not next to sources
-    const containerPositions = creep.room.memory.positions[STRUCTURE_CONTAINER].filter(
+    const containerPositions = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER).filter(
       c => !this.isPositionNextToSource(creep, c)
     );
 
