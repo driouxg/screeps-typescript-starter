@@ -17,7 +17,7 @@ export default class HaulerSpawnHandler implements ISpawnHandler {
   spawnCreep(room: Room): SpawnConfig {
     const bluePrint = [CARRY, MOVE, CARRY, MOVE];
 
-    if (this.creepPopulationDict[this.role] < this.creepPopulationDict[creepRoles.MINER])
+    if (this.creepPopulationDict[this.role] < this.creepPopulationDict[creepRoles.MINER] * 2)
       return new SpawnConfig(buildDynamicBodyParts(bluePrint, room), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
