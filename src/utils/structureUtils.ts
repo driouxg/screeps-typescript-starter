@@ -14,7 +14,7 @@ export function findTowers(room: Room): StructureTower[] {
 
 export function findContainers(room: Room): StructureContainer[] {
   let containers: StructureContainer[] = [];
-  for (let pos of findCachedContainerPositions(room)) {
+  for (let pos of findCachedStructurePositions(room, STRUCTURE_CONTAINER)) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const container = structures.find(s => s.structureType === STRUCTURE_CONTAINER) as StructureContainer;
 
@@ -24,22 +24,9 @@ export function findContainers(room: Room): StructureContainer[] {
   return containers;
 }
 
-export function findCachedContainerPositions(room: Room): RoomPosition[] {
-  if (!room.memory.positions || !room.memory.positions[STRUCTURE_CONTAINER]) return [];
-
-  let positions = [];
-  for (let pos of room.memory.positions[STRUCTURE_CONTAINER]) {
-    positions.push(pos);
-  }
-
-  return positions;
-}
-
 export function findSpawns(room: Room): StructureSpawn[] {
-  if (!room.memory.positions[STRUCTURE_SPAWN]) return [];
-
   let spawns = [];
-  for (let pos of room.memory.positions[STRUCTURE_SPAWN]) {
+  for (let pos of findCachedStructurePositions(room, STRUCTURE_SPAWN)) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const spawn = structures.find(s => s.structureType === STRUCTURE_SPAWN) as StructureSpawn;
 
@@ -50,10 +37,8 @@ export function findSpawns(room: Room): StructureSpawn[] {
 }
 
 export function findExtensions(room: Room): StructureExtension[] {
-  if (!room.memory.positions[STRUCTURE_EXTENSION]) return [];
-
   let extensions = [];
-  for (let pos of room.memory.positions[STRUCTURE_EXTENSION]) {
+  for (let pos of findCachedStructurePositions(room, STRUCTURE_EXTENSION)) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
     const extension = structures.find(s => s.structureType === STRUCTURE_EXTENSION) as StructureExtension;
 
@@ -61,6 +46,15 @@ export function findExtensions(room: Room): StructureExtension[] {
   }
 
   return extensions;
+}
+
+export function findCachedStructurePositions(room: Room, structureType: StructureConstant): RoomPosition[] {
+  if (!room.memory.positions || !room.memory.positions[structureType]) return [];
+
+  let positions = [];
+  for (let pos of room.memory.positions[structureType]) positions.push(pos);
+
+  return positions;
 }
 
 export function findStorage(room: Room): StructureStorage[] {

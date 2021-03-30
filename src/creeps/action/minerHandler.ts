@@ -2,7 +2,7 @@ import ICreepHandler from "./ICreepHandler";
 import * as creepRoles from "../roles";
 import PullRequestEvent from "room/pullRequestEvent";
 import NearbySourceEnergyHarvester from "./common/nearbySourceEnergyHarvester";
-import { findCachedContainerPositions, findContainers } from "utils/structureUtils";
+import { findCachedStructurePositions } from "utils/structureUtils";
 
 export default class MinerHandler implements ICreepHandler {
   private nearbySourceEnergyHarvester: NearbySourceEnergyHarvester;
@@ -23,7 +23,7 @@ export default class MinerHandler implements ICreepHandler {
   }
 
   private findAvailableMinerPosition(creep: Creep): RoomPosition | null {
-    for (const containerPos of findCachedContainerPositions(creep.room)) {
+    for (const containerPos of findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER)) {
       const sources = creep.room.find(FIND_SOURCES);
 
       for (const source of sources) {
