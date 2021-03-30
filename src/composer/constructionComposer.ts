@@ -72,7 +72,8 @@ export default class ConstructionComposer {
       new EnergySourceContainerConstructionHandler(),
       new ControllerContainerConstructionHandler(),
       new SourceLinkConstructionHandler(),
-      new ControllerLinkConstructionHandler()
+      new ControllerLinkConstructionHandler(),
+      new RoadConstructionHandler()
     ];
   }
 
