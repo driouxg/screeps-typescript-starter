@@ -15,20 +15,28 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
 
     for (const handler of this.constructionHandlers) desiredState = handler.handle(room, desiredState);
 
+    let buildablePositions = [];
+
     for (let y = 3; y < 50; y++) {
       for (let x = 3; x < 50; x++) {
         if (!this.isRoomFromPosition(room, x, y)) continue;
-        this.markLayout(x, y, desiredState);
-        return desiredState;
+        buildablePositions.push(new RoomPosition(x, y, room.name));
       }
     }
+
+    const idealPosition = new RoomPosition(25 - this.layout.length / 2, 25 - this.layout.length / 2, room.name);
+    buildablePositions.sort((p1, p2) => p1.getRangeTo(idealPosition) - p2.getRangeTo(idealPosition));
+
+    this.markLayout(buildablePositions[0], desiredState);
 
     console.log(`Using bunker layout in room: ${room.name}`);
 
     return desiredState;
   }
 
-  private markLayout(x: number, y: number, desiredState: string[][]) {
+  private markLayout(pos: RoomPosition, desiredState: string[][]) {
+    const x = pos.x,
+      y = pos.y;
     for (let yy = y; yy < 50 && yy < y + this.layout.length; yy++) {
       for (let xx = x; xx < 50 && xx < x + this.layout.length; xx++) {
         desiredState[yy][xx] = this.layout[yy - y][xx - x];
@@ -37,6 +45,8 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
   }
 
   isRoomForLayout(room: Room): boolean {
+    if (!room.controller) return false;
+
     for (let y = 3; y < 50; y++) {
       for (let x = 3; x < 50; x++) {
         if (this.isRoomFromPosition(room, x, y)) return true;
@@ -49,7 +59,7 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
     for (let yy = y; yy < 50 && yy < y + this.layout.length; yy++) {
       for (let xx = x; xx < 50 && xx < x + this.layout[yy - y].length; xx++) {
         if (this.layout[yy - y][xx - x] === "") continue;
-        if (room.controller && room.controller.pos.inRangeTo(x, y, 3)) return false;
+        if (room.controller!.pos.inRangeTo(xx, yy, 3)) return false;
         if (room.getTerrain().get(xx, yy) === TERRAIN_MASK_WALL) return false;
       }
     }
