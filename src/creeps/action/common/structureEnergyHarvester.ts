@@ -1,10 +1,11 @@
-import { findContainers, findStorage } from "utils/structureUtils";
+import { findCachedStructurePositions, findContainers, findStorage } from "utils/structureUtils";
 import ICreepEnergyRetrieval from "./ICreepEnergyRetrieval";
 
 export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
   retrieve(
     creep: Creep
   ): CreepActionReturnCode | CreepMoveReturnCode | ERR_NO_PATH | ERR_NOT_FOUND | ERR_NOT_ENOUGH_RESOURCES {
+    // energy piles
     const energyPiles = this.findContainerPositionsNextToSource(creep)
       .map(p => creep.room.lookForAt(RESOURCE_ENERGY, p.x, p.y))
       .filter(e => this.filterPositionsThatHaveEnoughEnergyOnGround(creep, e));
@@ -13,12 +14,13 @@ export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
       if (creep.pickup(energyPiles[0][0]) == ERR_NOT_IN_RANGE) return creep.moveTo(energyPiles[0][0]);
     }
 
+    // containers
     const containers = this.findContainersNextToSource(creep)
       .filter(c => creep.store.getFreeCapacity() < c.store[RESOURCE_ENERGY])
       .sort((c1, c2) => c2.store[RESOURCE_ENERGY] - c1.store[RESOURCE_ENERGY]);
 
     if (0 < containers.length) {
-      if (creep.withdraw(containers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) creep.moveTo(containers[0]);
+      if (creep.withdraw(containers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) return creep.moveTo(containers[0]);
     }
 
     // storage
@@ -50,27 +52,13 @@ export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
   }
 
   private findContainersNextToSource(creep: Creep): StructureContainer[] {
-    const containerPositions = this.findContainerPositionsNextToSource(creep);
-
-    let containers = [];
-    for (const pos of containerPositions) {
-      const structures = creep.room
-        .lookForAt(LOOK_STRUCTURES, pos)
-        .filter(s => s.structureType === STRUCTURE_CONTAINER);
-      if (structures && structures.length === 1) containers.push(structures[0] as StructureContainer);
-    }
-    return containers;
+    const containerPositions = findContainers(creep.room);
+    return containerPositions.filter(c => this.isPositionNextToSource(creep, c.pos));
   }
 
   private findContainerPositionsNextToSource(creep: Creep): RoomPosition[] {
-    let containerPositions = [];
-    for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
-      if (!this.isPositionNextToSource(creep, containerPos)) continue;
-
-      containerPositions.push(containerPos);
-    }
-
-    return containerPositions;
+    const poss = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER);
+    return poss.filter(p => this.isPositionNextToSource(creep, p));
   }
 
   private isPositionNextToSource(creep: Creep, pos: RoomPosition): boolean {
