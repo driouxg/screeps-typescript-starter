@@ -16,7 +16,7 @@ export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
 
     // containers
     const containers = this.findContainersNextToSource(creep)
-      .filter(c => creep.store.getFreeCapacity() < c.store[RESOURCE_ENERGY])
+      .filter(c => creep.store.getFreeCapacity() / 2 < c.store[RESOURCE_ENERGY])
       .sort((c1, c2) => c2.store[RESOURCE_ENERGY] - c1.store[RESOURCE_ENERGY]);
 
     if (0 < containers.length) {
@@ -33,7 +33,7 @@ export default class StructureEnergyCollector implements ICreepEnergyRetrieval {
   }
 
   private filterPositionsThatHaveEnoughEnergyOnGround(creep: Creep, energyPiles: Resource[]): boolean {
-    return energyPiles && energyPiles.length === 1 && creep.store.getFreeCapacity() <= energyPiles[0].amount;
+    return energyPiles && energyPiles.length === 1 && creep.store.getFreeCapacity() / 2 <= energyPiles[0].amount;
   }
 
   private findContainersNextToSource(creep: Creep): StructureContainer[] {
