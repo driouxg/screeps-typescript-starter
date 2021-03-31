@@ -1,17 +1,3 @@
-export function findTowers(room: Room): StructureTower[] {
-  if (!room.memory.positions[STRUCTURE_TOWER]) return [];
-  let towers: StructureTower[] = [];
-
-  for (let pos of room.memory.positions[STRUCTURE_TOWER]) {
-    const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
-    const tower = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureTower;
-
-    if (tower) towers.push(tower);
-  }
-
-  return towers;
-}
-
 export function findContainers(room: Room): StructureContainer[] {
   let containers: StructureContainer[] = [];
   for (let pos of findCachedStructurePositions(room, STRUCTURE_CONTAINER)) {
@@ -46,6 +32,18 @@ export function findExtensions(room: Room): StructureExtension[] {
   }
 
   return extensions;
+}
+
+export function findTowers(room: Room): StructureTower[] {
+  let towers = [];
+  for (const pos of findCachedStructurePositions(room, STRUCTURE_TOWER)) {
+    const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y);
+    const tower = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureTower;
+
+    if (tower) towers.push(tower);
+  }
+
+  return towers;
 }
 
 export function findCachedStructurePositions(room: Room, structureType: StructureConstant): RoomPosition[] {
