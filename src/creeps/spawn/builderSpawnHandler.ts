@@ -14,6 +14,8 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(room: Room): SpawnConfig {
+    if (room.energyAvailable !== room.energyCapacityAvailable) return this.nextSpawnHandler.spawnCreep(room);
+
     if (this.creepPopulationDict[this.role] < 2 && 0 < room.find(FIND_MY_CONSTRUCTION_SITES).length)
       return new SpawnConfig(buildDynamicBodyParts([WORK, WORK, CARRY, MOVE], room), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);

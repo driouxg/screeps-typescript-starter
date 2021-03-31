@@ -15,6 +15,7 @@ export default class HaulerSpawnHandler implements ISpawnHandler {
   }
 
   spawnCreep(room: Room): SpawnConfig {
+    if (room.energyAvailable !== room.energyCapacityAvailable) return this.nextSpawnHandler.spawnCreep(room);
     const bluePrint = [CARRY, MOVE, CARRY, MOVE];
 
     if (this.creepPopulationDict[this.role] < this.creepPopulationDict[creepRoles.MINER] * 2)
