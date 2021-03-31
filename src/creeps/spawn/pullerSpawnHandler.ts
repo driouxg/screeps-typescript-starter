@@ -29,6 +29,6 @@ export default class PullerSpawnHandler implements ISpawnHandler {
   }
 
   private createAppropriateBlueprint(pullRequest: PullRequestEvent): BodyPartConstant[] {
-    return Array.from({ length: Game.creeps[pullRequest.creepId].body.length }, (_, _) => MOVE);
+    return Array.from({ length: Game.creeps[pullRequest.creepId].body.length }, (_, _i) => MOVE);
   }
 }
