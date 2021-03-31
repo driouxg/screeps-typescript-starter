@@ -14,10 +14,19 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(room: Room): SpawnConfig {
-    if (room.energyAvailable !== room.energyCapacityAvailable) return this.nextSpawnHandler.spawnCreep(room);
+    if (room.energyAvailable !== room.energyCapacityAvailable || !this.isHundredthTick())
+      return this.nextSpawnHandler.spawnCreep(room);
 
-    if (this.creepPopulationDict[this.role] < 2 && 0 < room.find(FIND_MY_CONSTRUCTION_SITES).length)
+    const constructionSites = room.find(FIND_MY_CONSTRUCTION_SITES);
+
+    const numCreeps = 0 < constructionSites.filter(c => c.structureType !== STRUCTURE_ROAD).length ? 2 : 1;
+
+    if (this.creepPopulationDict[this.role] < numCreeps && 0 < constructionSites.length)
       return new SpawnConfig(buildDynamicBodyParts([WORK, WORK, CARRY, MOVE], room), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
+  }
+
+  private isHundredthTick(): boolean {
+    return Game.time % 100 === 0;
   }
 }
