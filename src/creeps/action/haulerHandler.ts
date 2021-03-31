@@ -41,7 +41,7 @@ export default class HaulerHandler implements ICreepHandler {
     }
 
     // offload to towers
-    const towers = findTowers(creep.room);
+    const towers = findTowers(creep.room).filter(t => 0 < t.store.getFreeCapacity(RESOURCE_ENERGY));
     if (0 < towers.length) {
       if (creep.transfer(towers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, towers[0].pos);
