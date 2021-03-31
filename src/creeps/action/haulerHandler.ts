@@ -1,4 +1,10 @@
-import { findCachedStructurePositions, findExtensions, findSpawns, findStorage } from "utils/structureUtils";
+import {
+  findCachedStructurePositions,
+  findExtensions,
+  findSpawns,
+  findStorage,
+  findTowers
+} from "utils/structureUtils";
 import CreepBehavior from "./common/creepBehavior";
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval";
 import StructureEnergyCollector from "./common/structureEnergyHarvester";
@@ -32,6 +38,13 @@ export default class HaulerHandler implements ICreepHandler {
     if (0 < spawns.length) {
       if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos);
+    }
+
+    // offload to towers
+    const towers = findTowers(creep.room);
+    if (0 < towers.length) {
+      if (creep.transfer(towers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
+        return this.creepBehavior.moveToWithSinglePath(creep, towers[0].pos);
     }
 
     // offload to storage
