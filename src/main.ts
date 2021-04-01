@@ -13,6 +13,7 @@ import StructureActionComposer from "composer/structureActionComposer";
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
   initRoomMemory();
+  deleteMissingCreepMemory();
 
   const creepComposer = new CreepComposer();
   const spawnComposer: SpawnComposer = new SpawnComposer();
@@ -25,7 +26,6 @@ export const loop = ErrorMapper.wrapLoop(() => {
   manageCreepActions(creepHandlerDict);
   manageStructureActions(structureActionComposer.structureActionHandlers());
 
-  deleteMissingCreepMemory();
   deleteRoomEvents();
 });
 
