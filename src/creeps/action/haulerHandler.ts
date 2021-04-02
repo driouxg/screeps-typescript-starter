@@ -29,6 +29,9 @@ export default class HaulerHandler implements ICreepHandler {
     // offload to extensions
     const extensions = findExtensions(creep.room).filter(e => 0 < e.store.getFreeCapacity(RESOURCE_ENERGY));
     if (0 < extensions.length) {
+      extensions.sort(
+        (e1, e2) => e1.pos.getRangeTo(creep.pos.x, creep.pos.y) - e2.pos.getRangeTo(creep.pos.x, creep.pos.y)
+      );
       if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
     }
