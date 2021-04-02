@@ -25,6 +25,12 @@ export default class UpgraderHandler implements ICreepHandler {
 
     if (!containerPos) return;
 
+    const energyPiles = creep.room.lookForAt(LOOK_ENERGY, containerPos.x, containerPos.y);
+    if (0 < energyPiles.length) {
+      creep.pickup(energyPiles[0]);
+      return;
+    }
+
     const containers = creep.room
       .lookForAt(LOOK_STRUCTURES, containerPos.x, containerPos.y)
       .filter(s => s.structureType === STRUCTURE_CONTAINER);
@@ -33,9 +39,6 @@ export default class UpgraderHandler implements ICreepHandler {
       creep.withdraw(containers[0], RESOURCE_ENERGY);
       return;
     }
-
-    const energyPiles = creep.room.lookForAt(LOOK_ENERGY, containerPos.x, containerPos.y);
-    if (energyPiles) creep.pickup(energyPiles[0]);
   }
 
   private findTargetRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
