@@ -20,6 +20,7 @@ export default class SpawnComposer {
 
       const spawner: ISpawnHandler = this.spawner(spawn);
       const spawnConfig: SpawnConfig = spawner.spawnCreep(spawn.room);
+
       if (spawnConfig.getBody().length === 0) continue;
 
       spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {

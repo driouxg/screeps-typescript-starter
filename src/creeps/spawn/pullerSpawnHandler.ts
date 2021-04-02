@@ -2,6 +2,7 @@ import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
 import * as creepRoles from "../roles";
 import PullRequestEvent from "room/pullRequestEvent";
+import { buildDynamicBodyParts } from "./utils/dynamicBodyParts";
 
 export default class PullerSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
@@ -19,7 +20,7 @@ export default class PullerSpawnHandler implements ISpawnHandler {
     if (!pullRequestEvent) return this.nextSpawnHandler.spawnCreep(room);
 
     if (this.creepPopulationDict[this.role] < 1)
-      return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent), this.role);
+      return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent, room), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
 
@@ -28,7 +29,10 @@ export default class PullerSpawnHandler implements ISpawnHandler {
     return null;
   }
 
-  private createAppropriateBlueprint(pullRequest: PullRequestEvent): BodyPartConstant[] {
-    return Array.from({ length: Game.creeps[pullRequest.creepId].body.length }, (_, _i) => MOVE);
+  private createAppropriateBlueprint(pullRequest: PullRequestEvent, room: Room): BodyPartConstant[] {
+    const targetNumParts = Game.creeps[pullRequest.creepId].body.length;
+    if (room.energyAvailable < targetNumParts * BODYPART_COST[MOVE]) return buildDynamicBodyParts([MOVE], room);
+
+    return Array.from({ length: targetNumParts }, (_, _i) => MOVE);
   }
 }
