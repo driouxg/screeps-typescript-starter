@@ -62,7 +62,8 @@ export default class HaulerHandler implements ICreepHandler {
 
       if (
         (0 < containers.length && containers[0].store.energy < containers[0].store.getCapacity(RESOURCE_ENERGY)) ||
-        (0 < energyPiles.length && energyPiles[0].amount < 2000)
+        energyPiles.length <= 0 ||
+        energyPiles[0].amount < 2000
       ) {
         if (creep.pos.isEqualTo(pos.x, pos.y)) {
           creep.drop(RESOURCE_ENERGY);
