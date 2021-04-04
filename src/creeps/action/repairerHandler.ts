@@ -1,6 +1,5 @@
 import CreepBehavior from "./common/creepBehavior";
 import ICreepHandler from "./ICreepHandler";
-import { findTowers } from "../../utils/structureUtils";
 import StructureEnergyCollector from "./common/structureEnergyHarvester";
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval";
 
@@ -21,31 +20,15 @@ export default class RepairerHandler implements ICreepHandler {
   }
 
   private repair(creep: Creep): void {
-    const towers = findTowers(creep.room).filter(tower => this.canSupplyTower(tower));
-
-    if (0 < towers.length) this.supplyTower(towers, creep);
-    else this.repairStructure(creep);
-  }
-
-  private canSupplyTower(tower: StructureTower): boolean {
-    return tower && tower.energy < tower.energyCapacity;
-  }
-
-  private supplyTower(towers: StructureTower[], creep: Creep): void {
-    const tower = towers[0];
-
-    if (creep.transfer(tower, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-      this.creepBehavior.moveToWithSinglePath(creep, tower.pos);
-  }
-
-  private repairStructure(creep: Creep): void {
-    const structures = creep.room.find(FIND_MY_STRUCTURES, {
-      filter: s => s.hits < s.hitsMax
+    const structures = creep.room.find(FIND_STRUCTURES, {
+      filter: s => s.hits < s.hitsMax - creep.getActiveBodyparts(WORK) * 100
     });
 
-    if (0 < structures.length) {
-      if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE)
-        this.creepBehavior.moveToWithSinglePath(creep, structures[0].pos);
-    }
+    if (structures.length <= 0) return;
+
+    structures.sort((s1, s2) => s1.pos.getRangeTo(creep.pos) - s2.pos.getRangeTo(creep.pos));
+
+    if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE)
+      this.creepBehavior.moveToWithSinglePath(creep, structures[0].pos);
   }
 }
