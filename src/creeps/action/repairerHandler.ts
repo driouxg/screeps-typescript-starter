@@ -21,7 +21,7 @@ export default class RepairerHandler implements ICreepHandler {
 
   private repair(creep: Creep): void {
     const structures = creep.room.find(FIND_STRUCTURES, {
-      filter: s => s.hits < s.hitsMax - creep.getActiveBodyparts(WORK) * 100
+      filter: s => s.hits < s.hitsMax * 0.8
     });
 
     if (structures.length <= 0) return;
