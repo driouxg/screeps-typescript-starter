@@ -28,10 +28,10 @@ export default class CreepComposer {
   }
 
   public builderHandler(creepBehavior: CreepBehavior): BuilderHandler {
-    return new BuilderHandler(creepBehavior);
+    return new BuilderHandler(creepBehavior, this.repairerHandler(creepBehavior));
   }
 
   public repairerHandler(creepBehavior: CreepBehavior): RepairerHandler {
-    return new RepairerHandler(creepBehavior, this.builderHandler(creepBehavior));
+    return new RepairerHandler(creepBehavior);
   }
 }

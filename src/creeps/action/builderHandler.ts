@@ -7,11 +7,13 @@ export default class BuilderHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
   private priorityDict: { [structureName: string]: number };
   private creepEnergyRetrieval: ICreepEnergyRetrieval;
+  private nextHandler: ICreepHandler;
 
-  public constructor(commonCreepBehavior: CreepBehavior) {
+  public constructor(commonCreepBehavior: CreepBehavior, nextHandler: ICreepHandler) {
     this.creepBehavior = commonCreepBehavior;
     this.priorityDict = this.buildPriorityDict();
     this.creepEnergyRetrieval = new StructureEnergyCollector();
+    this.nextHandler = nextHandler;
   }
 
   public handle(creep: Creep): void {
@@ -27,6 +29,8 @@ export default class BuilderHandler implements ICreepHandler {
     );
 
     const constructionSite: ConstructionSite = this.getPrioritizedConstructionSite(constructionSites);
+
+    if (!constructionSites) this.nextHandler.handle(creep);
 
     if (creep.build(constructionSite) === ERR_NOT_IN_RANGE)
       this.creepBehavior.moveToWithSinglePath(creep, constructionSite.pos);

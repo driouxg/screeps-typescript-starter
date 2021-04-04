@@ -6,12 +6,10 @@ import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval";
 
 export default class RepairerHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior;
-  private nextCreepHandler: ICreepHandler;
   private creepEnergyRetrieval: ICreepEnergyRetrieval;
 
-  public constructor(creepBehavior: CreepBehavior, nextCreepHandler: ICreepHandler) {
+  public constructor(creepBehavior: CreepBehavior) {
     this.creepBehavior = creepBehavior;
-    this.nextCreepHandler = nextCreepHandler;
     this.creepEnergyRetrieval = new StructureEnergyCollector();
   }
 
@@ -48,6 +46,6 @@ export default class RepairerHandler implements ICreepHandler {
     if (0 < structures.length) {
       if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE)
         this.creepBehavior.moveToWithSinglePath(creep, structures[0].pos);
-    } else this.nextCreepHandler.handle(creep);
+    }
   }
 }
