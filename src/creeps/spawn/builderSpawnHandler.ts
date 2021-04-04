@@ -1,7 +1,7 @@
 import * as creepRoles from "../roles";
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
-import { buildDynamicBodyParts } from "./utils/dynamicBodyParts";
+import { buildCappedBodyParts } from "./utils/dynamicBodyParts";
 
 export default class BuilderSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
@@ -22,7 +22,7 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
     const numCreeps = 0 < constructionSites.filter(c => c.structureType !== STRUCTURE_ROAD).length ? 2 : 1;
 
     if (this.creepPopulationDict[this.role] < numCreeps && 0 < constructionSites.length)
-      return new SpawnConfig(buildDynamicBodyParts([WORK, WORK, CARRY, MOVE], room), this.role);
+      return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], room, 20), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
 

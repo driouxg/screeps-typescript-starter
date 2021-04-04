@@ -1,7 +1,7 @@
 import * as creepRoles from "../roles";
 import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
-import { buildDynamicBodyParts } from "./utils/dynamicBodyParts";
+import { buildCappedBodyParts } from "./utils/dynamicBodyParts";
 
 export default class RepairerSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
@@ -17,7 +17,7 @@ export default class RepairerSpawnHandler implements ISpawnHandler {
     if (Game.time % 100 !== 0) return this.nextSpawnHandler.spawnCreep(room);
 
     if (this.creepPopulationDict[this.role] < 1)
-      return new SpawnConfig(buildDynamicBodyParts([WORK, WORK, CARRY, MOVE], room), this.role);
+      return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], room, 20), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
 }
