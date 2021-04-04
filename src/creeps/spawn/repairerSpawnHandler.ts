@@ -14,7 +14,7 @@ export default class RepairerSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(room: Room): SpawnConfig {
-    if (room.energyAvailable !== room.energyCapacityAvailable) return this.nextSpawnHandler.spawnCreep(room);
+    if (Game.time % 100 !== 0) return this.nextSpawnHandler.spawnCreep(room);
 
     if (this.creepPopulationDict[this.role] < 1)
       return new SpawnConfig(buildDynamicBodyParts([WORK, WORK, CARRY, MOVE], room), this.role);
