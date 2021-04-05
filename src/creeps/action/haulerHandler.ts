@@ -35,7 +35,7 @@ export default class HaulerHandler implements ICreepHandler {
       );
       if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
-      else OK;
+      else return OK;
     }
 
     // offload to spawns
