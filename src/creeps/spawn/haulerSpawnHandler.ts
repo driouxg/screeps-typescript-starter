@@ -2,7 +2,7 @@ import ISpawnHandler from "./ISpawnHandler";
 import SpawnConfig from "./SpawnConfig";
 
 import * as creepRoles from "../roles";
-import { buildDynamicBodyParts } from "./utils/dynamicBodyParts";
+import { buildCappedBodyParts } from "./utils/dynamicBodyParts";
 
 export default class HaulerSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number };
@@ -20,7 +20,7 @@ export default class HaulerSpawnHandler implements ISpawnHandler {
     const bluePrint = [CARRY, MOVE, CARRY, MOVE];
 
     if (this.creepPopulationDict[this.role] < this.creepPopulationDict[creepRoles.MINER] * 2)
-      return new SpawnConfig(buildDynamicBodyParts(bluePrint, room), this.role);
+      return new SpawnConfig(buildCappedBodyParts(bluePrint, room, 25), this.role);
     else return this.nextSpawnHandler.spawnCreep(room);
   }
 }
