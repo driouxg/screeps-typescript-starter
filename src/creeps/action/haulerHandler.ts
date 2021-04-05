@@ -1,3 +1,4 @@
+import { ok } from "assert";
 import {
   findCachedStructurePositions,
   findExtensions,
@@ -34,6 +35,7 @@ export default class HaulerHandler implements ICreepHandler {
       );
       if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos);
+      else OK;
     }
 
     // offload to spawns
@@ -41,6 +43,7 @@ export default class HaulerHandler implements ICreepHandler {
     if (0 < spawns.length) {
       if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos);
+      else return OK;
     }
 
     // offload to towers
@@ -48,6 +51,7 @@ export default class HaulerHandler implements ICreepHandler {
     if (0 < towers.length) {
       if (creep.transfer(towers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, towers[0].pos);
+      else return OK;
     }
 
     // offload to containers positions that are not next to sources until we reach max container amount
@@ -77,6 +81,7 @@ export default class HaulerHandler implements ICreepHandler {
     if (0 < storage.length) {
       if (creep.transfer(storage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, storage[0].pos);
+      else return OK;
     }
 
     return ERR_NOT_FOUND;
