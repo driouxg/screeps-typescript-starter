@@ -1,0 +1,49 @@
+import ILayoutHandler from "../ILayoutHandler";
+
+export default class ClusterLayoutHandler implements ILayoutHandler {
+  handle(room: Room): string[][] {
+    throw new Error("Method not implemented.");
+  }
+  isRoomForLayout(room: Room): boolean {
+    throw new Error("Method not implemented.");
+  }
+
+  private getCoreLayout(): string[][] {
+    return [
+      [STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD],
+      [
+        STRUCTURE_ROAD,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_ROAD
+      ],
+      [STRUCTURE_ROAD, STRUCTURE_SPAWN, "", STRUCTURE_EXTENSION, "", STRUCTURE_SPAWN, "", STRUCTURE_ROAD],
+      [STRUCTURE_ROAD, STRUCTURE_CONTAINER, STRUCTURE_LINK, STRUCTURE_EXTENSION, STRUCTURE_CONTAINER, STRUCTURE_ROAD],
+      [STRUCTURE_ROAD, STRUCTURE_EXTENSION, "", STRUCTURE_EXTENSION, "", STRUCTURE_EXTENSION, STRUCTURE_ROAD],
+      [
+        STRUCTURE_ROAD,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_SPAWN,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_EXTENSION,
+        STRUCTURE_ROAD
+      ],
+      [STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD]
+    ];
+  }
+
+  private getLabLayout(): string[][] {
+    return [
+      ["", STRUCTURE_LAB, STRUCTURE_LAB, STRUCTURE_ROAD],
+      [STRUCTURE_LAB, STRUCTURE_LAB, STRUCTURE_ROAD, STRUCTURE_LAB],
+      [STRUCTURE_LAB, STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB],
+      [STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB, ""]
+    ];
+  }
+
+  private g;
+}
