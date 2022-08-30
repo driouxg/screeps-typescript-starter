@@ -1,4 +1,3 @@
-import { ok } from "assert"
 import { findCachedStructurePositions, findExtensions, findSpawns, findStorage, findTowers } from "utils/structureUtils"
 import CreepBehavior from "./common/creepBehavior"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
@@ -33,7 +32,7 @@ export default class HaulerHandler implements ICreepHandler {
     }
 
     // offload to spawns
-    const spawns = findSpawns(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY))
+    const spawns = creep.room.find(FIND_MY_SPAWNS).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY))
     if (0 < spawns.length) {
       if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
         return this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos)

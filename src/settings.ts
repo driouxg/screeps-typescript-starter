@@ -3,6 +3,6 @@ const settings: ISettings = {
     visualize: "false",
     desiredSitesConstructedPerTick: 10
   }
-};
+}
 
-export default settings;
+export default settings
