@@ -45,5 +45,5 @@ export default class ClusterLayoutHandler implements ILayoutHandler {
     ];
   }
 
-  private g;
+  // private g;
 }

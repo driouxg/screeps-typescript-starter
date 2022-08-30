@@ -24,6 +24,38 @@ declare global {
     log: any;
   }
 
+  interface ISettings {
+    constructionSite: {
+      visualize: "true" | "false";
+      desiredSitesConstructedPerTick: number;
+    };
+  }
+
+  interface RoomMemory {
+    constructionPos: { [key: string]: number };
+    desiredState: string[][];
+    positions: { [structure: string]: RoomPosition[] };
+    events: RoomEvent[];
+  }
+
+  interface RoomEvent {
+    type: RoomEventType;
+    tick: number;
+  }
+
+  type RoomEventType = PULL_REQUEST;
+
+  type PULL_REQUEST = "PULL_REQUEST";
+
+  type CreepReturnCode =
+    | CreepActionReturnCode
+    | CreepMoveReturnCode
+    | ERR_NO_PATH
+    | ERR_NO_PATH
+    | ERR_INVALID_TARGET
+    | ERR_NOT_FOUND
+    | ERR_NOT_ENOUGH_RESOURCES;
+
   interface CreepMemory {
     role: string;
     room: string;
