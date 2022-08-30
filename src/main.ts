@@ -61,6 +61,7 @@ declare global {
     role: string
     room: string
     working: boolean
+    targetRoomPos: { x: number; y: number; roomName: string }
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")

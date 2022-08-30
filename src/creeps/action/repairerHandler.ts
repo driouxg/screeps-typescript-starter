@@ -2,19 +2,9 @@ import CreepBehavior from "./common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
 import StructureEnergyCollector from "./common/structureEnergyHarvester"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
-import RepairerMemory from "creeps/memory/repairerMemory"
 
 /**
- * Repairer
- *
- * IF working
- *    IF structure is 100% || doesn't exist working = false
- *    IF noEnergy: collectEnergy
- *    ELSE: repair cached structure
- *
- * ELSE
- *    find new structure to repair and cache it
- *    working = true
+ * Goal: Repair a target structure under a certain percentage of health. Use cached value if possible.
  */
 export default class RepairerHandler implements ICreepHandler {
   private creepBehavior: CreepBehavior
@@ -26,31 +16,30 @@ export default class RepairerHandler implements ICreepHandler {
   }
 
   public handle(creep: Creep): void {
-    if (this.creepBehavior.isWorking(creep)) this.repair(creep)
-    else this.decideOnStructureToRepair(creep)
+    if (this.creepBehavior.isWorking(creep)) this.workUntilNoEnergy(creep)
+    else this.creepBehavior.harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
   }
 
-  private repair(creep: Creep) {
-    if (!this.creepBehavior.hasEnergy(creep)) this.creepEnergyRetrieval.retrieve(creep)
+  private workUntilNoEnergy(creep: Creep) {
+    if (this.creepBehavior.hasEnergy(creep)) {
+      const { x, y, roomName } = creep.memory.targetRoomPos ?? this.getRepairableStructure(creep)
 
-    const { x, y, roomName } = (creep.memory as RepairerMemory).structurePos
-    const structures = new RoomPosition(x, y, roomName).lookFor(LOOK_STRUCTURES)
-    if (structures.length <= 0) creep.memory.working = false
-    const structure = structures[0]
+      const structures = new RoomPosition(x, y, roomName).lookFor(LOOK_STRUCTURES)
+      if (structures.length <= 0 || creep.repair(structures[0]) === ERR_INVALID_TARGET)
+        creep.memory.targetRoomPos = this.getRepairableStructure(creep)
 
-    if (structure.hits === structure.hitsMax || creep.repair(structure) === ERR_INVALID_TARGET)
-      creep.memory.working = false
-    else if (creep.repair(structure) === ERR_NOT_IN_RANGE) this.creepBehavior.moveToWithSinglePath(creep, structure.pos)
+      if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE)
+        this.creepBehavior.moveToWithSinglePath(creep, structures[0].pos)
+    } else creep.memory.working = false
   }
 
-  private decideOnStructureToRepair(creep: Creep) {
+  private getRepairableStructure(creep: Creep): RoomPosition {
     const structures = creep.room.find(FIND_STRUCTURES, {
       filter: s => this.isStructureLowHits(s) && creep.getActiveBodyparts(WORK) * 100 && s.hitsMax - s.hits
     })
-
-    if (structures.length <= 0) return
-    ;(creep.memory as RepairerMemory).structurePos = structures[0].pos
-    creep.memory.working = true
+    const noop = { x: 0, y: 0, roomName: creep.room.name } as RoomPosition
+    if (structures.length <= 0) return noop
+    return structures[0].pos
   }
 
   private isStructureLowHits(s: AnyStructure) {

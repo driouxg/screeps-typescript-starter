@@ -17,44 +17,47 @@ export default class BuilderHandler implements ICreepHandler {
   }
 
   public handle(creep: Creep): void {
-    this.creepBehavior.updateWorkingState(creep)
-
-    if (this.creepBehavior.isWorking(creep)) this.buildConstructionSite(creep)
-    else this.creepEnergyRetrieval.retrieve(creep)
+    if (this.creepBehavior.isWorking(creep)) this.workUntilNoEnergy(creep)
+    else this.creepBehavior.harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
   }
 
-  private buildConstructionSite(creep: Creep): void {
-    const constructionSites: ConstructionSite<BuildableStructureConstant>[] = creep.room.find(
-      FIND_MY_CONSTRUCTION_SITES
-    )
+  private workUntilNoEnergy(creep: Creep) {
+    if (this.creepBehavior.hasEnergy(creep)) {
+      const { x, y, roomName } =
+        creep.memory.targetRoomPos ?? this.getPrioritizedConstructionSite(Game.rooms[creep.room.name])
 
-    const constructionSite: ConstructionSite = this.getPrioritizedConstructionSite(constructionSites)
+      const constructionSites = new RoomPosition(x, y, roomName).lookFor(LOOK_CONSTRUCTION_SITES)
 
-    if (!constructionSites) this.nextHandler.handle(creep)
+      if (constructionSites.length <= 0 || creep.build(constructionSites[0]) === ERR_INVALID_TARGET)
+        creep.memory.targetRoomPos = this.getPrioritizedConstructionSite(Game.rooms[roomName])
 
-    if (creep.build(constructionSite) === ERR_NOT_IN_RANGE)
-      this.creepBehavior.moveToWithSinglePath(creep, constructionSite.pos)
+      if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE)
+        this.creepBehavior.moveToWithSinglePath(creep, constructionSites[0].pos)
+    } else creep.memory.working = false
   }
 
-  private getPrioritizedConstructionSite(
-    constructionSites: ConstructionSite<BuildableStructureConstant>[]
-  ): ConstructionSite {
+  private getPrioritizedConstructionSite(room: Room): RoomPosition {
+    const constructionSites: ConstructionSite<BuildableStructureConstant>[] = room.find(FIND_MY_CONSTRUCTION_SITES)
+
+    const noop = { x: 0, y: 0, roomName: room.name } as RoomPosition
+    if (constructionSites.length <= 0) return noop
+
     let selectedSite = constructionSites[0]
     for (const constructionSite of constructionSites) {
       if (this.priorityDict[constructionSite.structureType] < this.priorityDict[selectedSite.structureType])
         selectedSite = constructionSite
     }
 
-    return selectedSite
+    return selectedSite.pos
   }
 
   private buildPriorityDict(): { [structureName: string]: number } {
     const arr = [
-      STRUCTURE_ROAD,
       STRUCTURE_EXTENSION,
       STRUCTURE_CONTAINER,
       STRUCTURE_TOWER,
       STRUCTURE_STORAGE,
+      STRUCTURE_ROAD,
       STRUCTURE_LINK,
       STRUCTURE_EXTRACTOR,
       STRUCTURE_LAB,
