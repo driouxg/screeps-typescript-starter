@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import ConstructionComposer from "composer/constructionComposer";
-import CreepComposer from "composer/creepComposer";
-import { ErrorMapper } from "utils/ErrorMapper";
-import ICreepHandler from "creeps/action/ICreepHandler";
-import IStructureActionHandler from "structures/action/IStructureActionHandler";
-import SpawnComposer from "composer/spawnComposer";
-import StructureActionComposer from "composer/structureActionComposer";
+import ConstructionComposer from "composer/constructionComposer"
+import CreepComposer from "composer/creepComposer"
+import { ErrorMapper } from "utils/ErrorMapper"
+import ICreepHandler from "creeps/action/ICreepHandler"
+import IStructureActionHandler from "structures/action/IStructureActionHandler"
+import SpawnComposer from "composer/spawnComposer"
+import StructureActionComposer from "composer/structureActionComposer"
 
 declare global {
   /*
@@ -20,32 +20,33 @@ declare global {
   */
   // Memory extension samples
   interface Memory {
-    uuid: number;
-    log: any;
+    uuid: number
+    log: any
   }
 
   interface ISettings {
     constructionSite: {
-      visualize: "true" | "false";
-      desiredSitesConstructedPerTick: number;
-    };
+      visualize: "true" | "false"
+      desiredSitesConstructedPerTick: number
+    }
   }
 
   interface RoomMemory {
-    constructionPos: { [key: string]: number };
-    desiredState: string[][];
-    positions: { [structure: string]: RoomPosition[] };
-    events: RoomEvent[];
+    constructionPos: { [key: string]: number }
+    desiredState: string[][]
+    positions: { [structure: string]: RoomPosition[] }
+    events: RoomEvent[]
+    baseLayout: "bunker" | "cluster" | "lattice"
   }
 
   interface RoomEvent {
-    type: RoomEventType;
-    tick: number;
+    type: RoomEventType
+    tick: number
   }
 
-  type RoomEventType = PULL_REQUEST;
+  type RoomEventType = PULL_REQUEST
 
-  type PULL_REQUEST = "PULL_REQUEST";
+  type PULL_REQUEST = "PULL_REQUEST"
 
   type CreepReturnCode =
     | CreepActionReturnCode
@@ -54,18 +55,18 @@ declare global {
     | ERR_NO_PATH
     | ERR_INVALID_TARGET
     | ERR_NOT_FOUND
-    | ERR_NOT_ENOUGH_RESOURCES;
+    | ERR_NOT_ENOUGH_RESOURCES
 
   interface CreepMemory {
-    role: string;
-    room: string;
-    working: boolean;
+    role: string
+    room: string
+    working: boolean
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")
   namespace NodeJS {
     interface Global {
-      log: any;
+      log: any
     }
   }
 }
@@ -73,53 +74,53 @@ declare global {
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
-  initRoomMemory();
-  deleteMissingCreepMemory();
+  initRoomMemory()
+  deleteMissingCreepMemory()
 
-  const creepComposer = new CreepComposer();
-  const spawnComposer: SpawnComposer = new SpawnComposer();
-  const structureActionComposer: StructureActionComposer = new StructureActionComposer();
-  const constructionComposer: ConstructionComposer = new ConstructionComposer();
-  const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict();
+  const creepComposer = new CreepComposer()
+  const spawnComposer: SpawnComposer = new SpawnComposer()
+  const structureActionComposer: StructureActionComposer = new StructureActionComposer()
+  const constructionComposer: ConstructionComposer = new ConstructionComposer()
+  const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict()
 
-  constructionComposer.compose();
-  spawnComposer.compose();
-  manageCreepActions(creepHandlerDict);
-  manageStructureActions(structureActionComposer.structureActionHandlers());
+  constructionComposer.compose()
+  spawnComposer.compose()
+  manageCreepActions(creepHandlerDict)
+  manageStructureActions(structureActionComposer.structureActionHandlers())
 
-  deleteRoomEvents();
-});
+  deleteRoomEvents()
+})
 
 function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
   for (const creepName in Game.creeps) {
-    const creep: Creep = Game.creeps[creepName];
-    const handler: ICreepHandler = creepHandlerDict[creep.memory.role];
-    handler.handle(creep);
+    const creep: Creep = Game.creeps[creepName]
+    const handler: ICreepHandler = creepHandlerDict[creep.memory.role]
+    handler.handle(creep)
   }
 }
 
 function manageStructureActions(structureActionHandlers: IStructureActionHandler[]) {
   for (const roomName in Game.rooms) {
     for (const structureActionHandler of structureActionHandlers) {
-      structureActionHandler.handle(Game.rooms[roomName]);
+      structureActionHandler.handle(Game.rooms[roomName])
     }
   }
 }
 
 function deleteMissingCreepMemory(): void {
   for (const name in Memory.creeps) {
-    if (!(name in Game.creeps)) delete Memory.creeps[name];
+    if (!(name in Game.creeps)) delete Memory.creeps[name]
   }
 }
 
 function deleteRoomEvents(): void {
   for (const room in Game.rooms) {
-    Game.rooms[room].memory.events = Game.rooms[room].memory.events.filter(e => Game.time < e.tick + 1);
+    Game.rooms[room].memory.events = Game.rooms[room].memory.events.filter(e => Game.time < e.tick + 1)
   }
 }
 
 function initRoomMemory(): void {
   for (const room in Game.rooms) {
-    Game.rooms[room].memory.events = Game.rooms[room].memory.events || [];
+    Game.rooms[room].memory.events = Game.rooms[room].memory.events || []
   }
 }

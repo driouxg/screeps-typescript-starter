@@ -1,11 +1,13 @@
-import ILayoutHandler from "../ILayoutHandler";
+import ILayoutHandler from "../ILayoutHandler"
 
 export default class ClusterLayoutHandler implements ILayoutHandler {
   handle(room: Room): string[][] {
-    throw new Error("Method not implemented.");
+    room.memory.baseLayout = "cluster"
+
+    throw new Error("Method not implemented.")
   }
   isRoomForLayout(room: Room): boolean {
-    throw new Error("Method not implemented.");
+    throw new Error("Method not implemented.")
   }
 
   private getCoreLayout(): string[][] {
@@ -33,7 +35,7 @@ export default class ClusterLayoutHandler implements ILayoutHandler {
         STRUCTURE_ROAD
       ],
       [STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD]
-    ];
+    ]
   }
 
   private getLabLayout(): string[][] {
@@ -42,7 +44,7 @@ export default class ClusterLayoutHandler implements ILayoutHandler {
       [STRUCTURE_LAB, STRUCTURE_LAB, STRUCTURE_ROAD, STRUCTURE_LAB],
       [STRUCTURE_LAB, STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB],
       [STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB, ""]
-    ];
+    ]
   }
 
   // private g;
