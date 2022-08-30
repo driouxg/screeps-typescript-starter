@@ -1,3 +1,4 @@
+import { jsonToRoomPosition } from "utils/jsonMapper"
 import CreepBehavior from "./common/creepBehavior"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
 import StructureEnergyCollector from "./common/structureEnergyHarvester"
@@ -23,24 +24,24 @@ export default class BuilderHandler implements ICreepHandler {
 
   private workUntilNoEnergy(creep: Creep) {
     if (this.creepBehavior.hasEnergy(creep)) {
-      const { x, y, roomName } =
-        creep.memory.targetRoomPos ?? this.getPrioritizedConstructionSite(Game.rooms[creep.room.name])
+      const { x, y, roomName } = creep.memory.targetRoomPos
 
       const constructionSites = new RoomPosition(x, y, roomName).lookFor(LOOK_CONSTRUCTION_SITES)
 
       if (constructionSites.length <= 0 || creep.build(constructionSites[0]) === ERR_INVALID_TARGET)
-        creep.memory.targetRoomPos = this.getPrioritizedConstructionSite(Game.rooms[roomName])
+        creep.memory.targetRoomPos = this.getPrioritizedConstructionSite(creep)
 
       if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE)
         this.creepBehavior.moveToWithSinglePath(creep, constructionSites[0].pos)
     } else creep.memory.working = false
   }
 
-  private getPrioritizedConstructionSite(room: Room): RoomPosition {
-    const constructionSites: ConstructionSite<BuildableStructureConstant>[] = room.find(FIND_MY_CONSTRUCTION_SITES)
+  private getPrioritizedConstructionSite(creep: Creep): RoomPosition {
+    const constructionSites: ConstructionSite<BuildableStructureConstant>[] = creep.room.find(
+      FIND_MY_CONSTRUCTION_SITES
+    )
 
-    const noop = { x: 0, y: 0, roomName: room.name } as RoomPosition
-    if (constructionSites.length <= 0) return noop
+    if (constructionSites.length <= 0) return jsonToRoomPosition(creep.memory.targetRoomPos)
 
     let selectedSite = constructionSites[0]
     for (const constructionSite of constructionSites) {
