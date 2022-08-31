@@ -1,5 +1,6 @@
 import * as creepRoles from "creeps/roles"
 import BuilderSpawnHandler from "creeps/spawn/builderSpawnHandler"
+import ClaimerSpawnHandler from "creeps/spawn/claimerSpawnHandler"
 import HaulerSpawnHandler from "creeps/spawn/haulerSpawnHandler"
 import HealerSpawnHandler from "creeps/spawn/healerSpawnHandler"
 import ISpawnHandler from "creeps/spawn/ISpawnHandler"
@@ -20,6 +21,10 @@ export default class SpawnComposer {
       for (let spawner of this.spawners(spawn)) {
         const spawnConfig = spawner.spawnCreep(spawn.room)
         if (!spawnConfig) continue
+        const cost = spawnConfig.getBody().reduce((acc, val) => acc + BODYPART_COST[val], 0)
+        if (spawn.room.energyAvailable < cost) continue
+
+        console.log("Spawning", spawnConfig.getRole())
 
         spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
           memory: {
@@ -29,6 +34,7 @@ export default class SpawnComposer {
             targetRoomPos: { x: 0, y: 0, roomName: spawn.room.name }
           }
         })
+        return
       }
     }
   }
@@ -45,7 +51,8 @@ export default class SpawnComposer {
       new BuilderSpawnHandler(creepPopulationDict),
       new RepairerSpawnHandler(creepPopulationDict),
       new UpgraderSpawnHandler(creepPopulationDict),
-      new ScoutSpawnHandler(creepPopulationDict)
+      new ScoutSpawnHandler(creepPopulationDict),
+      new ClaimerSpawnHandler(creepPopulationDict)
     ]
   }
 
