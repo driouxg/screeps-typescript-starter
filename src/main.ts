@@ -26,7 +26,7 @@ declare global {
 
   interface ISettings {
     constructionSite: {
-      visualize: "true" | "false"
+      visualize: boolean
       desiredSitesConstructedPerTick: number
     }
   }
@@ -57,7 +57,7 @@ declare global {
     | ERR_NOT_FOUND
     | ERR_NOT_ENOUGH_RESOURCES
 
-  interface CreepMemory {
+  export interface CreepMemory {
     role: string
     room: string
     working: boolean

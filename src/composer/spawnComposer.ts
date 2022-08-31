@@ -5,10 +5,9 @@ import HealerSpawnHandler from "creeps/spawn/healerSpawnHandler"
 import ISpawnHandler from "creeps/spawn/ISpawnHandler"
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler"
 import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler"
-import NoOpSpawnHandler from "creeps/spawn/noOpSpawnHandler"
 import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
 import RepairerSpawnHandler from "creeps/spawn/repairerSpawnHandler"
-import SpawnConfig from "creeps/spawn/SpawnConfig"
+import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import generateGuid from "utils/guidGenerator"
 
@@ -18,34 +17,36 @@ export default class SpawnComposer {
       const spawn: StructureSpawn = Game.spawns[spawnName]
       if (spawn.spawning) continue
 
-      const spawner: ISpawnHandler = this.spawner(spawn)
-      const spawnConfig: SpawnConfig = spawner.spawnCreep(spawn.room)
+      for (let spawner of this.spawners(spawn)) {
+        const spawnConfig = spawner.spawnCreep(spawn.room)
+        if (!spawnConfig) continue
 
-      if (spawnConfig.getBody().length === 0) continue
-
-      spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
-        memory: {
-          role: spawnConfig.getRole(),
-          working: false,
-          room: spawn.room.name,
-          targetRoomPos: { x: 0, y: 0, roomName: spawn.room.name }
-        }
-      })
+        spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
+          memory: {
+            role: spawnConfig.getRole(),
+            working: false,
+            room: spawn.room.name,
+            targetRoomPos: { x: 0, y: 0, roomName: spawn.room.name }
+          }
+        })
+      }
     }
   }
 
-  public spawner(spawn: StructureSpawn): ISpawnHandler {
+  public spawners(spawn: StructureSpawn): ISpawnHandler[] {
     const creepPopulationDict: { [key: string]: number } = this.creepPopulationDict()
 
-    const upgraderSpawnHandler = this.upgraderSpawnHandler(creepPopulationDict, this.noOpSpawnHandler())
-    const repairerSpawnHandler = this.repairerSpawnHandler(creepPopulationDict, upgraderSpawnHandler)
-    const builderSpawnHandler = this.builderSpawnHandler(creepPopulationDict, repairerSpawnHandler)
-    const minerSpawnHandler = new MinerSpawnHandler(creepPopulationDict, builderSpawnHandler, spawn)
-    const haulerSpawnHandler = new HaulerSpawnHandler(creepPopulationDict, minerSpawnHandler)
-    const pullerSpawnHandler = new PullerSpawnHandler(creepPopulationDict, haulerSpawnHandler)
-    const healerSpawnHandler = this.healerSpawnHandler(creepPopulationDict, pullerSpawnHandler, spawn)
-    const meleeDefenderSpawnHandler = this.meleeDefenderSpawnHandler(creepPopulationDict, healerSpawnHandler, spawn)
-    return meleeDefenderSpawnHandler
+    return [
+      new MeleeDefenderSpawnHandler(creepPopulationDict, spawn),
+      new HealerSpawnHandler(creepPopulationDict, spawn),
+      new PullerSpawnHandler(creepPopulationDict),
+      new HaulerSpawnHandler(creepPopulationDict),
+      new MinerSpawnHandler(creepPopulationDict, spawn),
+      new BuilderSpawnHandler(creepPopulationDict),
+      new RepairerSpawnHandler(creepPopulationDict),
+      new UpgraderSpawnHandler(creepPopulationDict),
+      new ScoutSpawnHandler(creepPopulationDict)
+    ]
   }
 
   private creepPopulationDict(): { [key: string]: number } {
@@ -60,37 +61,5 @@ export default class SpawnComposer {
     }
 
     return creepDict
-  }
-
-  private repairerSpawnHandler(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
-    return new RepairerSpawnHandler(creepPopulationDict, nextSpawnHandler)
-  }
-
-  private upgraderSpawnHandler(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
-    return new UpgraderSpawnHandler(creepPopulationDict, nextSpawnHandler)
-  }
-
-  private builderSpawnHandler(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
-    return new BuilderSpawnHandler(creepPopulationDict, nextSpawnHandler)
-  }
-
-  private healerSpawnHandler(
-    creepPopulationDict: { [key: string]: number },
-    nextSpawnHandler: ISpawnHandler,
-    spawn: StructureSpawn
-  ) {
-    return new HealerSpawnHandler(creepPopulationDict, nextSpawnHandler, spawn)
-  }
-
-  private meleeDefenderSpawnHandler(
-    creepPopulationDict: { [key: string]: number },
-    nextSpawnHandler: ISpawnHandler,
-    spawn: StructureSpawn
-  ) {
-    return new MeleeDefenderSpawnHandler(creepPopulationDict, nextSpawnHandler, spawn)
-  }
-
-  private noOpSpawnHandler(): ISpawnHandler {
-    return new NoOpSpawnHandler()
   }
 }

@@ -24,9 +24,7 @@ export default class BuilderHandler implements ICreepHandler {
 
   private workUntilNoEnergy(creep: Creep) {
     if (this.creepBehavior.hasEnergy(creep)) {
-      const { x, y, roomName } = creep.memory.targetRoomPos
-
-      const constructionSites = new RoomPosition(x, y, roomName).lookFor(LOOK_CONSTRUCTION_SITES)
+      const constructionSites = jsonToRoomPosition(creep.memory.targetRoomPos).lookFor(LOOK_CONSTRUCTION_SITES)
 
       if (constructionSites.length <= 0 || creep.build(constructionSites[0]) === ERR_INVALID_TARGET)
         creep.memory.targetRoomPos = this.getPrioritizedConstructionSite(creep)

@@ -1,25 +1,25 @@
 export default class ConstructionSiteVisualizer {
-  private settings: ISettings;
+  private settings: ISettings
 
   public constructor(settings: ISettings) {
-    this.settings = settings;
+    this.settings = settings
   }
 
   public handle(room: Room): void {
-    if (this.settings.constructionSite.visualize !== "true") return;
+    if (!this.settings.constructionSite.visualize) return
 
-    this.print(room);
-    return;
+    this.print(room)
+    return
   }
 
   private print(room: Room): void {
-    const desiredState: string[][] = room.memory.desiredState;
+    const desiredState: string[][] = room.memory.desiredState
 
-    if (!desiredState) return;
+    if (!desiredState) return
 
     for (let y = 0; y < desiredState.length; y++) {
       for (let x = 0; x < desiredState[y].length; x++) {
-        room.visual.text(this.displayText(desiredState[y][x]), x, y);
+        room.visual.text(this.displayText(desiredState[y][x]), x, y)
       }
     }
   }
@@ -27,39 +27,39 @@ export default class ConstructionSiteVisualizer {
   private displayText(text: string): string {
     switch (text) {
       case STRUCTURE_TOWER:
-        return "To";
+        return "To"
       case STRUCTURE_WALL:
-        return "W";
+        return "W"
       case STRUCTURE_ROAD:
-        return "r";
+        return "r"
       case STRUCTURE_RAMPART:
-        return "R";
+        return "R"
       case STRUCTURE_STORAGE:
-        return "Stg";
+        return "Stg"
       case STRUCTURE_SPAWN:
-        return "Sp";
+        return "Sp"
       case STRUCTURE_POWER_SPAWN:
-        return "sPsp";
+        return "sPsp"
       case STRUCTURE_CONTAINER:
-        return "C";
+        return "C"
       case STRUCTURE_EXTENSION:
-        return "E";
+        return "E"
       case STRUCTURE_NUKER:
-        return "N";
+        return "N"
       case STRUCTURE_OBSERVER:
-        return "O";
+        return "O"
       case STRUCTURE_LAB:
-        return "La";
+        return "La"
       case STRUCTURE_LINK:
-        return "Li";
+        return "Li"
       case STRUCTURE_TERMINAL:
-        return "Ter";
+        return "Ter"
       case STRUCTURE_FACTORY:
-        return "F";
+        return "F"
       case STRUCTURE_EXTRACTOR:
-        return "Ex";
+        return "Ex"
       default:
-        return ".";
+        return "."
     }
   }
 }

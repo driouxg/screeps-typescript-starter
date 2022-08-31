@@ -1,24 +1,22 @@
-import * as creepRoles from "../roles";
-import ISpawnHandler from "./ISpawnHandler";
-import SpawnConfig from "./SpawnConfig";
-import { buildDynamicBodyParts } from "./utils/dynamicBodyParts";
+import * as creepRoles from "../roles"
+import ISpawnHandler from "./ISpawnHandler"
+import SpawnConfig from "./SpawnConfig"
+import { buildDynamicBodyParts } from "./utils/dynamicBodyParts"
 
 export default class UpgraderSpawnHandler implements ISpawnHandler {
-  private creepPopulationDict: { [key: string]: number };
-  private nextSpawnHandler: ISpawnHandler;
-  private role: string = creepRoles.UPGRADER;
+  private creepPopulationDict: { [key: string]: number }
+  private role: string = creepRoles.UPGRADER
 
-  public constructor(creepPopulationDict: { [key: string]: number }, nextSpawnHandler: ISpawnHandler) {
-    this.creepPopulationDict = creepPopulationDict;
-    this.nextSpawnHandler = nextSpawnHandler;
+  public constructor(creepPopulationDict: { [key: string]: number }) {
+    this.creepPopulationDict = creepPopulationDict
   }
 
-  public spawnCreep(room: Room): SpawnConfig {
-    if (room.energyAvailable !== room.energyCapacityAvailable) return this.nextSpawnHandler.spawnCreep(room);
+  public spawnCreep(room: Room): SpawnConfig | null {
+    if (room.energyAvailable !== room.energyCapacityAvailable) return null
 
     if (this.creepPopulationDict[this.role] < 1) {
-      const bodyParts = buildDynamicBodyParts([WORK, WORK, WORK], room, [CARRY]);
-      return new SpawnConfig(bodyParts, this.role);
-    } else return this.nextSpawnHandler.spawnCreep(room);
+      const bodyParts = buildDynamicBodyParts([WORK, WORK, WORK], room, [CARRY])
+      return new SpawnConfig(bodyParts, this.role)
+    } else return null
   }
 }
