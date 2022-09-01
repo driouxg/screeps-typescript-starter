@@ -19,7 +19,7 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
 
     const numCreeps = 0 < constructionSites.filter(c => c.structureType !== STRUCTURE_ROAD).length ? 2 : 1
 
-    if (this.creepPopulationDict[this.role] < numCreeps && 0 < constructionSites.length)
+    if (this.creepPopulationDict[this.role] < numCreeps)
       return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], room, 20), this.role)
     else return null
   }

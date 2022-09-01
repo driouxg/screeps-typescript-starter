@@ -12,6 +12,8 @@ export default class InitialSpawnConstructionHandler implements IConstructionHan
     } else {
       const sources = room.find(FIND_SOURCES)
 
+      if (sources.length <= 0) return desiredState
+
       const positions = findNClosestEmptyPositionsWithBuffer(sources[0].pos, desiredState, 10, 5)
 
       for (let pos of positions) {

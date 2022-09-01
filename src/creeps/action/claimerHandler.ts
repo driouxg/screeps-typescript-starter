@@ -15,6 +15,7 @@ export default class ClaimerHandler implements ICreepHandler {
 
   handle(creep: Creep): void {
     let memory = creep.memory as ClaimerMemory
+    memory.targetRoom = memory.targetRoom ?? creep.room.name
 
     if (creep.room.name === memory.targetRoom) {
       if (!this.isClaimableRoom(creep.room.name)) {
