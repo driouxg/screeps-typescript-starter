@@ -1,5 +1,11 @@
 import HaulerMemory from "creeps/memory/haulerMemory"
-import { findCachedStructurePositions, findExtensions, findSpawns, findStorage, findTowers } from "utils/structureUtils"
+import {
+  findCachedStructurePositions,
+  findContainers,
+  findExtensions,
+  findStorage,
+  findTowers
+} from "utils/structureUtils"
 import CreepBehavior from "./common/creepBehavior"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
 import StructureEnergyCollector from "./common/structureEnergyHarvester"
@@ -59,6 +65,10 @@ export default class HaulerHandler implements ICreepHandler {
     if (0 < towers.length) {
       return towers[0].pos
     }
+
+    // offload to controller container
+    const containers = findContainers(creep.room).filter(c => c.pos.inRangeTo(creep.room.controller!.pos, 2))
+    if (0 < containers.length && containers[0].store.energy <= 1500) return containers[0].pos
 
     // offload to containers positions that are not next to sources until we reach max container amount
     const containerPositions = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER).filter(

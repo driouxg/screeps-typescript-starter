@@ -1,7 +1,13 @@
+import distanceTransform from "utils/distanceTransform"
+import { floodFill } from "utils/floodFill"
 import { buildStringGrid } from "utils/gridBuilder"
 import IConstructionHandler from "../IConstructionHandler"
 import ILayoutHandler from "../ILayoutHandler"
 
+/**
+ * Goal: Build this bunker layout from: https://wiki.screepspl.us/index.php/File:BunkerExample.png
+ *
+ */
 export default class BunkerConstructionHandler implements ILayoutHandler {
   private constructionHandlers: IConstructionHandler[]
   private layout: string[][] = this.bunkerLayout()
@@ -11,25 +17,16 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
   }
 
   handle(room: Room): string[][] {
+    room.memory.baseLayout = "bunker"
     let desiredState = buildStringGrid()
 
     for (const handler of this.constructionHandlers) desiredState = handler.handle(room, desiredState)
 
-    let buildablePositions = []
+    const pos = this.findBunkerLocation(room)
+    if (!pos) return desiredState
+    this.markLayout(new RoomPosition(pos.x - 6, pos.y - 6, room.name), desiredState)
 
-    for (let y = 3; y < 50; y++) {
-      for (let x = 3; x < 50; x++) {
-        if (!this.isRoomFromPosition(room, x, y)) continue
-        buildablePositions.push(new RoomPosition(x, y, room.name))
-      }
-    }
-
-    const idealPosition = new RoomPosition(25 - this.layout.length / 2, 25 - this.layout.length / 2, room.name)
-    buildablePositions.sort((p1, p2) => p1.getRangeTo(idealPosition) - p2.getRangeTo(idealPosition))
-
-    this.markLayout(buildablePositions[0], desiredState)
-
-    room.memory.baseLayout = "bunker"
+    console.log("Building bunker at", JSON.stringify(pos))
 
     return desiredState
   }
@@ -44,29 +41,37 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
     }
   }
 
-  isRoomForLayout(room: Room): boolean {
-    if (!room.controller) return false
-
-    for (let y = 3; y < 50; y++) {
-      for (let x = 3; x < 50; x++) {
-        if (this.isRoomFromPosition(room, x, y)) return true
-      }
-    }
-    return false
+  public isRoomForLayout(room: Room) {
+    return this.findBunkerLocation(room) !== null
   }
 
-  private isRoomFromPosition(room: Room, x: number, y: number): boolean {
-    for (let yy = y; yy < 50 && yy < y + this.layout.length; yy++) {
-      for (let xx = x; xx < 50 && xx < x + this.layout[yy - y].length; xx++) {
-        if (this.layout[yy - y][xx - x] === "") continue
-        if (room.controller!.pos.inRangeTo(xx, yy, 3)) return false
-        if (room.getTerrain().get(xx, yy) === TERRAIN_MASK_WALL) return false
+  private findBunkerLocation(room: Room): { x: number; y: number } | null {
+    const dt = distanceTransform(room.getTerrain(), false, 0, 0, 50, 50, room)
+    const pos = room.controller?.pos
+    if (!pos) return null
+
+    let closestOptions: { x: number; y: number }[] = []
+    for (let y = 0; y < 50; y++) {
+      for (let x = 0; x < 50; x++) {
+        if (dt.get(y, x) >= 9) closestOptions.push({ x, y })
       }
     }
-    return true
+
+    const ff = floodFill([{ x: pos.x, y: pos.y }], room, true)
+
+    if (closestOptions.length <= 0) return null
+    let min = Number.MAX_SAFE_INTEGER
+    let minPos = closestOptions[0]
+    for (let cPos of closestOptions) {
+      if (min < ff.get(cPos.x, cPos.y)) continue
+
+      min = ff.get(cPos.x, cPos.y)
+      minPos = cPos
+    }
+
+    return minPos
   }
 
-  // Using bunker layout from: https://wiki.screepspl.us/index.php/File:BunkerExample.png
   private bunkerLayout(): string[][] {
     return [
       ["", "", "", "", STRUCTURE_EXTENSION, "", "", "", STRUCTURE_EXTENSION, "", "", "", ""],

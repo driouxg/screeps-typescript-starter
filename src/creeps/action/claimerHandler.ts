@@ -64,13 +64,18 @@ export default class ClaimerHandler implements ICreepHandler {
   private isClaimableRoom(roomName: string) {
     const room = Game.rooms[roomName]
 
-    return (
-      room &&
-      room.controller !== undefined &&
-      !room.controller?.owner &&
-      (!room.controller.reservation || room.controller.reservation?.username === "DryOx") &&
-      room.find(FIND_HOSTILE_CREEPS).length <= 0 &&
-      Game.map.getRoomStatus(room.name).status !== "closed"
-    )
+    if (!room) return false
+
+    if (room.controller === undefined) return false
+
+    if (room.controller.owner) return false
+
+    if (room.controller.reservation && room.controller.reservation.username !== "DryOx") return false
+
+    if (Game.map.getRoomStatus(room.name).status === "closed") return false
+
+    if (0 < room.find(FIND_HOSTILE_CREEPS).length) return false
+
+    return true
   }
 }
