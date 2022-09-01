@@ -3,15 +3,13 @@ import SpawnConfig from "./SpawnConfig"
 import * as creepRoles from "../roles"
 
 export default class ScoutSpawnHandler implements ISpawnHandler {
-  private creepPopulationDict: { [key: string]: number }
+  spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
+    const memory = spawn.memory
 
-  public constructor(creepPopulationDict: { [key: string]: number }) {
-    this.creepPopulationDict = creepPopulationDict
-  }
+    memory.scoutLastSpawned = memory.scoutLastSpawned ?? 0
+    if (Game.time <= memory.scoutLastSpawned + CREEP_LIFE_TIME) return null
 
-  spawnCreep(room: Room): SpawnConfig | null {
-    if (this.creepPopulationDict[creepRoles.SCOUT] < 1) return new SpawnConfig([MOVE, MOVE, MOVE], creepRoles.SCOUT)
-
-    return null
+    memory.scoutLastSpawned = Game.time
+    return new SpawnConfig([MOVE, MOVE, MOVE], creepRoles.SCOUT)
   }
 }

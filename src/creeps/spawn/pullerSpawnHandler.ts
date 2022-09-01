@@ -12,13 +12,13 @@ export default class PullerSpawnHandler implements ISpawnHandler {
     this.creepPopulationDict = creepPopulationDict
   }
 
-  spawnCreep(room: Room): SpawnConfig | null {
-    const pullRequestEvent = this.getPendingPullRequest(room)
+  spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
+    const pullRequestEvent = this.getPendingPullRequest(spawn.room)
 
     if (!pullRequestEvent) return null
 
     if (this.creepPopulationDict[this.role] < 1)
-      return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent, room), this.role)
+      return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent, spawn.room), this.role)
     else return null
   }
 

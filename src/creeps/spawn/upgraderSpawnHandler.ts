@@ -11,7 +11,8 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
     this.creepPopulationDict = creepPopulationDict
   }
 
-  public spawnCreep(room: Room): SpawnConfig | null {
+  public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
+    const { room } = spawn
     if (room.energyAvailable !== room.energyCapacityAvailable) return null
 
     if (this.creepPopulationDict[this.role] < 1) {

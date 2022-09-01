@@ -5,19 +5,17 @@ import { buildDynamicBodyParts } from "./utils/dynamicBodyParts"
 
 export default class MeleeDefenderSpawnHandler implements ISpawnHandler {
   private creepPopulationDict: { [key: string]: number }
-  private spawn: StructureSpawn
   private role: string = creepRoles.MELEE_DEFENDER
 
-  public constructor(creepPopulationDict: { [key: string]: number }, spawn: StructureSpawn) {
+  public constructor(creepPopulationDict: { [key: string]: number }) {
     this.creepPopulationDict = creepPopulationDict
-    this.spawn = spawn
   }
 
-  public spawnCreep(room: Room): SpawnConfig | null {
-    const enemies: Creep[] = this.spawn.room.find(FIND_HOSTILE_CREEPS)
+  public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
+    const enemies: Creep[] = spawn.room.find(FIND_HOSTILE_CREEPS)
 
     if (this.creepPopulationDict[this.role] < Math.ceil(enemies.length / 2))
-      return new SpawnConfig(buildDynamicBodyParts([TOUGH, TOUGH, ATTACK, MOVE], room), this.role)
+      return new SpawnConfig(buildDynamicBodyParts([TOUGH, TOUGH, ATTACK, MOVE], spawn.room), this.role)
     else return null
   }
 }

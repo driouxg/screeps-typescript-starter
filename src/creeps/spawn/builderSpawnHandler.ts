@@ -12,15 +12,15 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
     this.creepPopulationDict = creepPopulationDict
   }
 
-  public spawnCreep(room: Room): SpawnConfig | null {
-    if (room.energyAvailable !== room.energyCapacityAvailable || !this.isHundredthTick()) return null
+  public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
+    if (spawn.room.energyAvailable !== spawn.room.energyCapacityAvailable || !this.isHundredthTick()) return null
 
-    const constructionSites = room.find(FIND_MY_CONSTRUCTION_SITES)
+    const constructionSites = spawn.room.find(FIND_MY_CONSTRUCTION_SITES)
 
     const numCreeps = 0 < constructionSites.filter(c => c.structureType !== STRUCTURE_ROAD).length ? 2 : 1
 
     if (this.creepPopulationDict[this.role] < numCreeps)
-      return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], room, 20), this.role)
+      return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], spawn.room, 20), this.role)
     else return null
   }
 
