@@ -36,23 +36,23 @@ export default class ClaimerHandler implements ICreepHandler {
 
     q.add(creep.room.name)
 
-    while (0 < q.size()) {
+    while (0 < q.size() && q.size() < 20) {
       const size = q.size()
 
       for (let i = 0; i < size; i++) {
         const roomName = q.remove()
 
-        if (!roomName || !this.isClaimableRoom(roomName)) continue
+        if (!roomName) continue
 
         if (this.isClaimableRoom(roomName)) return roomName
 
         // Explore other closest options
         const exits = Game.map.describeExits(roomName)
+        if (!exits) continue
         const roomNames = Object.keys(exits).map(direction => exits[direction as ExitKey])
 
         for (const roomName of roomNames) {
           if (!roomName) continue
-
           q.add(roomName)
         }
       }
@@ -62,15 +62,15 @@ export default class ClaimerHandler implements ICreepHandler {
   }
 
   private isClaimableRoom(roomName: string) {
-    const room = new Room(roomName)
+    const room = Game.rooms[roomName]
 
     return (
       room &&
-      room.controller &&
+      room.controller !== undefined &&
       !room.controller?.owner &&
       (!room.controller.reservation || room.controller.reservation?.username === "DryOx") &&
       room.find(FIND_HOSTILE_CREEPS).length <= 0 &&
-      Game.map.getRoomStatus(room.name)
+      Game.map.getRoomStatus(room.name).status !== "closed"
     )
   }
 }
