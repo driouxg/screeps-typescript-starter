@@ -1,3 +1,4 @@
+import HaulerMemory from "creeps/memory/haulerMemory"
 import { findCachedStructurePositions, findExtensions, findSpawns, findStorage, findTowers } from "utils/structureUtils"
 import CreepBehavior from "./common/creepBehavior"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
@@ -15,36 +16,48 @@ export default class HaulerHandler implements ICreepHandler {
 
   handle(creep: Creep): void {
     this.creepBehavior.updateWorkingState(creep)
-    if (this.creepBehavior.isWorking(creep)) this.offloadEnergy(creep)
-    else this.creepEnergyRetrieval.retrieve(creep)
+    if (this.creepBehavior.isWorking(creep)) this.workUntilNoEnergy(creep)
+    else this.creepBehavior.harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
   }
 
-  private offloadEnergy(creep: Creep): CreepReturnCode {
+  private workUntilNoEnergy(creep: Creep) {
+    let memory = creep.memory as HaulerMemory
+    memory.offloadTargetPos = memory.offloadTargetPos ?? creep.pos
+
+    if (this.creepBehavior.hasEnergy(creep)) {
+      const offloadSpot = this.findOffloadSpot(creep)
+
+      memory.offloadTargetPos = offloadSpot
+
+      if (creep.pos.isNearTo(offloadSpot)) {
+        const offloadStructure = creep.room.lookForAt(LOOK_STRUCTURES, offloadSpot)
+
+        if (0 < offloadStructure.length) creep.transfer(offloadStructure[0], RESOURCE_ENERGY)
+        else creep.drop(RESOURCE_ENERGY)
+      } else creep.moveTo(offloadSpot)
+    } else memory.working = false
+  }
+
+  private findOffloadSpot(creep: Creep): RoomPosition {
     // offload to extensions
     const extensions = findExtensions(creep.room).filter(e => 0 < e.store.getFreeCapacity(RESOURCE_ENERGY))
     if (0 < extensions.length) {
       extensions.sort(
         (e1, e2) => e1.pos.getRangeTo(creep.pos.x, creep.pos.y) - e2.pos.getRangeTo(creep.pos.x, creep.pos.y)
       )
-      if (creep.transfer(extensions[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        return this.creepBehavior.moveToWithSinglePath(creep, extensions[0].pos)
-      else return OK
+      return extensions[0].pos
     }
 
     // offload to spawns
     const spawns = creep.room.find(FIND_MY_SPAWNS).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY))
     if (0 < spawns.length) {
-      if (creep.transfer(spawns[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        return this.creepBehavior.moveToWithSinglePath(creep, spawns[0].pos)
-      else return OK
+      return spawns[0].pos
     }
 
     // offload to towers
     const towers = findTowers(creep.room).filter(t => 0 < t.store.getFreeCapacity(RESOURCE_ENERGY))
     if (0 < towers.length) {
-      if (creep.transfer(towers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        return this.creepBehavior.moveToWithSinglePath(creep, towers[0].pos)
-      else return OK
+      return towers[0].pos
     }
 
     // offload to containers positions that are not next to sources until we reach max container amount
@@ -62,22 +75,17 @@ export default class HaulerHandler implements ICreepHandler {
         energyPiles.length <= 0 ||
         energyPiles[0].amount < 2000
       ) {
-        if (creep.pos.isEqualTo(pos.x, pos.y)) {
-          creep.drop(RESOURCE_ENERGY)
-          return this.creepEnergyRetrieval.retrieve(creep)
-        } else return this.creepBehavior.moveToWithSinglePath(creep, containerPositions[0])
+        return containerPositions[0]
       }
     }
 
     // offload to storage
     const storage = findStorage(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY))
     if (0 < storage.length) {
-      if (creep.transfer(storage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE)
-        return this.creepBehavior.moveToWithSinglePath(creep, storage[0].pos)
-      else return OK
+      return storage[0].pos
     }
 
-    return ERR_NOT_FOUND
+    return creep.pos
   }
 
   private isPositionNextToSource(creep: Creep, pos: RoomPosition): boolean {
