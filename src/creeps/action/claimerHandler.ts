@@ -68,6 +68,8 @@ export default class ClaimerHandler implements ICreepHandler {
 
     if (room.controller === undefined) return false
 
+    if (room.find(FIND_SOURCES).length < 2) return false
+
     if (room.controller.owner) return false
 
     if (room.controller.reservation && room.controller.reservation.username !== "DryOx") return false
