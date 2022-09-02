@@ -4,20 +4,17 @@ import * as creepRoles from "../roles"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 
 export default class HaulerSpawnHandler implements ISpawnHandler {
-  private creepPopulationDict: { [key: string]: number }
-
   private role: string = creepRoles.HAULER
 
-  public constructor(creepPopulationDict: { [key: string]: number }) {
-    this.creepPopulationDict = creepPopulationDict
-  }
-
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
-    if (0 < this.creepPopulationDict[this.role] && spawn.room.energyAvailable !== spawn.room.energyCapacityAvailable)
-      return null
+    const creeps = spawn.room.find(FIND_MY_CREEPS)
+    const miners = creeps.filter(c => c.memory.role === creepRoles.MINER)
+    const haulers = creeps.filter(c => c.memory.role === creepRoles.HAULER)
+
+    if (0 < creeps.length && spawn.room.energyAvailable !== spawn.room.energyCapacityAvailable) return null
     const bluePrint = [CARRY, MOVE, CARRY, MOVE]
 
-    if (this.creepPopulationDict[this.role] < this.creepPopulationDict[creepRoles.MINER] * 2)
+    if (haulers.length < miners.length * 2)
       return new SpawnConfig(buildCappedBodyParts(bluePrint, spawn.room, 25), this.role)
     else return null
   }

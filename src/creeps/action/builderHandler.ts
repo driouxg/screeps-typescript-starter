@@ -1,4 +1,3 @@
-import BuilderMemory from "creeps/memory/builderMemory"
 import { jsonToRoomPosition } from "utils/jsonMapper"
 import { harvestUntilMaxEnergy, hasEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
@@ -121,4 +120,9 @@ export default class BuilderHandler implements ICreepHandler {
   private isStructureFullHealth(s: Structure<StructureConstant>) {
     return s.hits === s.hitsMax
   }
+}
+
+export interface BuilderMemory extends CreepMemory {
+  repairTargetPos: { x: number; y: number; roomName: string }
+  buildTargetPos: { x: number; y: number; roomName: string }
 }

@@ -1,3 +1,5 @@
+import { jsonToRoomPosition } from "./jsonMapper"
+
 export function findContainers(room: Room): StructureContainer[] {
   let containers: StructureContainer[] = []
   for (let pos of findCachedStructurePositions(room, STRUCTURE_CONTAINER)) {
@@ -49,7 +51,7 @@ export function findCachedStructurePositions(room: Room, structureType: Structur
   if (!room.memory.positions || !room.memory.positions[structureType]) return []
 
   let positions = []
-  for (let pos of room.memory.positions[structureType]) positions.push(pos)
+  for (let pos of room.memory.positions[structureType]) positions.push(jsonToRoomPosition(pos))
 
   return positions
 }

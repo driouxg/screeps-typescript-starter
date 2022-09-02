@@ -1,4 +1,3 @@
-import RemoteMinerMemory from "creeps/memory/remoteMinerMemory"
 import { jsonToRoomPosition } from "utils/jsonMapper"
 import { findOffloadSpot, hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
@@ -41,4 +40,11 @@ export default class RemoteMinerHandler implements ICreepHandler {
       memory.offloadTargetPos = findOffloadSpot(creep)
     else moveToWithSinglePath(creep, offloadSpot)
   }
+}
+
+export interface RemoteMinerMemory extends CreepMemory {
+  targetRoomName: string
+  targetSourceId: string
+  birthRoomName: string
+  offloadTargetPos: { x: number; y: number; roomName: string }
 }

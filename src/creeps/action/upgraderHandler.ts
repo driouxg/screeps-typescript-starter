@@ -1,6 +1,7 @@
 import PullRequestEvent from "room/pullRequestEvent"
 import { dirs } from "utils/directions"
 import { isBuildablePos, isWall } from "utils/gridBuilder"
+import { jsonToRoomPosition } from "utils/jsonMapper"
 import ICreepHandler from "./ICreepHandler"
 
 export default class UpgraderHandler implements ICreepHandler {
@@ -60,7 +61,7 @@ export default class UpgraderHandler implements ICreepHandler {
 
   private findContainerPosition(creep: Creep): RoomPosition | null {
     for (const pos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
-      if (creep.pos.isNearTo(pos.x, pos.y)) return pos
+      if (creep.pos.isNearTo(jsonToRoomPosition(pos))) return jsonToRoomPosition(pos)
     }
 
     return null

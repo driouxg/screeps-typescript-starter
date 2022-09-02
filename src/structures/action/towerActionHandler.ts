@@ -1,3 +1,4 @@
+import { jsonToRoomPosition } from "utils/jsonMapper"
 import { findTowers } from "utils/structureUtils"
 import IStructureActionHandler from "./IStructureActionHandler"
 
@@ -29,7 +30,8 @@ export default class TowerActionHandler implements IStructureActionHandler {
   }
 
   private getMyTowerPositions(room: Room): RoomPosition[] {
-    return room.memory.positions[STRUCTURE_TOWER]
+    if (!room.memory.positions || !room.memory.positions[STRUCTURE_TOWER]) return []
+    return room.memory.positions[STRUCTURE_TOWER].map(p => jsonToRoomPosition(p))
   }
 
   private canOperateTowersInThisRoom(room: Room): boolean {

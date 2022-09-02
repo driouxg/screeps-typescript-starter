@@ -1,4 +1,4 @@
-import RemoteMinerMemory from "creeps/memory/remoteMinerMemory"
+import { RemoteMinerMemory } from "creeps/action/remoteMinerHandler"
 import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"

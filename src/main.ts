@@ -34,7 +34,7 @@ declare global {
   interface RoomMemory {
     constructionPos: { [key: string]: number }
     desiredState: string[][]
-    positions: { [structure: string]: RoomPosition[] }
+    positions: { [structure: string]: RoomPositionJson[] }
     events: RoomEvent[]
     lastScouted: number
     status:
@@ -48,6 +48,7 @@ declare global {
       | "ownedMy"
       | "ownedEnemy"
     watchers: { [direction: string]: number }
+    minerPositions: { sourceId: string; pos: RoomPositionJson }[]
   }
 
   interface RoomEvent {
@@ -76,6 +77,12 @@ declare global {
     role: string
     room: string
     working: boolean
+  }
+
+  export type RoomPositionJson = {
+    x: number
+    y: number
+    roomName: string
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")

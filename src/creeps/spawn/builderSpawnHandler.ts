@@ -4,13 +4,7 @@ import SpawnConfig from "./SpawnConfig"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 
 export default class BuilderSpawnHandler implements ISpawnHandler {
-  private creepPopulationDict: { [key: string]: number }
-
   private role: string = creepRoles.BUILDER
-
-  public constructor(creepPopulationDict: { [key: string]: number }) {
-    this.creepPopulationDict = creepPopulationDict
-  }
 
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     if (spawn.room.energyAvailable !== spawn.room.energyCapacityAvailable || !this.isHundredthTick()) return null
@@ -19,9 +13,11 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
 
     const numCreeps = 0 < constructionSites.filter(c => c.structureType !== STRUCTURE_ROAD).length ? 2 : 1
 
-    if (this.creepPopulationDict[this.role] < numCreeps)
-      return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], spawn.room, 20), this.role)
-    else return null
+    const builders = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === creepRoles.BUILDER })
+
+    if (numCreeps <= builders.length) return null
+
+    return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], spawn.room, 20), this.role)
   }
 
   private isHundredthTick(): boolean {

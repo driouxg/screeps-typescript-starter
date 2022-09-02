@@ -33,7 +33,7 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
       y = pos.y
     for (let yy = y; yy < 50 && yy < y + this.layout.length; yy++) {
       for (let xx = x; xx < 50 && xx < x + this.layout.length; xx++) {
-        desiredState[yy][xx] = this.layout[yy - y][xx - x]
+        if (desiredState[yy][xx] === "") desiredState[yy][xx] = this.layout[yy - y][xx - x]
       }
     }
   }
