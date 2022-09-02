@@ -37,7 +37,7 @@ declare global {
     positions: { [structure: string]: RoomPosition[] }
     events: RoomEvent[]
     lastScouted: number
-    status: "reservedMy" | "reservedEnemy" | "unseen" | "claimedMy" | "claimedEnemy" | "hostile"
+    status: "reservedMy" | "reservedEnemy" | "unseen" | "claimedMy" | "claimedEnemy" | "hostile" | "unclaimable"
     // watchers: [north: number, east: number, south: number, west: number]
     watchers: { [direction: string]: number }
   }
@@ -108,9 +108,10 @@ function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandl
 
 function manageStructureActions(structureActionHandlers: IStructureActionHandler[]) {
   for (const roomName in Game.rooms) {
-    if (!myOwnedRoom(roomName)) continue
+    const room = Game.rooms[roomName]
+    if (!myOwnedRoom(room)) continue
     for (const structureActionHandler of structureActionHandlers) {
-      structureActionHandler.handle(Game.rooms[roomName])
+      structureActionHandler.handle(room)
     }
   }
 }
@@ -135,6 +136,6 @@ function initRoomMemory(): void {
   }
 }
 
-function myOwnedRoom(roomName: string): boolean {
-  return !Game.rooms[roomName] || !Game.rooms[roomName].controller || !Game.rooms[roomName].controller?.my
+function myOwnedRoom(room: Room): boolean {
+  return room && room.controller !== undefined && room.controller!.my
 }

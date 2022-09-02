@@ -3,13 +3,9 @@ import IStructureActionHandler from "./IStructureActionHandler"
 
 export default class TowerActionHandler implements IStructureActionHandler {
   public handle(room: Room): void {
-    const towers = findTowers(room)
-
-    // console.log("towers", towers.length)
-
     if (!this.canOperateTowersInThisRoom(room)) return
 
-    for (const tower of towers) {
+    for (const tower of findTowers(room)) {
       const enemies: Creep[] = room.find(FIND_HOSTILE_CREEPS)
       if (0 < enemies.length) {
         this.attack(enemies, tower)
@@ -25,9 +21,7 @@ export default class TowerActionHandler implements IStructureActionHandler {
     const healerEnemies: Creep[] = enemies.filter(c => 0 < c.getActiveBodyparts(HEAL))
 
     if (0 < healerEnemies.length) tower.attack(healerEnemies[0])
-    else {
-      // console.log(tower.attack(enemies[0]))
-    }
+    else console.log(tower.attack(enemies[0]))
   }
 
   private heal(tower: StructureTower, myHealableCreeps: Creep[]): void {
@@ -35,14 +29,20 @@ export default class TowerActionHandler implements IStructureActionHandler {
   }
 
   private getMyTowerPositions(room: Room): RoomPosition[] {
-    if (!room.memory.positions) return []
     return room.memory.positions[STRUCTURE_TOWER]
   }
 
   private canOperateTowersInThisRoom(room: Room): boolean {
     const myTowerPositions = this.getMyTowerPositions(room)
+
+    if (!myTowerPositions) return false
+
     return (
-      room.controller !== undefined && room.controller.my && 3 <= room.controller.level && 0 < myTowerPositions.length
+      room.controller !== undefined &&
+      room.controller.my &&
+      3 <= room.controller.level &&
+      myTowerPositions &&
+      0 < myTowerPositions.length
     )
   }
 

@@ -12,15 +12,14 @@ export default class RemoteMinerSpawnHandler implements ISpawnHandler {
   }
 
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
-    const exits = Game.map.describeExits(spawn.room.name)
+    const exits = this.getUnorderedExits(spawn.room) as string[]
+    const population = 2 * exits.filter(e => this.isRoomRemoteMineable(e)).length
 
-    for (let direction in exits) {
-      const roomName = exits[direction as ExitKey]
-
+    for (let roomName of exits) {
       if (!this.isRoomRemoteMineable(roomName)) continue
 
       const blueprint = [WORK, CARRY, MOVE]
-      if (2 < this.creepPopulationDict[creepRoles.REMOTE_MINER]) return null
+      if (population <= this.creepPopulationDict[creepRoles.REMOTE_MINER]) return null
 
       return new SpawnConfig(buildCappedBodyParts(blueprint, spawn.room, 25), creepRoles.REMOTE_MINER, {
         targetRoomName: roomName,
@@ -36,8 +35,15 @@ export default class RemoteMinerSpawnHandler implements ISpawnHandler {
 
     const room = Game.rooms[roomName]
     if (!room) return false
-
-    if (["claimedMy", "claimedEnemy", "unseen", "hostile"].includes(room.memory.status)) return false
+    // should still remote mine if claimed unless spawn is in room
+    if (["claimedMy", "claimedEnemy", "unseen", "hostile", "unclaimable"].includes(room.memory.status)) return false
     return true
+  }
+
+  private getUnorderedExits(room: Room) {
+    const exits = Game.map.describeExits(room.name)
+    const roomNames = Object.keys(exits).map(direction => exits[direction as ExitKey])
+
+    return roomNames.sort(() => Math.random() - 0.5)
   }
 }

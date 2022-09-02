@@ -7,12 +7,10 @@ import ICreepHandler from "./ICreepHandler"
 export default class ScoutHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const memory = creep.memory as ScoutMemory
-    // memory.lastScoutedDict = memory.lastScoutedDict ?? {}
     memory.targetRoom = memory.targetRoom ?? creep.memory.room
 
     if (creep.room.name === memory.targetRoom) {
       creep.moveTo(25, 25) // Move creep off of border
-      // memory.lastScoutedDict[creep.room.name] = Game.time
       this.updateRoomStatus(creep.room)
 
       memory.targetRoom = this.findNewTargetRoom(creep)
@@ -44,11 +42,10 @@ export default class ScoutHandler implements ICreepHandler {
     let status = "unseen"
 
     if (!room.controller) status = "unclaimable"
-
-    if (room.controller?.my) status = "claimedMy"
-    if (!room.controller?.owner) status = "claimable"
-    if (room.controller?.reservation && room.controller.reservation.username === "DryOx") status = "reservedMy"
-    if (room.controller?.reservation && room.controller.reservation.username !== "DryOx") status = "reservedEnemy"
+    else if (room.controller?.my) status = "claimedMy"
+    else if (room.controller && !room.controller?.owner) status = "claimable"
+    else if (room.controller?.reservation && room.controller.reservation.username === "DryOx") status = "reservedMy"
+    else if (room.controller?.reservation && room.controller.reservation.username !== "DryOx") status = "reservedEnemy"
 
     room.memory.lastScouted = Game.time
     room.memory.status = status as "unseen" | "reservedMy" | "reservedEnemy" | "claimedMy" | "claimedEnemy"

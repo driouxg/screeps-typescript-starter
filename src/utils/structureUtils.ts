@@ -36,14 +36,12 @@ export function findExtensions(room: Room): StructureExtension[] {
 
 export function findTowers(room: Room): StructureTower[] {
   let towers = []
-  // console.log(room.memory.desiredState[41][34])
   for (const pos of findCachedStructurePositions(room, STRUCTURE_TOWER)) {
     const structures = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y)
     const tower = structures.find(s => s.structureType === STRUCTURE_TOWER) as StructureTower
 
     if (tower) towers.push(tower)
   }
-
   return towers
 }
 
