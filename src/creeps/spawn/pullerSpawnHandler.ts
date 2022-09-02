@@ -5,21 +5,18 @@ import PullRequestEvent from "room/pullRequestEvent"
 import { buildDynamicBodyParts } from "./utils/dynamicBodyParts"
 
 export default class PullerSpawnHandler implements ISpawnHandler {
-  private creepPopulationDict: { [key: string]: number }
   private role: string = creepRoles.PULLER
-
-  public constructor(creepPopulationDict: { [key: string]: number }) {
-    this.creepPopulationDict = creepPopulationDict
-  }
 
   spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     const pullRequestEvent = this.getPendingPullRequest(spawn.room)
 
     if (!pullRequestEvent) return null
 
-    if (this.creepPopulationDict[this.role] < 1)
-      return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent, spawn.room), this.role)
-    else return null
+    const pullers = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === creepRoles.PULLER })
+
+    if (1 <= pullers.length) return null
+
+    return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent, spawn.room), this.role)
   }
 
   private getPendingPullRequest(room: Room): PullRequestEvent | null {

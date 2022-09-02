@@ -26,7 +26,7 @@ export default class SpawnComposer {
         const cost = spawnConfig.getBody().reduce((acc, val) => acc + BODYPART_COST[val], 0)
         if (spawn.room.energyAvailable < cost) continue
 
-        console.log("Spawning", spawnConfig.getRole())
+        console.log("Spawning", spawnConfig.getRole(), spawn.room.name)
 
         spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
           memory: {
@@ -47,9 +47,9 @@ export default class SpawnComposer {
     return [
       new MeleeDefenderSpawnHandler(creepPopulationDict),
       new HealerSpawnHandler(creepPopulationDict),
-      new PullerSpawnHandler(creepPopulationDict),
+      new PullerSpawnHandler(),
       new HaulerSpawnHandler(creepPopulationDict),
-      new MinerSpawnHandler(creepPopulationDict),
+      new MinerSpawnHandler(),
       new BuilderSpawnHandler(creepPopulationDict),
       new UpgraderSpawnHandler(creepPopulationDict),
       new ScoutSpawnHandler(),
