@@ -5,6 +5,8 @@ export default class TowerActionHandler implements IStructureActionHandler {
   public handle(room: Room): void {
     const towers = findTowers(room)
 
+    // console.log("towers", towers.length)
+
     if (!this.canOperateTowersInThisRoom(room)) return
 
     for (const tower of towers) {
@@ -24,7 +26,7 @@ export default class TowerActionHandler implements IStructureActionHandler {
 
     if (0 < healerEnemies.length) tower.attack(healerEnemies[0])
     else {
-      console.log(tower.attack(enemies[0]))
+      // console.log(tower.attack(enemies[0]))
     }
   }
 

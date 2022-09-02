@@ -25,8 +25,6 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
     if (!pos) return desiredState
     this.markLayout(new RoomPosition(pos.x - 6, pos.y - 6, room.name), desiredState)
 
-    console.log("Building bunker at", JSON.stringify(pos))
-
     return desiredState
   }
 

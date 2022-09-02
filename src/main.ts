@@ -37,7 +37,7 @@ declare global {
     positions: { [structure: string]: RoomPosition[] }
     events: RoomEvent[]
     lastScouted: number
-    status: "reservedMy" | "reservedEnemy" | "unseen" | "claimedMy" | "claimedEnemy"
+    status: "reservedMy" | "reservedEnemy" | "unseen" | "claimedMy" | "claimedEnemy" | "hostile"
     // watchers: [north: number, east: number, south: number, west: number]
     watchers: { [direction: string]: number }
   }

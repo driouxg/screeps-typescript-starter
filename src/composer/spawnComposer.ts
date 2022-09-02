@@ -7,6 +7,7 @@ import ISpawnHandler from "creeps/spawn/ISpawnHandler"
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler"
 import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler"
 import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
+import RemoteMinerSpawnHandler from "creeps/spawn/remoteMinerSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
@@ -52,6 +53,7 @@ export default class SpawnComposer {
       new UpgraderSpawnHandler(creepPopulationDict),
       new ScoutSpawnHandler(),
       new WatcherSpawnHandler(),
+      new RemoteMinerSpawnHandler(creepPopulationDict),
       new ClaimerSpawnHandler(creepPopulationDict)
     ]
   }
