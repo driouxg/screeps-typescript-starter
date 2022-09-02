@@ -45,13 +45,13 @@ export default class SpawnComposer {
     const creepPopulationDict: { [key: string]: number } = this.creepPopulationDict()
 
     return [
-      new MeleeDefenderSpawnHandler(creepPopulationDict),
+      new MeleeDefenderSpawnHandler(),
       new HealerSpawnHandler(creepPopulationDict),
       new PullerSpawnHandler(),
       new HaulerSpawnHandler(),
       new MinerSpawnHandler(),
       new BuilderSpawnHandler(),
-      new UpgraderSpawnHandler(creepPopulationDict),
+      new UpgraderSpawnHandler(),
       new ScoutSpawnHandler(),
       new WatcherSpawnHandler(),
       new RemoteMinerSpawnHandler(creepPopulationDict),

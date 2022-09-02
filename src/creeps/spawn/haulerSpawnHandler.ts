@@ -11,11 +11,10 @@ export default class HaulerSpawnHandler implements ISpawnHandler {
     const miners = creeps.filter(c => c.memory.role === creepRoles.MINER)
     const haulers = creeps.filter(c => c.memory.role === creepRoles.HAULER)
 
-    if (0 < creeps.length && spawn.room.energyAvailable !== spawn.room.energyCapacityAvailable) return null
     const bluePrint = [CARRY, MOVE, CARRY, MOVE]
 
-    if (haulers.length < miners.length * 2)
-      return new SpawnConfig(buildCappedBodyParts(bluePrint, spawn.room, 25), this.role)
-    else return null
+    if (miners.length * 2 <= haulers.length) return null
+
+    return new SpawnConfig(buildCappedBodyParts(bluePrint, spawn.room, 25), this.role)
   }
 }
