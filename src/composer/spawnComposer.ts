@@ -1,6 +1,7 @@
 import * as creepRoles from "creeps/roles"
 import BuilderSpawnHandler from "creeps/spawn/builderSpawnHandler"
 import ClaimerSpawnHandler from "creeps/spawn/claimerSpawnHandler"
+import ExpanderSpawnHandler from "creeps/spawn/expanderSpawnHandler"
 import HaulerSpawnHandler from "creeps/spawn/haulerSpawnHandler"
 import HealerSpawnHandler from "creeps/spawn/healerSpawnHandler"
 import ISpawnHandler from "creeps/spawn/ISpawnHandler"
@@ -54,7 +55,8 @@ export default class SpawnComposer {
       new ScoutSpawnHandler(),
       new WatcherSpawnHandler(),
       new RemoteMinerSpawnHandler(creepPopulationDict),
-      new ClaimerSpawnHandler(creepPopulationDict)
+      new ClaimerSpawnHandler(creepPopulationDict),
+      new ExpanderSpawnHandler(creepPopulationDict)
     ]
   }
 

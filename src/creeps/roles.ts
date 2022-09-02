@@ -9,3 +9,4 @@ export const SCOUT = "SCOUT"
 export const CLAIMER = "CLAIMER"
 export const WATCHER = "WATCHER" // https://github.com/TooAngel/screeps/blob/master/src/role_watcher.js
 export const REMOTE_MINER = "REMOTE_MINER"
+export const EXPANDER = "EXPANDER"

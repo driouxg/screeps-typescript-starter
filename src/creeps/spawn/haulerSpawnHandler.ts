@@ -1,6 +1,5 @@
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
-
 import * as creepRoles from "../roles"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 
