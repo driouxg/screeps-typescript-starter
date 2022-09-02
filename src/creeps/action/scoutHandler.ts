@@ -7,12 +7,13 @@ import ICreepHandler from "./ICreepHandler"
 export default class ScoutHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const memory = creep.memory as ScoutMemory
-    memory.lastScoutedDict = memory.lastScoutedDict ?? {}
+    // memory.lastScoutedDict = memory.lastScoutedDict ?? {}
     memory.targetRoom = memory.targetRoom ?? creep.memory.room
 
     if (creep.room.name === memory.targetRoom) {
       creep.moveTo(25, 25) // Move creep off of border
-      memory.lastScoutedDict[creep.room.name] = Game.time
+      // memory.lastScoutedDict[creep.room.name] = Game.time
+      this.updateRoomStatus(creep.room)
 
       memory.targetRoom = this.findNewTargetRoom(creep)
     } else creep.moveTo(new RoomPosition(25, 25, memory.targetRoom))
@@ -20,20 +21,36 @@ export default class ScoutHandler implements ICreepHandler {
 
   private findNewTargetRoom(creep: Creep): string {
     const exits = Game.map.describeExits(creep.room.name)
-    const rooms = Object.keys(exits).map(direction => exits[direction as ExitKey])
+    const roomNames = Object.keys(exits).map(direction => exits[direction as ExitKey])
     let memory = creep.memory as ScoutMemory
-    rooms.sort(() => Math.random() - 0.5)
+    roomNames.sort(() => Math.random() - 0.5)
 
-    for (const roomName of rooms) {
+    for (const roomName of roomNames) {
       if (!roomName) continue
 
-      const lastScouted = memory.lastScoutedDict[roomName]
+      const room = Game.rooms[roomName]
 
-      if (Game.time < lastScouted - 600) continue
+      const lastScouted = room ? room.memory.lastScouted : 0
+
+      if (Game.time < lastScouted - 100) continue
 
       return roomName
     }
 
     return memory.targetRoom
+  }
+
+  private updateRoomStatus(room: Room) {
+    let status = "unseen"
+
+    if (!room.controller) status = "unclaimable"
+
+    if (room.controller?.my) status = "claimedMy"
+    if (!room.controller?.owner) status = "claimable"
+    if (room.controller?.reservation && room.controller.reservation.username === "DryOx") status = "reservedMy"
+    if (room.controller?.reservation && room.controller.reservation.username !== "DryOx") status = "reservedEnemy"
+
+    room.memory.lastScouted = Game.time
+    room.memory.status = status as "unseen" | "reservedMy" | "reservedEnemy" | "claimedMy" | "claimedEnemy"
   }
 }

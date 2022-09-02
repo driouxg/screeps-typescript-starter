@@ -7,3 +7,5 @@ export const PULLER = "PULLER"
 export const HAULER = "HAULER"
 export const SCOUT = "SCOUT"
 export const CLAIMER = "CLAIMER"
+export const WATCHER = "WATCHER" // https://github.com/TooAngel/screeps/blob/master/src/role_watcher.js
+export const REMOTE_MINER = "REMOTE_MINER"

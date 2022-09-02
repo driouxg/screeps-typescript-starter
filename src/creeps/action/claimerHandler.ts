@@ -1,18 +1,12 @@
 import ClaimerMemory from "creeps/memory/claimerMemory"
 import Queue from "utils/queue"
-import CreepBehavior from "./common/creepBehavior"
+import { moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
 
 /**
  * Goal: Try to expand to closest claimable room.
  */
 export default class ClaimerHandler implements ICreepHandler {
-  private creepBehavior: CreepBehavior
-
-  public constructor(creepBehavior: CreepBehavior) {
-    this.creepBehavior = creepBehavior
-  }
-
   handle(creep: Creep): void {
     let memory = creep.memory as ClaimerMemory
     memory.targetRoom = memory.targetRoom ?? creep.room.name
@@ -26,7 +20,7 @@ export default class ClaimerHandler implements ICreepHandler {
       const controller = creep.room.controller as StructureController
       const status = creep.claimController(controller)
 
-      if (status === ERR_NOT_IN_RANGE) this.creepBehavior.moveToWithSinglePath(creep, controller.pos)
+      if (status === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, controller.pos)
       if (status === ERR_GCL_NOT_ENOUGH) creep.suicide()
     } else creep.moveTo(new RoomPosition(25, 25, memory.targetRoom))
   }

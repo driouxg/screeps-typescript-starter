@@ -6,31 +6,29 @@ import {
   findStorage,
   findTowers
 } from "utils/structureUtils"
-import CreepBehavior from "./common/creepBehavior"
+import { harvestUntilMaxEnergy, hasEnergy, isWorking, updateWorkingState } from "./common/creepBehavior"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
 import StructureEnergyCollector from "./common/structureEnergyHarvester"
 import ICreepHandler from "./ICreepHandler"
 
 export default class HaulerHandler implements ICreepHandler {
-  private creepBehavior: CreepBehavior
   private creepEnergyRetrieval: ICreepEnergyRetrieval
 
-  public constructor(creepBehavior: CreepBehavior) {
-    this.creepBehavior = creepBehavior
+  public constructor() {
     this.creepEnergyRetrieval = new StructureEnergyCollector()
   }
 
   handle(creep: Creep): void {
-    this.creepBehavior.updateWorkingState(creep)
-    if (this.creepBehavior.isWorking(creep)) this.workUntilNoEnergy(creep)
-    else this.creepBehavior.harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
+    updateWorkingState(creep)
+    if (isWorking(creep)) this.workUntilNoEnergy(creep)
+    else harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
   }
 
   private workUntilNoEnergy(creep: Creep) {
     let memory = creep.memory as HaulerMemory
     memory.offloadTargetPos = memory.offloadTargetPos ?? creep.pos
 
-    if (this.creepBehavior.hasEnergy(creep)) {
+    if (hasEnergy(creep)) {
       const offloadSpot = this.findOffloadSpot(creep)
 
       memory.offloadTargetPos = offloadSpot

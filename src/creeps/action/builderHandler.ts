@@ -1,6 +1,6 @@
 import BuilderMemory from "creeps/memory/builderMemory"
 import { jsonToRoomPosition } from "utils/jsonMapper"
-import CreepBehavior from "./common/creepBehavior"
+import { harvestUntilMaxEnergy, hasEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
 import StructureEnergyCollector from "./common/structureEnergyHarvester"
 import ICreepHandler from "./ICreepHandler"
@@ -16,19 +16,17 @@ import ICreepHandler from "./ICreepHandler"
  *    build()
  */
 export default class BuilderHandler implements ICreepHandler {
-  private creepBehavior: CreepBehavior
   private priorityDict: { [structureName: string]: number }
   private creepEnergyRetrieval: ICreepEnergyRetrieval
 
-  public constructor(commonCreepBehavior: CreepBehavior) {
-    this.creepBehavior = commonCreepBehavior
+  public constructor() {
     this.priorityDict = this.buildPriorityDict()
     this.creepEnergyRetrieval = new StructureEnergyCollector()
   }
 
   public handle(creep: Creep): void {
-    if (this.creepBehavior.isWorking(creep)) this.workUntilNoEnergy(creep)
-    else this.creepBehavior.harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
+    if (isWorking(creep)) this.workUntilNoEnergy(creep)
+    else harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
   }
 
   private workUntilNoEnergy(creep: Creep) {
@@ -36,7 +34,7 @@ export default class BuilderHandler implements ICreepHandler {
     memory.buildTargetPos = memory.buildTargetPos ?? { x: 0, y: 0, roomName: creep.room.name }
     memory.repairTargetPos = memory.repairTargetPos ?? { x: 0, y: 0, roomName: creep.room.name }
 
-    if (this.creepBehavior.hasEnergy(creep)) {
+    if (hasEnergy(creep)) {
       this.repair(creep)
     } else memory.working = false
   }
@@ -50,8 +48,7 @@ export default class BuilderHandler implements ICreepHandler {
       memory.buildTargetPos = this.getPrioritizedConstructionSite(creep)
     }
 
-    if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE)
-      this.creepBehavior.moveToWithSinglePath(creep, constructionSites[0].pos)
+    if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, constructionSites[0].pos)
   }
 
   private getPrioritizedConstructionSite(creep: Creep): RoomPosition {
@@ -109,8 +106,7 @@ export default class BuilderHandler implements ICreepHandler {
       memory.repairTargetPos = repairableStructures[0].pos
     }
 
-    if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE)
-      this.creepBehavior.moveToWithSinglePath(creep, structures[0].pos)
+    if (creep.repair(structures[0]) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, structures[0].pos)
   }
 
   private getRepairableStructures = (creep: Creep): AnyStructure[] =>

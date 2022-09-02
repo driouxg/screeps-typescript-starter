@@ -17,7 +17,6 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
   }
 
   handle(room: Room): string[][] {
-    room.memory.baseLayout = "bunker"
     let desiredState = buildStringGrid()
 
     for (const handler of this.constructionHandlers) desiredState = handler.handle(room, desiredState)

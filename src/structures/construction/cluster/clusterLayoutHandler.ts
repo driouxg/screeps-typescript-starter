@@ -2,8 +2,6 @@ import ILayoutHandler from "../ILayoutHandler"
 
 export default class ClusterLayoutHandler implements ILayoutHandler {
   handle(room: Room): string[][] {
-    room.memory.baseLayout = "cluster"
-
     throw new Error("Method not implemented.")
   }
   isRoomForLayout(room: Room): boolean {

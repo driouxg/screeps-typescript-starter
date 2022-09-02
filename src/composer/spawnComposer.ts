@@ -9,6 +9,7 @@ import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler"
 import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
+import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
 import generateGuid from "utils/guidGenerator"
 
 export default class SpawnComposer {
@@ -29,7 +30,8 @@ export default class SpawnComposer {
           memory: {
             role: spawnConfig.getRole(),
             working: false,
-            room: spawn.room.name
+            room: spawn.room.name,
+            ...spawnConfig.getMemory()
           }
         })
         return
@@ -49,6 +51,7 @@ export default class SpawnComposer {
       new BuilderSpawnHandler(creepPopulationDict),
       new UpgraderSpawnHandler(creepPopulationDict),
       new ScoutSpawnHandler(),
+      new WatcherSpawnHandler(),
       new ClaimerSpawnHandler(creepPopulationDict)
     ]
   }

@@ -10,7 +10,6 @@ export default class LatticeLayoutHandler implements ILayoutHandler {
   }
 
   handle(room: Room): string[][] {
-    room.memory.baseLayout = "lattice"
     let desiredState = buildStringGrid()
 
     for (const constructionHandler of this.constructionHandlers) {

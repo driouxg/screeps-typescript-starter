@@ -36,7 +36,10 @@ declare global {
     desiredState: string[][]
     positions: { [structure: string]: RoomPosition[] }
     events: RoomEvent[]
-    baseLayout: "bunker" | "cluster" | "lattice"
+    lastScouted: number
+    status: "reservedMy" | "reservedEnemy" | "unseen" | "claimedMy" | "claimedEnemy"
+    // watchers: [north: number, east: number, south: number, west: number]
+    watchers: { [direction: string]: number }
   }
 
   interface RoomEvent {
@@ -105,6 +108,7 @@ function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandl
 
 function manageStructureActions(structureActionHandlers: IStructureActionHandler[]) {
   for (const roomName in Game.rooms) {
+    if (!myOwnedRoom(roomName)) continue
     for (const structureActionHandler of structureActionHandlers) {
       structureActionHandler.handle(Game.rooms[roomName])
     }
@@ -126,5 +130,11 @@ function deleteRoomEvents(): void {
 function initRoomMemory(): void {
   for (const room in Game.rooms) {
     Game.rooms[room].memory.events = Game.rooms[room].memory.events || []
+    Game.rooms[room].memory.status = Game.rooms[room].memory.status || "unseen"
+    Game.rooms[room].memory.lastScouted = Game.rooms[room].memory.lastScouted || 0
   }
+}
+
+function myOwnedRoom(roomName: string): boolean {
+  return !Game.rooms[roomName] || !Game.rooms[roomName].controller || !Game.rooms[roomName].controller?.my
 }
