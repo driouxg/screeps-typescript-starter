@@ -1,4 +1,3 @@
-import ScoutMemory from "creeps/memory/scoutMemory"
 import ICreepHandler from "./ICreepHandler"
 
 /**
@@ -43,6 +42,7 @@ export default class ScoutHandler implements ICreepHandler {
 
     if (!room.controller) status = "unclaimable"
     else if (room.controller?.my) status = "claimedMy"
+    else if (room.find(FIND_HOSTILE_CREEPS, { filter: c => 0 < c.getActiveBodyparts(ATTACK) })) status = "aggressive"
     else if (room.controller && !room.controller?.owner) status = "claimable"
     else if (room.controller?.reservation && room.controller.reservation.username === "DryOx") status = "reservedMy"
     else if (room.controller?.reservation && room.controller.reservation.username !== "DryOx") status = "reservedEnemy"
@@ -50,4 +50,8 @@ export default class ScoutHandler implements ICreepHandler {
     room.memory.lastScouted = Game.time
     room.memory.status = status as "unseen" | "reservedMy" | "reservedEnemy" | "claimedMy" | "claimedEnemy"
   }
+}
+
+export interface ScoutMemory extends CreepMemory {
+  targetRoom: string
 }

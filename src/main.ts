@@ -47,6 +47,7 @@ declare global {
       | "unclaimable"
       | "ownedMy"
       | "ownedEnemy"
+      | "aggressive" // Enemy creeps in room with ATTACK body part
     watchers: { [direction: string]: number }
     minerPositions: { sourceId: string; pos: RoomPositionJson }[]
   }

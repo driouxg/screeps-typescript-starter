@@ -1,5 +1,4 @@
 import ICreepHandler from "./ICreepHandler"
-import * as creepRoles from "../roles"
 import PullRequestEvent from "room/pullRequestEvent"
 import { jsonToRoomPosition } from "utils/jsonMapper"
 

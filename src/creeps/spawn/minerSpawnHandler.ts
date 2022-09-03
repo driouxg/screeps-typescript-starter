@@ -12,15 +12,12 @@ export default class MinerSpawnHandler implements ISpawnHandler {
   spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     const roomMemory = spawn.room.memory
 
-    // roomMemory.minerPositions = this.calcMinerPositions(spawn.room)
-
     if (!roomMemory.minerPositions) roomMemory.minerPositions = this.calcMinerPositions(spawn.room)
-
-    // console.log("length", this.calcMinerPositions(spawn.room).length)
 
     this.calcMinerPositions(spawn.room)
 
     if (this.isEnoughMiners(spawn.room)) return null
+    if (0 < roomMemory.events.filter(t => t.type === "PULL_REQUEST").length) return null // Don't try to build a miner if the puller is busy
 
     for (let minerPos of roomMemory.minerPositions) {
       if (this.isMinerInPos(jsonToRoomPosition(minerPos.pos))) continue
