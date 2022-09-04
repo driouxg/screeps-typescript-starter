@@ -3,12 +3,13 @@ import { floodFill } from "utils/floodFill"
 import { buildStringGrid } from "utils/gridBuilder"
 import IConstructionHandler from "../IConstructionHandler"
 import ILayoutHandler from "../ILayoutHandler"
+import { getTerrainCostMatrix } from "../stamp/StampLayoutHandler"
 
 /**
  * Goal: Build this bunker layout from: https://wiki.screepspl.us/index.php/File:BunkerExample.png
  *
  */
-export default class BunkerConstructionHandler implements ILayoutHandler {
+export default class BunkerLayoutHandler implements ILayoutHandler {
   private constructionHandlers: IConstructionHandler[]
   private layout: string[][] = this.bunkerLayout()
 
@@ -43,7 +44,12 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
   }
 
   private findBunkerLocation(room: Room): { x: number; y: number } | null {
-    const dt = distanceTransform(room.getTerrain(), false, 0, 0, 50, 50, room)
+    let desiredState = buildStringGrid()
+
+    for (const handler of this.constructionHandlers) desiredState = handler.handle(room, desiredState)
+
+    let terrain = getTerrainCostMatrix(room.getTerrain(), desiredState)
+    const dt = distanceTransform(terrain, room)
     const pos = room.controller?.pos
     if (!pos) return null
 
@@ -54,7 +60,7 @@ export default class BunkerConstructionHandler implements ILayoutHandler {
       }
     }
 
-    const ff = floodFill([{ x: pos.x, y: pos.y }], room, true)
+    const ff = floodFill([{ x: pos.x, y: pos.y }], terrain, true)
 
     if (closestOptions.length <= 0) return null
     let min = Number.MAX_SAFE_INTEGER

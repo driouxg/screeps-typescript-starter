@@ -1,20 +1,14 @@
+import settings from "settings"
+
 export default class ConstructionSiteVisualizer {
-  private settings: ISettings
+  public handle(room: Room, desiredState: string[][]): void {
+    if (!settings.constructionSite.visualize) return
 
-  public constructor(settings: ISettings) {
-    this.settings = settings
-  }
-
-  public handle(room: Room): void {
-    if (!this.settings.constructionSite.visualize) return
-
-    this.print(room)
+    this.print(room, desiredState)
     return
   }
 
-  private print(room: Room): void {
-    const desiredState: string[][] = room.memory.desiredState
-
+  private print(room: Room, desiredState: string[][]): void {
     if (!desiredState) return
 
     for (let y = 0; y < desiredState.length; y++) {

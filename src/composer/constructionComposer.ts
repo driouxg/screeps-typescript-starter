@@ -24,19 +24,23 @@ import EnergySourceContainerConstructionHandler from "structures/construction/co
 import ControllerContainerConstructionHandler from "structures/construction/container/controllerContainerConstructionHandler"
 import LatticeLayoutHandler from "structures/construction/lattice/latticeLayoutHandler"
 import ILayoutHandler from "structures/construction/ILayoutHandler"
-import BunkerConstructionHandler from "structures/construction/bunker/bunkerLayoutHandler"
+import BunkerLayoutHandler from "structures/construction/bunker/bunkerLayoutHandler"
 import SourceLinkConstructionHandler from "structures/construction/link/sourceLinkConstructionHandler"
 import ControllerLinkConstructionHandler from "structures/construction/link/controllerLinkConstructionHandler"
+import StampLayoutHandler from "structures/construction/stamp/StampLayoutHandler"
+import NoOpLayoutHandler from "structures/NoOpLayoutHandler"
 
 /**
  * Goal: Generate base layouts and cache the results for rooms that I own the controller.
  *
  * https://www.youtube.com/watch?v=YcruUDbqa7E
  *
+ *
+ *
  */
 export default class ConstructionComposer {
   private positionsMemoryUpdater = new StructurePositionsMemoryUpdater()
-  private constructionVisualizer = new ConstructionSiteVisualizer(settings)
+  private constructionVisualizer = new ConstructionSiteVisualizer()
   private desiredStateConstructor = new DesiredStateConstructor()
 
   public compose(): void {
@@ -44,74 +48,52 @@ export default class ConstructionComposer {
       const room = Game.rooms[roomName]
       if (!room.controller?.my) continue
 
-      this.go(room)
+      this.desiredStateConstructor.construct(room, room.memory.desiredState)
+
+      // this.constructionVisualizer.handle(room, room.memory.desiredState)
+      // if (room.memory.desiredState) continue
+
+      this.cleanupRoom(room)
+      const layout = this.firstValidLayout(room)
+
+      this.constructionVisualizer.handle(room, layout.handle(room))
+
+      room.memory.desiredState = layout.handle(room)
+
+      this.positionsMemoryUpdater.update(room)
     }
   }
 
-  private go(room: Room): void {
-    this.desiredStateConstructor.construct(room, room.memory.desiredState)
-    this.constructionVisualizer.handle(room)
-
-    if (room.memory.desiredState) return
-
-    const layout = this.getValidLayout(room)
-
-    room.memory.desiredState = layout.handle(room)
-
-    this.positionsMemoryUpdater.update(room)
-  }
-
-  private getValidLayout(room: Room): ILayoutHandler {
+  private firstValidLayout(room: Room): ILayoutHandler {
     for (const layout of this.layoutHandlers()) {
       if (layout.isRoomForLayout(room)) return layout
     }
 
-    return this.latticeLayoutHandler()
+    return new NoOpLayoutHandler()
   }
 
   private layoutHandlers(): ILayoutHandler[] {
-    return [new BunkerConstructionHandler(this.bunkerConstructionHandlers()), this.latticeLayoutHandler()]
-  }
-
-  private latticeLayoutHandler(): ILayoutHandler {
-    return new LatticeLayoutHandler(this.latticeConstructionHandlers())
-  }
-
-  private bunkerConstructionHandlers(): IConstructionHandler[] {
     return [
-      new InitialSpawnConstructionHandler(),
+      new BunkerLayoutHandler(this.commonConstructionHandlers()),
+      new StampLayoutHandler(this.commonConstructionHandlers())
+    ]
+  }
+
+  private commonConstructionHandlers(): IConstructionHandler[] {
+    return [
       new EnergySourceContainerConstructionHandler(),
       new ControllerContainerConstructionHandler(),
       new SourceLinkConstructionHandler(),
       new ControllerLinkConstructionHandler(),
-      new RoadConstructionHandler(),
       new ExtractorConstructionHandler()
     ]
   }
 
-  private latticeConstructionHandlers(): IConstructionHandler[] {
-    return [
-      new InitialSpawnConstructionHandler(),
-      new EnergySourceContainerConstructionHandler(),
-      new ControllerContainerConstructionHandler(),
-      new RoadConstructionHandler(),
-      new WallConstructionHandler(),
-      new StorageConstructionHandler(),
-      new LinkConstructionHandler(),
-      new PowerSpawnConstructionHandler(),
-      new NukerConstructionHandler(),
-      new SpawnConstructionHandler(),
-      new TerminalConstructionHandler(),
-      new FactoryConstructionHandler(),
-      new TowerConstructionHandler(),
-      new ContainerConstructionHandler(),
-      new ObserverConstructionHandler(),
-      new ExtensionConstructionHandler(),
-      new RoadExtensionConstructionHandler(),
-      new LabConstructionHandler(),
-      new ExtractorConstructionHandler(),
-      new SourceLinkConstructionHandler(),
-      new ControllerLinkConstructionHandler()
-    ]
+  private cleanupRoom(room: Room): void {
+    room
+      .find(FIND_STRUCTURES, {
+        filter: c => c.structureType !== STRUCTURE_RAMPART && c.structureType !== STRUCTURE_SPAWN
+      })
+      .forEach(s => s.destroy())
   }
 }

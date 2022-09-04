@@ -1,7 +1,7 @@
 import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
-import { buildDynamicBodyParts } from "./utils/dynamicBodyParts"
+import { buildCappedBodyParts, buildDynamicBodyParts } from "./utils/dynamicBodyParts"
 
 export default class UpgraderSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.UPGRADER
@@ -14,7 +14,8 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
 
     if (0 < upgraders.length) return null
 
-    const bodyParts = buildDynamicBodyParts([WORK, WORK, WORK], room, [CARRY])
-    return new SpawnConfig(bodyParts, this.role)
+    const body = buildCappedBodyParts([WORK, WORK, WORK], room, 25)
+    body.push(CARRY)
+    return new SpawnConfig(body, this.role)
   }
 }

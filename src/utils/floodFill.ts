@@ -18,13 +18,10 @@ export function findPositionsInsideRect(rect: { x1: number; y1: number; x2: numb
   return positions
 }
 
-export function floodFill(seeds: { x: number; y: number }[], room: Room, roomVisuals?: boolean) {
+export function floodFill(seeds: { x: number; y: number }[], terrain: CostMatrix, roomVisuals?: boolean) {
   // Construct a cost matrix for the flood
 
   const floodCM = new PathFinder.CostMatrix(),
-    // Get the terrain cost matrix
-
-    terrain = room.getTerrain(),
     // Construct a cost matrix for visited tiles and add seeds to it
 
     visitedCM = new PathFinder.CostMatrix()
@@ -66,11 +63,11 @@ export function floodFill(seeds: { x: number; y: number }[], room: Room, roomVis
 
         // If visuals are enabled, show the depth on the pos
 
-        if (roomVisuals)
-          room.visual.rect(pos.x - 0.5, pos.y - 0.5, 1, 1, {
-            fill: "hsl(" + 200 + depth * 2 + ", 100%, 60%)",
-            opacity: 0.4
-          })
+        // if (roomVisuals)
+        //   terrain.visual.rect(pos.x - 0.5, pos.y - 0.5, 1, 1, {
+        //     fill: "hsl(" + 200 + depth * 2 + ", 100%, 60%)",
+        //     opacity: 0.4
+        //   })
       }
 
       // Construct a rect and get the positions in a range of 1

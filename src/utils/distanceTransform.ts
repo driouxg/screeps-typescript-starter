@@ -4,13 +4,13 @@ const roomDimensions = 50
  * This is good for anything that isn't a diagonal, as searches all adjacent tiles when finding distance
  */
 export default function distanceTransform(
-  roomTerrain: RoomTerrain,
-  enableVisuals: boolean,
+  roomTerrain: CostMatrix,
+  room: Room,
+  enableVisuals = false,
   x1 = 0,
   y1 = 0,
   x2 = roomDimensions - 1,
-  y2 = roomDimensions - 1,
-  room: Room
+  y2 = roomDimensions - 1
 ): CostMatrix {
   // Use a costMatrix to record distances
 
@@ -76,7 +76,7 @@ export default function distanceTransform(
           fill: `hsl(${200}${distanceCM.get(x, y) * 10}, 100%, 60%)`,
           opacity: 0.4
         })
-        // room.visual.text(`${distanceCM.get(x, y)}`, x, y)
+        room.visual.text(`${distanceCM.get(x, y)}`, x, y)
       }
     }
   }
