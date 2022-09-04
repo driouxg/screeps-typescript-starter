@@ -11,9 +11,7 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
 
     const constructionSites = spawn.room.find(FIND_MY_CONSTRUCTION_SITES)
 
-    if (constructionSites.length <= 0) return null
-
-    const numCreeps = spawn.room.find(FIND_SOURCES).length * 4
+    const numCreeps = 0 < constructionSites.length ? spawn.room.find(FIND_SOURCES).length * 4 : 2
 
     const builders = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === creepRoles.BUILDER })
 

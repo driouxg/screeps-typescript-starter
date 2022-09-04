@@ -106,10 +106,25 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const constructionComposer: ConstructionComposer = new ConstructionComposer()
   const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict()
 
-  constructionComposer.compose()
+  let conCpu = 0,
+    spawnCpu = 0,
+    creepCpu = 0,
+    structureCpu = 0
+
+  if (Game.time % 50 === 0) constructionComposer.compose()
+  conCpu = Game.cpu.getUsed()
   spawnComposer.compose()
+  spawnCpu = Game.cpu.getUsed()
   manageCreepActions(creepHandlerDict)
+  creepCpu = Game.cpu.getUsed()
   manageStructureActions(structureActionComposer.structureActionHandlers())
+  structureCpu = Game.cpu.getUsed()
+
+  console.log(
+    `CPU USAGE: \n conCpu: ${conCpu} \n spawnCpu: ${spawnCpu - conCpu} \n creepCpu: ${
+      creepCpu - spawnCpu
+    } \n structureCpu: ${structureCpu - creepCpu}`
+  )
 
   deleteRoomEvents()
 })

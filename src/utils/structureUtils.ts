@@ -57,7 +57,7 @@ export function findCachedStructurePositions(room: Room, structureType: Structur
 }
 
 export function findStorage(room: Room): StructureStorage[] {
-  if (!room.memory.positions[STRUCTURE_STORAGE]) return []
+  if (!room.memory.positions || !room.memory.positions[STRUCTURE_STORAGE]) return []
 
   let storages = []
   for (let pos of room.memory.positions[STRUCTURE_STORAGE]) {
