@@ -2,7 +2,7 @@ export default class StructurePositionsMemoryUpdater {
   public update(room: Room) {
     const desiredState = room.memory.desiredState
 
-    room.memory.positions = {}
+    room.memory.positions = room.memory.positions ?? {}
 
     for (let y = 0; y < desiredState.length; y++) {
       for (let x = 0; x < desiredState[y].length; x++) {

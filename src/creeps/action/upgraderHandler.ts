@@ -7,7 +7,6 @@ import ICreepHandler from "./ICreepHandler"
 export default class UpgraderHandler implements ICreepHandler {
   public handle(creep: Creep): void {
     const controller: StructureController | undefined = creep.room.controller
-
     if (!controller) return
 
     const targetPos = this.findTargetRoomPosition(creep, controller)
