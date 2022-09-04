@@ -4,6 +4,7 @@ import { buildStringGrid, isBuildablePos } from "utils/gridBuilder"
 import IConstructionHandler from "../IConstructionHandler"
 import ILayoutHandler from "../ILayoutHandler"
 import RoadConstructionHandler from "../road/roadConstructionHandler"
+import minCut from "../../../utils/minCut"
 
 export default class StampLayoutHandler implements ILayoutHandler {
   private constructionHandlers: IConstructionHandler[]
@@ -21,6 +22,9 @@ export default class StampLayoutHandler implements ILayoutHandler {
   }
 
   private go(room: Room) {
+    // let r = require("../../../minCut")
+    minCut.test(room.name)
+
     let desiredState = buildStringGrid()
     this.constructionHandlers.forEach(c => (desiredState = c.handle(room, desiredState)))
     let cm = getTerrainCostMatrix(room.getTerrain(), desiredState)
