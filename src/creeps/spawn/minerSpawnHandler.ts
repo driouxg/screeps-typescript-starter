@@ -12,6 +12,8 @@ export default class MinerSpawnHandler implements ISpawnHandler {
   spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     const roomMemory = spawn.room.memory
 
+    if (!roomMemory.desiredState) return null
+
     if (!roomMemory.minerPositions) roomMemory.minerPositions = this.calcMinerPositions(spawn.room)
 
     this.calcMinerPositions(spawn.room)

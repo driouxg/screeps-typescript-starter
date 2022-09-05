@@ -1,3 +1,4 @@
+import { isEdge } from "utils/gridBuilder"
 import { jsonToRoomPosition } from "utils/jsonMapper"
 import { findTowers } from "utils/structureUtils"
 import IStructureActionHandler from "./IStructureActionHandler"
@@ -7,7 +8,7 @@ export default class TowerActionHandler implements IStructureActionHandler {
     if (!this.canOperateTowersInThisRoom(room)) return
 
     for (const tower of findTowers(room)) {
-      const enemies: Creep[] = room.find(FIND_HOSTILE_CREEPS)
+      const enemies: Creep[] = room.find(FIND_HOSTILE_CREEPS, { filter: c => !isEdge(c.pos.x, c.pos.y) })
       if (0 < enemies.length) {
         this.attack(enemies, tower)
         continue
@@ -22,7 +23,10 @@ export default class TowerActionHandler implements IStructureActionHandler {
     const healerEnemies: Creep[] = enemies.filter(c => 0 < c.getActiveBodyparts(HEAL))
 
     if (0 < healerEnemies.length) tower.attack(healerEnemies[0])
-    else console.log(tower.attack(enemies[0]))
+    else {
+      // console.log("Attacking enemy")
+      console.log("Attacking enemy", tower.attack(enemies[0]))
+    }
   }
 
   private heal(tower: StructureTower, myHealableCreeps: Creep[]): void {

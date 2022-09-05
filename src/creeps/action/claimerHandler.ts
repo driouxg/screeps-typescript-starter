@@ -1,4 +1,3 @@
-import ClaimerMemory from "creeps/memory/claimerMemory"
 import Queue from "utils/queue"
 import { moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
@@ -74,4 +73,8 @@ export default class ClaimerHandler implements ICreepHandler {
 
     return true
   }
+}
+
+export interface ClaimerMemory extends CreepMemory {
+  targetRoom: string
 }

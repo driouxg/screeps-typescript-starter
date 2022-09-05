@@ -97,34 +97,31 @@ declare global {
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
-  initRoomMemory()
-  deleteMissingCreepMemory()
-
-  const creepComposer = new CreepComposer()
-  const spawnComposer: SpawnComposer = new SpawnComposer()
-  const structureActionComposer: StructureActionComposer = new StructureActionComposer()
-  const constructionComposer: ConstructionComposer = new ConstructionComposer()
-  const creepHandlerDict: { [creepRole: string]: ICreepHandler } = creepComposer.creepHandlerDict()
-
-  let conCpu = 0,
+  let startCpu = 0,
+    conCpu = 0,
     spawnCpu = 0,
     creepCpu = 0,
     structureCpu = 0
 
-  if (Game.time % 50 === 0) constructionComposer.compose()
-  conCpu = Game.cpu.getUsed()
-  spawnComposer.compose()
-  spawnCpu = Game.cpu.getUsed()
-  manageCreepActions(creepHandlerDict)
-  creepCpu = Game.cpu.getUsed()
-  manageStructureActions(structureActionComposer.structureActionHandlers())
-  structureCpu = Game.cpu.getUsed()
+  initRoomMemory()
+  startCpu = Game.cpu.getUsed()
+  deleteMissingCreepMemory()
 
-  console.log(
-    `CPU USAGE: \n conCpu: ${conCpu} \n spawnCpu: ${spawnCpu - conCpu} \n creepCpu: ${
-      creepCpu - spawnCpu
-    } \n structureCpu: ${structureCpu - creepCpu}`
-  )
+  manageCreepActions(new CreepComposer().creepHandlerDict())
+  creepCpu = Game.cpu.getUsed()
+  new SpawnComposer().compose()
+  spawnCpu = Game.cpu.getUsed()
+  manageStructureActions(new StructureActionComposer().structureActionHandlers())
+  structureCpu = Game.cpu.getUsed()
+  if (Game.time % 50 === 0) new ConstructionComposer().compose()
+  conCpu = Game.cpu.getUsed()
+
+  if (Game.time % 10000 === 0)
+    console.log(
+      `CPU USAGE: \n startCpu: ${startCpu} \n conCpu: ${conCpu - structureCpu} \n spawnCpu: ${
+        spawnCpu - creepCpu
+      } \n creepCpu: ${creepCpu - startCpu} \n structureCpu: ${structureCpu - spawnCpu}`
+    )
 
   deleteRoomEvents()
 })

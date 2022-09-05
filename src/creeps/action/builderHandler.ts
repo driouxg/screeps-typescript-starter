@@ -110,7 +110,7 @@ export default class BuilderHandler implements ICreepHandler {
 
   private getRepairableStructures = (creep: Creep): AnyStructure[] =>
     creep.room.find(FIND_STRUCTURES, {
-      filter: s => this.isStructureLowHits(s)
+      filter: s => s.structureType !== STRUCTURE_RAMPART && this.isStructureLowHits(s)
     })
 
   private isStructureLowHits(s: AnyStructure) {

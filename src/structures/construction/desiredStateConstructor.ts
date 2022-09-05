@@ -31,6 +31,7 @@ export default class DesiredStateConstructor {
     for (let structureName of this.getPrioritizedBuildList()) {
       if (!room.memory.positions[structureName]) continue
       for (let position of room.memory.positions[structureName]) {
+        if (Game.cpu.limit + 1 <= Game.cpu.getUsed()) return
         room.createConstructionSite(position.x, position.y, structureName as BuildableStructureConstant)
       }
     }
@@ -50,6 +51,7 @@ export default class DesiredStateConstructor {
   private getPrioritizedBuildList() {
     return [
       STRUCTURE_CONTAINER,
+      STRUCTURE_EXTENSION,
       STRUCTURE_SPAWN,
       STRUCTURE_TOWER,
       STRUCTURE_WALL,
@@ -57,8 +59,6 @@ export default class DesiredStateConstructor {
       STRUCTURE_STORAGE,
       STRUCTURE_SPAWN,
       STRUCTURE_POWER_SPAWN,
-      STRUCTURE_CONTAINER,
-      STRUCTURE_EXTENSION,
       STRUCTURE_NUKER,
       STRUCTURE_OBSERVER,
       STRUCTURE_LAB,

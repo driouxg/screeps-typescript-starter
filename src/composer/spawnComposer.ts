@@ -8,7 +8,8 @@ import ISpawnHandler from "creeps/spawn/ISpawnHandler"
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler"
 import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler"
 import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
-import RemoteMinerSpawnHandler from "creeps/spawn/remoteMinerSpawnHandler"
+import RemoteDropMinerSpawnHandler from "creeps/spawn/remoteDropMinerSpawnHandler"
+import RemoteHaulerSpawnHandler from "creeps/spawn/remoteHaulerSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
@@ -22,7 +23,7 @@ export default class SpawnComposer {
 
       for (let spawner of this.spawners()) {
         const spawnConfig = spawner.spawnCreep(spawn)
-        if (!spawnConfig) continue
+        if (!spawnConfig || spawnConfig.getBody().length === 0) continue
         const cost = spawnConfig.getBody().reduce((acc, val) => acc + BODYPART_COST[val], 0)
         if (spawn.room.energyAvailable < cost) continue
 
@@ -54,7 +55,8 @@ export default class SpawnComposer {
       new UpgraderSpawnHandler(),
       new ScoutSpawnHandler(),
       new WatcherSpawnHandler(),
-      new RemoteMinerSpawnHandler(creepPopulationDict),
+      new RemoteDropMinerSpawnHandler(),
+      new RemoteHaulerSpawnHandler(),
       new ClaimerSpawnHandler(creepPopulationDict),
       new ExpanderSpawnHandler(creepPopulationDict)
     ]

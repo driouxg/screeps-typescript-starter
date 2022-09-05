@@ -1,6 +1,6 @@
 const settings: ISettings = {
   constructionSite: {
-    visualize: true,
+    visualize: false,
     desiredSitesConstructedPerTick: 10
   }
 }

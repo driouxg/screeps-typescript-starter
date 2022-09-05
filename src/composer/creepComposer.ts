@@ -10,8 +10,9 @@ import HaulerHandler from "creeps/action/haulerHandler"
 import ScoutHandler from "creeps/action/scoutHandler"
 import ClaimerHandler from "creeps/action/claimerHandler"
 import WatcherHandler from "creeps/action/watcherHandler"
-import RemoteMinerHandler from "creeps/action/remoteMinerHandler"
 import ExpanderHandler from "creeps/action/expanderHandler"
+import RemoteDropMinerHandler from "creeps/action/remoteDropMinerHandler"
+import RemoteHaulerHandler from "creeps/action/remoteHaulerHandler"
 
 export default class CreepComposer {
   public creepHandlerDict(): { [creepRole: string]: ICreepHandler } {
@@ -26,8 +27,9 @@ export default class CreepComposer {
     dictionary[creepRoles.SCOUT] = new ScoutHandler()
     dictionary[creepRoles.CLAIMER] = new ClaimerHandler()
     dictionary[creepRoles.WATCHER] = new WatcherHandler()
-    dictionary[creepRoles.REMOTE_MINER] = new RemoteMinerHandler()
     dictionary[creepRoles.EXPANDER] = new ExpanderHandler()
+    dictionary[creepRoles.REMOTE_DROP_MINER] = new RemoteDropMinerHandler()
+    dictionary[creepRoles.REMOTE_HAULER] = new RemoteHaulerHandler()
 
     return dictionary
   }
