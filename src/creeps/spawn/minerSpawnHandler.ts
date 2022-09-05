@@ -3,7 +3,6 @@ import SpawnConfig from "./SpawnConfig"
 import * as creepRoles from "../roles"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 import { MinerMemory } from "creeps/action/minerHandler"
-import { jsonToRoomPosition } from "utils/jsonMapper"
 import { findCachedStructurePositions } from "utils/structureUtils"
 
 export default class MinerSpawnHandler implements ISpawnHandler {
@@ -18,11 +17,10 @@ export default class MinerSpawnHandler implements ISpawnHandler {
 
     this.calcMinerPositions(spawn.room)
 
-    if (this.isEnoughMiners(spawn.room)) return null
-    if (0 < roomMemory.events.filter(t => t.type === "PULL_REQUEST").length) return null // Don't try to build a miner if the puller is busy
+    const miners = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === this.role })
 
     for (let minerPos of roomMemory.minerPositions) {
-      if (this.isMinerInPos(jsonToRoomPosition(minerPos.pos))) continue
+      if (miners.some(m => (m.memory as MinerMemory).targetSourceId === minerPos.sourceId)) continue
 
       return new SpawnConfig(buildCappedBodyParts([WORK, WORK, WORK, WORK, WORK], spawn.room, 5), this.role, {
         targetSourceId: minerPos.sourceId,
@@ -52,16 +50,5 @@ export default class MinerSpawnHandler implements ISpawnHandler {
     }
 
     return minerPositions
-  }
-
-  private isEnoughMiners(room: Room) {
-    const miners = room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === this.role })
-
-    return room.find(FIND_SOURCES).length <= miners.length
-  }
-
-  private isMinerInPos(pos: RoomPosition) {
-    const miners = pos.lookFor(LOOK_CREEPS).filter(c => c.my && c.memory.role === creepRoles.MINER)
-    return 0 < miners.length
   }
 }

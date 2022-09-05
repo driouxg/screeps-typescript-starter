@@ -15,7 +15,17 @@ export default class TowerActionHandler implements IStructureActionHandler {
       }
 
       const myHealableCreeps: Creep[] = room.find(FIND_MY_CREEPS, { filter: c => c.hits + 100 < c.hitsMax })
-      if (0 < myHealableCreeps.length) this.heal(tower, myHealableCreeps)
+      if (0 < myHealableCreeps.length) {
+        this.heal(tower, myHealableCreeps)
+        continue
+      }
+
+      // Repair ramparts
+      const ramparts = room
+        .find(FIND_MY_STRUCTURES, { filter: c => c.structureType === STRUCTURE_RAMPART && c.hits !== c.hitsMax })
+        .sort((a, b) => a.hits - b.hits)
+
+      if (0 < ramparts.length) tower.repair(ramparts[0])
     }
   }
 
@@ -23,10 +33,7 @@ export default class TowerActionHandler implements IStructureActionHandler {
     const healerEnemies: Creep[] = enemies.filter(c => 0 < c.getActiveBodyparts(HEAL))
 
     if (0 < healerEnemies.length) tower.attack(healerEnemies[0])
-    else {
-      // console.log("Attacking enemy")
-      console.log("Attacking enemy", tower.attack(enemies[0]))
-    }
+    else tower.attack(enemies[0])
   }
 
   private heal(tower: StructureTower, myHealableCreeps: Creep[]): void {
