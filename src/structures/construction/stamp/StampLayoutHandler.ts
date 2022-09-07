@@ -17,64 +17,72 @@ export default class StampLayoutHandler implements ILayoutHandler {
     this.constructionHandlers = constructionHandlers
   }
 
-  handle(room: Room): string[][] {
-    room.memory.positions = room.memory.positions || {}
-    room.memory.positions[STRUCTURE_RAMPART] = minCut
-      .test(room.name, this.protectedAreas)
-      .map(p => ({ ...p, roomName: room.name }))
-    return this.go(room) as string[][]
+  handle(room: Room): BuildOrderStep[] {
+    let buildOrder = this.go(room) as BuildOrderStep[]
+    buildOrder = buildOrder.concat(
+      minCut.test(room.name, this.protectedAreas).map(p => ({ ...p, structureType: STRUCTURE_RAMPART }))
+    )
+
+    return buildOrder
   }
 
   isRoomForLayout(room: Room): boolean {
     return this.go(room) !== null
   }
 
-  private go(room: Room) {
-    let desiredState = buildStringGrid()
-    this.constructionHandlers.forEach(c => (desiredState = c.handle(room, desiredState)))
-    let cm = getTerrainCostMatrix(room.getTerrain(), desiredState)
+  private go(room: Room): BuildOrderStep[] | null {
+    let buildOrder: BuildOrderStep[] = []
+    let cm = getTerrainCostMatrix(room.getTerrain(), buildOrder)
 
     const controllerPos = room.controller?.pos
     if (!controllerPos) return null
 
     // Mark Rapid Refill Cluster
-    const rapidRefillPos = this.findCenterPos(controllerPos, cm, room, 4)
+    // If spawn already in room, calc center point
+    const mySpawns = room.find(FIND_MY_SPAWNS)
+    let rapidRefillPos = null
+    if (0 < mySpawns.length) rapidRefillPos = new RoomPosition(mySpawns[0].pos.x + 2, mySpawns[0].pos.y + 1, room.name)
+    else rapidRefillPos = this.findCenterPos(controllerPos, cm, room, 4)
+
     if (!rapidRefillPos) return null
     markCm(rapidRefillPos, 2, cm) // Mark fill cluster spots
-    markDesiredState(rapidRefillPos, 3, rapidFillCluster(), desiredState)
+    buildOrder = buildOrder.concat(rapidFillCluster(rapidRefillPos))
     this.markProtectedArea(rapidRefillPos, 3)
 
+    // console.log("REACHED", JSON.stringify(rapidRefillPos))
+
     // Find anchor spot
-    const anchorPos = this.findCenterPos(controllerPos, cm, room, 3)
-    if (!anchorPos) return null
-    markCm(anchorPos, 1, cm)
-    markDesiredState(anchorPos, 2, anchor(), desiredState)
-    this.markProtectedArea(anchorPos, 2)
+    // const anchorPos = this.findCenterPos(controllerPos, cm, room, 3)
+    // if (!anchorPos) return null
+    // markCm(anchorPos, 1, cm)
+    // this.markProtectedArea(anchorPos, 2)
 
-    // Lab locations
-    const labPos = this.findCenterPos(controllerPos, cm, room, 3)
-    if (!labPos) return null
-    markCm(labPos, 2, cm)
-    markDesiredState(labPos, 2, labs(), desiredState)
-    this.markProtectedArea(labPos, 3)
+    // // Lab locations
+    // const labPos = this.findCenterPos(controllerPos, cm, room, 3)
+    // if (!labPos) return null
+    // markCm(labPos, 2, cm)
+    // this.markProtectedArea(labPos, 3)
 
-    // // Tower locations
-    const towerPos = this.findCenterPos(controllerPos, cm, room, 3)
-    if (!towerPos) return null
-    markCm(towerPos, 1, cm)
-    markDesiredState(towerPos, 1, towers(), desiredState)
-    this.markProtectedArea(towerPos, 2)
+    // // // Tower locations
+    // const towerPos = this.findCenterPos(controllerPos, cm, room, 3)
+    // if (!towerPos) return null
+    // markCm(towerPos, 1, cm)
+    // this.markProtectedArea(towerPos, 2)
 
     //  Extensions
     for (let i = 0; i < 7; i++) {
       const extPos = this.findCenterPos(controllerPos, cm, room, 3)
       if (!extPos) return null
       markCm(extPos, 2, cm)
-      markDesiredState(extPos, 2, extensionPlusStamp(), desiredState)
+      buildOrder = buildOrder.concat(extensionPlusStamp(extPos))
       this.markProtectedArea(extPos, 2)
+      // console.log("REACHED EXTENSION")
     }
 
-    return new RoadConstructionHandler().handle(room, desiredState)
+    // return new RoadConstructionHandler().handle(room, desiredState)
+
+    this.constructionHandlers.forEach(c => (buildOrder = buildOrder.concat(c.handle(room, buildOrder))))
+    return buildOrder
   }
 
   private findCenterPos(
@@ -130,64 +138,86 @@ function markCm(center: { x: number; y: number }, val: number, cm: CostMatrix) {
   }
 }
 
-function markDesiredState(
-  center: { x: number; y: number },
-  val: number,
-  blueprint: string[][],
-  desiredState: string[][]
-) {
-  for (let i = center.y - val; i <= center.y + val; i++) {
-    for (let j = center.x - val; j <= center.x + val; j++) {
-      if (!isBuildablePos(j, i)) continue
-      if (desiredState[i][j] !== "") continue
-      desiredState[i][j] = blueprint[i % (center.y - val)][j % (center.x - val)]
-    }
-  }
-}
+// function markDesiredState(
+//   center: { x: number; y: number },
+//   val: number,
+//   blueprint: string[][],
+//   desiredState: string[][]
+// ) {
+//   for (let i = center.y - val; i <= center.y + val; i++) {
+//     for (let j = center.x - val; j <= center.x + val; j++) {
+//       if (!isBuildablePos(j, i)) continue
+//       if (desiredState[i][j] !== "") continue
+//       desiredState[i][j] = blueprint[i % (center.y - val)][j % (center.x - val)]
+//     }
+//   }
+// }
 
-function extensionPlusStamp(): string[][] {
+function extensionPlusStamp(centerPos: { x: number; y: number }): BuildOrderStep[] {
+  const { x: xx, y: yy } = centerPos
+
   return [
-    ["", "", STRUCTURE_ROAD, "", ""],
-    ["", STRUCTURE_ROAD, STRUCTURE_EXTENSION, STRUCTURE_ROAD, ""],
-    [STRUCTURE_ROAD, STRUCTURE_EXTENSION, STRUCTURE_EXTENSION, STRUCTURE_EXTENSION, STRUCTURE_ROAD],
-    ["", STRUCTURE_ROAD, STRUCTURE_EXTENSION, STRUCTURE_ROAD, ""],
-    ["", "", STRUCTURE_ROAD, "", ""]
+    { x: xx, y: yy, structureType: STRUCTURE_EXTENSION },
+    { x: xx - 1, y: yy, structureType: STRUCTURE_EXTENSION },
+    { x: xx, y: yy + 1, structureType: STRUCTURE_EXTENSION },
+    { x: xx + 1, y: yy, structureType: STRUCTURE_EXTENSION },
+    { x: xx, y: yy - 1, structureType: STRUCTURE_EXTENSION },
+    { x: xx - 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy - 1, structureType: STRUCTURE_ROAD }
   ]
 }
 
-function rapidFillCluster(): string[][] {
+function rapidFillCluster(centerPos: { x: number; y: number }): BuildOrderStep[] {
+  const { x: xx, y: yy } = centerPos
+
   return [
-    ["", STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD],
-    [
-      STRUCTURE_ROAD,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_EXTENSION,
-      ""
-    ],
-    [STRUCTURE_ROAD, STRUCTURE_SPAWN, "", STRUCTURE_EXTENSION, "", STRUCTURE_SPAWN, STRUCTURE_ROAD],
-    [
-      STRUCTURE_ROAD,
-      STRUCTURE_CONTAINER,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_LINK,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_CONTAINER,
-      STRUCTURE_ROAD
-    ],
-    [STRUCTURE_ROAD, STRUCTURE_EXTENSION, "", STRUCTURE_EXTENSION, "", STRUCTURE_EXTENSION, STRUCTURE_ROAD],
-    [
-      STRUCTURE_ROAD,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_SPAWN,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_EXTENSION,
-      STRUCTURE_ROAD
-    ],
-    ["", STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, ""]
+    { x: xx - 2, y: yy - 1, structureType: STRUCTURE_SPAWN },
+    { x: xx - 2, y: yy, structureType: STRUCTURE_CONTAINER },
+    { x: xx - 2, y: yy - 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx - 1, y: yy - 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx, y: yy - 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx, y: yy - 1, structureType: STRUCTURE_EXTENSION },
+    { x: xx - 1, y: yy, structureType: STRUCTURE_EXTENSION },
+    { x: xx + 1, y: yy + 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx + 2, y: yy + 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx + 2, y: yy + 1, structureType: STRUCTURE_SPAWN },
+    { x: xx + 2, y: yy, structureType: STRUCTURE_CONTAINER },
+    { x: xx + 1, y: yy, structureType: STRUCTURE_EXTENSION },
+    { x: xx, y: yy, structureType: STRUCTURE_LINK },
+    { x: xx - 2, y: yy + 1, structureType: STRUCTURE_EXTENSION },
+    { x: xx - 2, y: yy + 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx - 1, y: yy + 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx, y: yy + 2, structureType: STRUCTURE_SPAWN },
+    { x: xx + 1, y: yy + 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx + 2, y: yy + 2, structureType: STRUCTURE_EXTENSION },
+    { x: xx + 2, y: yy + 1, structureType: STRUCTURE_EXTENSION },
+    { x: xx, y: yy + 1, structureType: STRUCTURE_EXTENSION },
+    { x: xx - 3, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx - 3, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx - 3, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx - 3, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx - 3, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy + 3, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy + 3, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy + 3, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy + 3, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy + 3, structureType: STRUCTURE_ROAD },
+    { x: xx + 3, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx + 3, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 3, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx + 3, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 3, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy - 3, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy - 3, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy - 3, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy - 3, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy - 3, structureType: STRUCTURE_ROAD }
   ]
 }
 
@@ -220,16 +250,18 @@ function anchor(): string[][] {
 }
 
 /**
- * Create cost matrix and don't allow building bases next to resources/controller
+ * Create cost matrix and don't allow building bases next to resources/controller or existing marked structures.
  */
-export function getTerrainCostMatrix(terrain: RoomTerrain, desiredState: string[][]) {
+export function getTerrainCostMatrix(terrain: RoomTerrain, buildOrder: BuildOrderStep[]) {
   let c = new PathFinder.CostMatrix()
   for (let y = 0; y < 50; y++) {
     for (let x = 0; x < 50; x++) {
       c.set(x, y, terrain.get(x, y))
-
-      if (desiredState[y][x] !== "") c.set(x, y, TERRAIN_MASK_WALL)
     }
+  }
+
+  for (let step of buildOrder) {
+    c.set(step.x, step.y, TERRAIN_MASK_WALL)
   }
 
   return c

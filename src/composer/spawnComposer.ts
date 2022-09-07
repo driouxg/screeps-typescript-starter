@@ -47,7 +47,7 @@ export default class SpawnComposer {
 
     return [
       new MeleeDefenderSpawnHandler(),
-      new HealerSpawnHandler(creepPopulationDict),
+      new HealerSpawnHandler(),
       new PullerSpawnHandler(),
       new HaulerSpawnHandler(),
       new MinerSpawnHandler(),

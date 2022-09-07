@@ -45,6 +45,7 @@ export default class UpgraderHandler implements ICreepHandler {
   private findTargetRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
     if (!creep.room.memory.positions) return null
     for (const dir of dirs()) {
+      if (!creep.room.memory.positions || !creep.room.memory.positions[STRUCTURE_CONTAINER]) return null
       for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
         const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], creep.room.name)
         if (

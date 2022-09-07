@@ -1,3 +1,3 @@
 export default interface IConstructionHandler {
-  handle(room: Room, desiredState: string[][]): string[][];
+  handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[]
 }

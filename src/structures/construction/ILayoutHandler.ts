@@ -1,4 +1,4 @@
 export default interface ILayoutHandler {
-  handle(room: Room): string[][];
-  isRoomForLayout(room: Room): boolean;
+  handle(room: Room): BuildOrderStep[]
+  isRoomForLayout(room: Room): boolean
 }

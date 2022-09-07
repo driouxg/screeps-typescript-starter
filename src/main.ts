@@ -32,8 +32,8 @@ declare global {
   }
 
   interface RoomMemory {
-    constructionPos: { [key: string]: number }
-    desiredState: string[][]
+    buildCursor: number
+    buildOrder: BuildOrderStep[]
     positions: { [structure: string]: RoomPositionJson[] }
     events: RoomEvent[]
     lastScouted: number
@@ -56,6 +56,8 @@ declare global {
     type: RoomEventType
     tick: number
   }
+
+  type BuildOrderStep = { x: number; y: number; structureType: BuildableStructureConstant }
 
   interface SpawnMemory {
     scoutLastSpawned: number
@@ -113,7 +115,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   spawnCpu = Game.cpu.getUsed()
   manageStructureActions(new StructureActionComposer().structureActionHandlers())
   structureCpu = Game.cpu.getUsed()
-  if (Game.time % 50 === 0) new ConstructionComposer().compose()
+  new ConstructionComposer().compose()
   conCpu = Game.cpu.getUsed()
 
   if (Game.time % 10000 === 0)

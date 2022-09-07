@@ -3,7 +3,6 @@ import ExtensionConstructionHandler from "structures/construction/lattice/extens
 import ExtractorConstructionHandler from "structures/construction/lattice/extractorConstructionHandler"
 import IConstructionHandler from "structures/construction/IConstructionHandler"
 import ConstructionSiteVisualizer from "structures/construction/util/constructionSiteVisualizer"
-import DesiredStateConstructor from "structures/construction/desiredStateConstructor"
 import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdater"
 import EnergySourceContainerConstructionHandler from "structures/construction/container/energySourceContainerConstructionHandler"
 import ControllerContainerConstructionHandler from "structures/construction/container/controllerContainerConstructionHandler"
@@ -13,6 +12,7 @@ import SourceLinkConstructionHandler from "structures/construction/link/sourceLi
 import ControllerLinkConstructionHandler from "structures/construction/link/controllerLinkConstructionHandler"
 import StampLayoutHandler from "structures/construction/stamp/StampLayoutHandler"
 import NoOpLayoutHandler from "structures/NoOpLayoutHandler"
+import build from "structures/construction/buildOrderConstructor"
 
 /**
  * Goal: Generate base layouts and cache the results for rooms that I own the controller.
@@ -25,24 +25,23 @@ import NoOpLayoutHandler from "structures/NoOpLayoutHandler"
 export default class ConstructionComposer {
   private positionsMemoryUpdater = new StructurePositionsMemoryUpdater()
   private constructionVisualizer = new ConstructionSiteVisualizer()
-  private desiredStateConstructor = new DesiredStateConstructor()
 
   public compose(): void {
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName]
       if (!room.controller?.my) continue
 
-      this.desiredStateConstructor.construct(room, room.memory.desiredState)
+      build(room)
 
-      this.constructionVisualizer.handle(room, room.memory.desiredState)
-      if (room.memory.desiredState) continue
+      // this.constructionVisualizer.handle(room, room.memory.desiredState)
+      if (room.memory.buildOrder) continue
 
       this.cleanupRoom(room)
       const layout = this.firstValidLayout(room)
 
       // this.constructionVisualizer.handle(room, layout.handle(room))
 
-      room.memory.desiredState = layout.handle(room)
+      room.memory.buildOrder = layout.handle(room)
 
       this.positionsMemoryUpdater.update(room)
     }
@@ -58,7 +57,7 @@ export default class ConstructionComposer {
 
   private layoutHandlers(): ILayoutHandler[] {
     return [
-      new BunkerLayoutHandler(this.commonConstructionHandlers()),
+      // new BunkerLayoutHandler(this.commonConstructionHandlers()),
       new StampLayoutHandler(this.commonConstructionHandlers())
     ]
   }

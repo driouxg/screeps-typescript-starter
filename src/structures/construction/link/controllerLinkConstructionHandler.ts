@@ -1,43 +1,43 @@
-import { dirs } from "utils/directions";
-import IConstructionHandler from "../IConstructionHandler";
+import { dirs } from "utils/directions"
+import IConstructionHandler from "../IConstructionHandler"
+import convert from "../util/buildOrderToDesiredState"
 
 export default class ControllerLinkConstructionHandler implements IConstructionHandler {
-  handle(room: Room, desiredState: string[][]): string[][] {
-    if (!room.controller) return desiredState;
+  handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    if (!room.controller) return buildOrder
 
-    const containerPos = this.findContainerNearController(room, desiredState);
+    const containerPos = this.findContainerNearController(room, convert(buildOrder))
 
-    if (!containerPos) return desiredState;
+    if (!containerPos) return buildOrder
 
     for (const dir of dirs()) {
-      const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], room.name);
-      if (pos.isNearTo(room.controller!.pos.x, room.controller!.pos.y)) continue;
-      desiredState[pos.y][pos.x] = STRUCTURE_LINK;
-      return desiredState;
+      const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], room.name)
+      if (pos.isNearTo(room.controller!.pos.x, room.controller!.pos.y)) continue
+      return buildOrder.concat({ ...pos, structureType: STRUCTURE_LINK })
     }
 
-    return desiredState;
+    return buildOrder
   }
 
   private findContainerNearController(room: Room, desiredState: string[][]): RoomPosition | null {
-    const containerPositions = this.containerPositions(room, desiredState);
+    const containerPositions = this.containerPositions(room, desiredState)
 
     for (const pos of containerPositions) {
-      if (room.controller!.pos.inRangeTo(pos.x, pos.y, 2)) return pos;
+      if (room.controller!.pos.inRangeTo(pos.x, pos.y, 2)) return pos
     }
 
-    return null;
+    return null
   }
 
   private containerPositions(room: Room, desiredState: string[][]): RoomPosition[] {
-    let positions = [];
+    let positions = []
 
     for (let y = 0; y < 50; y++) {
       for (let x = 0; x < 50; x++) {
-        if (desiredState[y][x] === STRUCTURE_CONTAINER) positions.push(new RoomPosition(x, y, room.name));
+        if (desiredState[y][x] === STRUCTURE_CONTAINER) positions.push(new RoomPosition(x, y, room.name))
       }
     }
 
-    return positions;
+    return positions
   }
 }

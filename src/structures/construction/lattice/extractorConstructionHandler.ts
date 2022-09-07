@@ -1,15 +1,15 @@
-import IConstructionHandler from "../IConstructionHandler";
+import IConstructionHandler from "../IConstructionHandler"
 
 export default class ExtractorConstructionHandler implements IConstructionHandler {
-  public handle(room: Room, desiredState: string[][]): string[][] {
-    if (!(room.controller && room.controller.my)) return desiredState;
+  public handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    if (!(room.controller && room.controller.my)) return buildOrder
 
-    const minerals: Mineral<MineralConstant>[] = room.find(FIND_MINERALS);
+    const minerals: Mineral<MineralConstant>[] = room.find(FIND_MINERALS)
 
     for (const mineral of minerals) {
-      desiredState[mineral.pos.y][mineral.pos.x] = STRUCTURE_EXTRACTOR;
+      buildOrder = buildOrder.concat({ ...mineral.pos, structureType: STRUCTURE_EXTRACTOR })
     }
 
-    return desiredState;
+    return buildOrder
   }
 }
