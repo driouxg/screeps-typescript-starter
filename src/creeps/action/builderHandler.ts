@@ -1,7 +1,5 @@
 import { jsonToRoomPosition } from "utils/jsonMapper"
-import { harvestUntilMaxEnergy, hasEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
-import ICreepEnergyRetrieval from "./common/ICreepEnergyRetrieval"
-import StructureEnergyCollector from "./common/structureEnergyHarvester"
+import { findPickupPosition, hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
 
 /**
@@ -15,17 +13,31 @@ import ICreepHandler from "./ICreepHandler"
  *    build()
  */
 export default class BuilderHandler implements ICreepHandler {
-  private priorityDict: { [structureName: string]: number }
-  private creepEnergyRetrieval: ICreepEnergyRetrieval
-
-  public constructor() {
-    this.priorityDict = this.buildPriorityDict()
-    this.creepEnergyRetrieval = new StructureEnergyCollector()
-  }
-
   public handle(creep: Creep): void {
     if (isWorking(creep)) this.workUntilNoEnergy(creep)
-    else harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
+    // else harvestUntilMaxEnergy(creep, this.creepEnergyRetrieval)
+    else {
+      if (hasMaxEnergy(creep)) creep.memory.working = true
+
+      let memory = creep.memory as BuilderMemory
+      memory.pickupTargetPos = memory.pickupTargetPos || findPickupPosition(creep)
+
+      const targetPos = jsonToRoomPosition(memory.pickupTargetPos)
+      const structures = creep.room.lookForAt(LOOK_STRUCTURES, targetPos)
+
+      if (0 < structures.length) {
+        // Withdraw from structure
+        if (creep.withdraw(structures[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE)
+          memory.pickupTargetPos = findPickupPosition(creep)
+        else creep.moveTo(targetPos)
+      } else {
+        // Pickup at location
+        const energyPiles = creep.room.lookForAt(LOOK_ENERGY, targetPos)
+        if (energyPiles.length <= 0) memory.pickupTargetPos = findPickupPosition(creep)
+        if (creep.pickup(energyPiles[0]) !== ERR_NOT_IN_RANGE) memory.pickupTargetPos = findPickupPosition(creep)
+        else creep.moveTo(targetPos)
+      }
+    }
   }
 
   private workUntilNoEnergy(creep: Creep) {
@@ -44,48 +56,20 @@ export default class BuilderHandler implements ICreepHandler {
     const constructionSites = jsonToRoomPosition(memory.buildTargetPos).lookFor(LOOK_CONSTRUCTION_SITES)
 
     if (constructionSites.length <= 0 || creep.build(constructionSites[0]) === ERR_INVALID_TARGET) {
-      memory.buildTargetPos = this.getPrioritizedConstructionSite(creep)
+      memory.buildTargetPos = this.findNewTargetConstructionSite(creep)
     }
 
     if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, constructionSites[0].pos)
   }
 
-  private getPrioritizedConstructionSite(creep: Creep): RoomPosition {
+  private findNewTargetConstructionSite(creep: Creep): RoomPosition {
     const constructionSites: ConstructionSite<BuildableStructureConstant>[] = creep.room.find(
       FIND_MY_CONSTRUCTION_SITES
     )
 
     if (constructionSites.length <= 0) return jsonToRoomPosition((creep.memory as BuilderMemory).buildTargetPos)
 
-    let selectedSite = constructionSites[0]
-    for (const constructionSite of constructionSites) {
-      if (this.priorityDict[constructionSite.structureType] < this.priorityDict[selectedSite.structureType])
-        selectedSite = constructionSite
-    }
-
-    return selectedSite.pos
-  }
-
-  private buildPriorityDict(): { [structureName: string]: number } {
-    const arr = [
-      STRUCTURE_EXTENSION,
-      STRUCTURE_CONTAINER,
-      STRUCTURE_TOWER,
-      STRUCTURE_STORAGE,
-      STRUCTURE_ROAD,
-      STRUCTURE_LINK,
-      STRUCTURE_EXTRACTOR,
-      STRUCTURE_LAB,
-      STRUCTURE_OBSERVER,
-      STRUCTURE_NUKER,
-      STRUCTURE_WALL,
-      STRUCTURE_RAMPART
-    ]
-    const dict: { [structureName: string]: number } = {}
-
-    arr.forEach((structureName, idx) => (dict[structureName] = idx))
-
-    return dict
+    return constructionSites[0].pos
   }
 
   private repair(creep: Creep) {
@@ -125,4 +109,5 @@ export default class BuilderHandler implements ICreepHandler {
 export interface BuilderMemory extends CreepMemory {
   repairTargetPos: { x: number; y: number; roomName: string }
   buildTargetPos: { x: number; y: number; roomName: string }
+  pickupTargetPos: { x: number; y: number; roomName: string }
 }

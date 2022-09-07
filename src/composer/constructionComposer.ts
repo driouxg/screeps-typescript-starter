@@ -1,5 +1,3 @@
-import ContainerConstructionHandler from "structures/construction/lattice/containerConstructionHandler"
-import ExtensionConstructionHandler from "structures/construction/lattice/extensionConstructionHandler"
 import ExtractorConstructionHandler from "structures/construction/lattice/extractorConstructionHandler"
 import IConstructionHandler from "structures/construction/IConstructionHandler"
 import ConstructionSiteVisualizer from "structures/construction/util/constructionSiteVisualizer"
@@ -7,7 +5,6 @@ import StructurePositionsMemoryUpdater from "utils/structurePositionsMemoryUpdat
 import EnergySourceContainerConstructionHandler from "structures/construction/container/energySourceContainerConstructionHandler"
 import ControllerContainerConstructionHandler from "structures/construction/container/controllerContainerConstructionHandler"
 import ILayoutHandler from "structures/construction/ILayoutHandler"
-import BunkerLayoutHandler from "structures/construction/bunker/bunkerLayoutHandler"
 import SourceLinkConstructionHandler from "structures/construction/link/sourceLinkConstructionHandler"
 import ControllerLinkConstructionHandler from "structures/construction/link/controllerLinkConstructionHandler"
 import StampLayoutHandler from "structures/construction/stamp/StampLayoutHandler"
@@ -18,9 +15,6 @@ import build from "structures/construction/buildOrderConstructor"
  * Goal: Generate base layouts and cache the results for rooms that I own the controller.
  *
  * https://www.youtube.com/watch?v=YcruUDbqa7E
- *
- *
- *
  */
 export default class ConstructionComposer {
   private positionsMemoryUpdater = new StructurePositionsMemoryUpdater()
@@ -35,11 +29,9 @@ export default class ConstructionComposer {
 
       // this.constructionVisualizer.handle(room, room.memory.desiredState)
       if (room.memory.buildOrder) continue
-
+      room.memory.buildOrder = []
       this.cleanupRoom(room)
       const layout = this.firstValidLayout(room)
-
-      // this.constructionVisualizer.handle(room, layout.handle(room))
 
       room.memory.buildOrder = layout.handle(room)
 

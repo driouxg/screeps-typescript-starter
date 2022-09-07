@@ -6,14 +6,15 @@ export default class ControllerLinkConstructionHandler implements IConstructionH
   handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
     if (!room.controller) return buildOrder
 
-    const containerPos = this.findContainerNearController(room, convert(buildOrder))
+    let desiredState = convert(buildOrder)
+    const containerPos = this.findContainerNearController(room, desiredState)
 
     if (!containerPos) return buildOrder
 
     for (const dir of dirs()) {
       const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], room.name)
       if (pos.isNearTo(room.controller!.pos.x, room.controller!.pos.y)) continue
-      return buildOrder.concat({ ...pos, structureType: STRUCTURE_LINK })
+      return buildOrder.concat({ x: pos.x, y: pos.y, structureType: STRUCTURE_LINK })
     }
 
     return buildOrder

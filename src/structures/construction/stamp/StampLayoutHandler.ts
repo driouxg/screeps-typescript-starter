@@ -49,8 +49,6 @@ export default class StampLayoutHandler implements ILayoutHandler {
     buildOrder = buildOrder.concat(rapidFillCluster(rapidRefillPos))
     this.markProtectedArea(rapidRefillPos, 3)
 
-    // console.log("REACHED", JSON.stringify(rapidRefillPos))
-
     // Find anchor spot
     // const anchorPos = this.findCenterPos(controllerPos, cm, room, 3)
     // if (!anchorPos) return null
@@ -76,12 +74,11 @@ export default class StampLayoutHandler implements ILayoutHandler {
       markCm(extPos, 2, cm)
       buildOrder = buildOrder.concat(extensionPlusStamp(extPos))
       this.markProtectedArea(extPos, 2)
-      // console.log("REACHED EXTENSION")
     }
 
     // return new RoadConstructionHandler().handle(room, desiredState)
 
-    this.constructionHandlers.forEach(c => (buildOrder = buildOrder.concat(c.handle(room, buildOrder))))
+    this.constructionHandlers.forEach(c => (buildOrder = c.handle(room, buildOrder)))
     return buildOrder
   }
 
@@ -138,21 +135,6 @@ function markCm(center: { x: number; y: number }, val: number, cm: CostMatrix) {
   }
 }
 
-// function markDesiredState(
-//   center: { x: number; y: number },
-//   val: number,
-//   blueprint: string[][],
-//   desiredState: string[][]
-// ) {
-//   for (let i = center.y - val; i <= center.y + val; i++) {
-//     for (let j = center.x - val; j <= center.x + val; j++) {
-//       if (!isBuildablePos(j, i)) continue
-//       if (desiredState[i][j] !== "") continue
-//       desiredState[i][j] = blueprint[i % (center.y - val)][j % (center.x - val)]
-//     }
-//   }
-// }
-
 function extensionPlusStamp(centerPos: { x: number; y: number }): BuildOrderStep[] {
   const { x: xx, y: yy } = centerPos
 
@@ -165,7 +147,7 @@ function extensionPlusStamp(centerPos: { x: number; y: number }): BuildOrderStep
     { x: xx - 2, y: yy, structureType: STRUCTURE_ROAD },
     { x: xx - 1, y: yy + 1, structureType: STRUCTURE_ROAD },
     { x: xx, y: yy + 2, structureType: STRUCTURE_ROAD },
-    { x: xx + 1, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy + 1, structureType: STRUCTURE_ROAD },
     { x: xx + 2, y: yy, structureType: STRUCTURE_ROAD },
     { x: xx + 1, y: yy - 1, structureType: STRUCTURE_ROAD },
     { x: xx, y: yy - 2, structureType: STRUCTURE_ROAD },

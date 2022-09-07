@@ -17,7 +17,7 @@ export default class SourceLinkConstructionHandler implements IConstructionHandl
 
           if (pos.isEqualTo(source.pos.x, source.pos.y) || room.getTerrain().get(pos.x, pos.y) === TERRAIN_MASK_WALL)
             continue
-          buildOrder = buildOrder.concat({ ...pos, structureType: STRUCTURE_LINK })
+          buildOrder = buildOrder.concat({ x: pos.x, y: pos.y, structureType: STRUCTURE_LINK })
           break
         }
       }

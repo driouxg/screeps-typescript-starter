@@ -132,6 +132,7 @@ function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandl
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName]
     const handler: ICreepHandler = creepHandlerDict[creep.memory.role]
+    // console.log("Handling creep with role: ", creep.memory.role, JSON.stringify(creep.memory))
     handler.handle(creep)
   }
 }

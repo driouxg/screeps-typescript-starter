@@ -3,15 +3,25 @@ import { dirs } from "utils/directions"
 import { isBuildablePos, isWall } from "utils/gridBuilder"
 import { jsonToRoomPosition } from "utils/jsonMapper"
 import ICreepHandler from "./ICreepHandler"
+import * as creepRoles from "../roles"
 
 export default class UpgraderHandler implements ICreepHandler {
   public handle(creep: Creep): void {
     const controller: StructureController | undefined = creep.room.controller
     if (!controller) return
 
-    const targetPos = this.findTargetRoomPosition(creep, controller)
+    let memory = creep.memory as UpgraderMemory
+    memory.targetPos = memory.targetPos || (this.findTargetRoomPosition(creep, controller) as RoomPosition)
+    let targetPos = jsonToRoomPosition(memory.targetPos)
 
-    if (!targetPos) return
+    const creepsInSpot = creep.room.lookForAt(LOOK_CREEPS, targetPos)
+    if (
+      0 < creepsInSpot.length &&
+      creepsInSpot[0].name !== creep.name &&
+      creepsInSpot[0].memory.role !== creepRoles.PULLER
+    ) {
+      memory.targetPos = this.findTargetRoomPosition(creep, controller) as RoomPosition
+    }
 
     if (!creep.pos.isEqualTo(targetPos.x, targetPos.y)) {
       creep.room.memory.events.push(new PullRequestEvent(targetPos, creep.name))
@@ -42,22 +52,23 @@ export default class UpgraderHandler implements ICreepHandler {
     }
   }
 
-  private findTargetRoomPosition(creep: Creep, controller: StructureController): RoomPosition | null {
-    if (!creep.room.memory.positions) return null
-    for (const dir of dirs()) {
-      if (!creep.room.memory.positions || !creep.room.memory.positions[STRUCTURE_CONTAINER]) return null
+  private findTargetRoomPosition(creep: Creep, controller: StructureController): RoomPosition {
+    if (!creep.room.memory.positions) return creep.pos
+    for (const dir of dirs().sort(() => Math.random() - 0.5)) {
+      if (!creep.room.memory.positions || !creep.room.memory.positions[STRUCTURE_CONTAINER]) return creep.pos
       for (const containerPos of creep.room.memory.positions[STRUCTURE_CONTAINER]) {
         const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], creep.room.name)
         if (
-          pos.isNearTo(controller.pos.x, controller.pos.y) &&
+          pos.inRangeTo(controller.pos.x, controller.pos.y, 3) &&
           !isWall(pos.x, pos.y, pos.roomName) &&
           isBuildablePos(pos.x, pos.y)
-        )
+        ) {
           return pos
+        }
       }
     }
 
-    return null
+    return creep.pos
   }
 
   private findContainerPosition(creep: Creep): RoomPosition | null {
@@ -67,4 +78,8 @@ export default class UpgraderHandler implements ICreepHandler {
 
     return null
   }
+}
+
+export interface UpgraderMemory extends CreepMemory {
+  targetPos: { x: number; y: number; roomName: string }
 }
