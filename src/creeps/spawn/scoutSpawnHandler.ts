@@ -7,7 +7,7 @@ export default class ScoutSpawnHandler implements ISpawnHandler {
     const memory = spawn.memory
 
     memory.scoutLastSpawned = memory.scoutLastSpawned ?? 0
-    if (Game.time <= memory.scoutLastSpawned + CREEP_LIFE_TIME) return null
+    if (Game.time <= memory.scoutLastSpawned + CREEP_LIFE_TIME - 750) return null
 
     memory.scoutLastSpawned = Game.time
     return new SpawnConfig([MOVE], creepRoles.SCOUT)

@@ -20,6 +20,8 @@ export default class TowerActionHandler implements IStructureActionHandler {
         continue
       }
 
+      if (Game.time % 2 !== 0) return // Towers are using all energy on repairs
+
       // Repair ramparts
       const ramparts = room
         .find(FIND_MY_STRUCTURES, { filter: c => c.structureType === STRUCTURE_RAMPART && c.hits !== c.hitsMax })

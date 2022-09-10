@@ -2,11 +2,17 @@ export default class SpawnConfig {
   private body: BodyPartConstant[]
   private role: string
   private memory?: CreepMemory
+  private directions?: DirectionConstant[]
 
-  public constructor(body: BodyPartConstant[], role: string, memory?: CreepMemory) {
+  public constructor(
+    body: BodyPartConstant[],
+    role: string,
+    opts?: { memory?: CreepMemory; directions?: DirectionConstant[] }
+  ) {
     this.body = body
     this.role = role
-    this.memory = memory
+    this.memory = opts?.memory
+    this.directions
   }
 
   public getBody(): BodyPartConstant[] {
@@ -19,5 +25,9 @@ export default class SpawnConfig {
 
   public getMemory(): CreepMemory | undefined {
     return this.memory
+  }
+
+  public getDirections(): DirectionConstant[] | undefined {
+    return this.directions
   }
 }

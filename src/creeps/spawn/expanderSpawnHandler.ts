@@ -28,8 +28,10 @@ export default class ExpanderSpawnHandler implements ISpawnHandler {
       const { x, y, roomName: name } = myConstructionSites[0].pos
       const blueprint = [WORK, CARRY, MOVE]
       return new SpawnConfig(buildCappedBodyParts(blueprint, spawn.room, 25), creepRoles.EXPANDER, {
-        targetSpawnPos: { x, y, roomName: name }
-      } as ExpanderMemory)
+        memory: {
+          targetSpawnPos: { x, y, roomName: name }
+        } as ExpanderMemory
+      })
     }
 
     return null

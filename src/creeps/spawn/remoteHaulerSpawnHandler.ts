@@ -6,7 +6,7 @@ import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 import { getOrderedExits, isRoomRemoteMineable } from "./utils/roomUtils"
 
 /**
- * Goal: Look at remote mineable rooms and see if # remote miners === # sources. If not, spawn a remote miner for that room.
+ * Goal: Spawn a certain number of remote haulers per remote source
  */
 export default class RemoteHaulerSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
@@ -20,13 +20,15 @@ export default class RemoteHaulerSpawnHandler implements ISpawnHandler {
       if (!mineableRoom) continue
 
       for (let source of mineableRoom.find(FIND_SOURCES)) {
-        if (2 <= remoteHaulers.filter(c => (c.memory as RemoteHaulerMemory).targetSourceId === source.id).length)
+        if (3 <= remoteHaulers.filter(c => (c.memory as RemoteHaulerMemory).targetSourceId === source.id).length)
           continue
 
-        return new SpawnConfig(buildCappedBodyParts([MOVE, CARRY], spawn.room, 25), creepRoles.REMOTE_HAULER, {
-          targetSourceId: source.id.toString(),
-          birthRoomName: spawn.room.name
-        } as RemoteHaulerMemory)
+        return new SpawnConfig(buildCappedBodyParts([MOVE, CARRY], spawn.room, 15), creepRoles.REMOTE_HAULER, {
+          memory: {
+            targetSourceId: source.id.toString(),
+            birthRoomName: spawn.room.name
+          } as RemoteHaulerMemory
+        })
       }
     }
 

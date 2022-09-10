@@ -8,6 +8,7 @@ import ISpawnHandler from "creeps/spawn/ISpawnHandler"
 import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler"
 import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler"
 import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
+import RapidFillerSpawnHandler from "creeps/spawn/rapidFillerSpawnHandler"
 import RemoteDropMinerSpawnHandler from "creeps/spawn/remoteDropMinerSpawnHandler"
 import RemoteHaulerSpawnHandler from "creeps/spawn/remoteHaulerSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
@@ -35,7 +36,8 @@ export default class SpawnComposer {
             working: false,
             room: spawn.room.name,
             ...spawnConfig.getMemory()
-          }
+          },
+          ...(spawnConfig.getDirections() || {})
         })
         return
       }
@@ -58,7 +60,8 @@ export default class SpawnComposer {
       new RemoteDropMinerSpawnHandler(),
       new RemoteHaulerSpawnHandler(),
       new ClaimerSpawnHandler(creepPopulationDict),
-      new ExpanderSpawnHandler(creepPopulationDict)
+      new ExpanderSpawnHandler(creepPopulationDict),
+      new RapidFillerSpawnHandler()
     ]
   }
 

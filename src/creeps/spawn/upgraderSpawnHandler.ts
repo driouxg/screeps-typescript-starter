@@ -28,10 +28,10 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
 
     const upgraders = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === this.role })
 
-    if (2 <= upgraders.length) return null
+    if (4 <= upgraders.length) return null
 
     const blueprint = [WORK]
-    let body = buildCappedBodyParts(blueprint, room, 25, [CARRY])
+    let body = buildCappedBodyParts(blueprint, room, 10, [CARRY])
     return new SpawnConfig(body, this.role)
   }
 }

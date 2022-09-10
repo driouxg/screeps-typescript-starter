@@ -59,7 +59,9 @@ export default class BuilderHandler implements ICreepHandler {
       memory.buildTargetPos = this.findNewTargetConstructionSite(creep)
     }
 
-    if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, constructionSites[0].pos)
+    const buildCode = creep.build(constructionSites[0])
+    if (creep.name === "81c18dcd-16df-422b-ac4c-e81234b4d321") console.log("BUILD CODE: ", buildCode)
+    if (buildCode === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, constructionSites[0].pos)
   }
 
   private findNewTargetConstructionSite(creep: Creep): RoomPosition {

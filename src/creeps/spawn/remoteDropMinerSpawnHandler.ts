@@ -24,8 +24,10 @@ export default class RemoteDropMinerSpawnHandler implements ISpawnHandler {
           continue
 
         return new SpawnConfig(buildCappedBodyParts([WORK], spawn.room, 4, [MOVE]), creepRoles.REMOTE_DROP_MINER, {
-          targetSourceId: source.id.toString()
-        } as RemoteDropMinerMemory)
+          memory: {
+            targetSourceId: source.id.toString()
+          } as RemoteDropMinerMemory
+        })
       }
     }
 

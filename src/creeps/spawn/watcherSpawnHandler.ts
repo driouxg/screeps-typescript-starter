@@ -19,7 +19,7 @@ export default class WatcherSpawnHandler implements ISpawnHandler {
       if (Game.time <= lastSpawned + CREEP_LIFE_TIME) continue
 
       spawnRoomMemory.watchers[roomName!] = Game.time
-      return new SpawnConfig([MOVE], creepRoles.WATCHER, { targetRoomName: roomName } as WatcherMemory)
+      return new SpawnConfig([MOVE], creepRoles.WATCHER, { memory: { targetRoomName: roomName } as WatcherMemory })
     }
 
     return null
@@ -33,7 +33,7 @@ export default class WatcherSpawnHandler implements ISpawnHandler {
 
     if (!spawnRoom.memory.watchers) spawnRoom.memory.watchers = {}
 
-    if (room.memory.status === "claimedMy") return false
+    if (["claimedMy", "aggressive"].includes(spawnRoom.memory.status)) return false
     return true
   }
 }

@@ -50,24 +50,27 @@ export default class StampLayoutHandler implements ILayoutHandler {
     this.markProtectedArea(rapidRefillPos, 3)
 
     // Find anchor spot
-    // const anchorPos = this.findCenterPos(controllerPos, cm, room, 3)
-    // if (!anchorPos) return null
-    // markCm(anchorPos, 1, cm)
-    // this.markProtectedArea(anchorPos, 2)
+    const anchorPos = this.findCenterPos(controllerPos, cm, room, 3)
+    if (!anchorPos) return null
+    markCm(anchorPos, 1, cm)
+    buildOrder = buildOrder.concat(anchorsStamp(anchorPos))
+    this.markProtectedArea(anchorPos, 2)
 
-    // // Lab locations
-    // const labPos = this.findCenterPos(controllerPos, cm, room, 3)
-    // if (!labPos) return null
-    // markCm(labPos, 2, cm)
-    // this.markProtectedArea(labPos, 3)
+    //  Lab locations
+    const labPos = this.findCenterPos(controllerPos, cm, room, 3)
+    if (!labPos) return null
+    markCm(labPos, 2, cm)
+    buildOrder = buildOrder.concat(labsStamp(labPos))
+    this.markProtectedArea(labPos, 3)
 
-    // // // Tower locations
-    // const towerPos = this.findCenterPos(controllerPos, cm, room, 3)
-    // if (!towerPos) return null
-    // markCm(towerPos, 1, cm)
-    // this.markProtectedArea(towerPos, 2)
+    // Tower locations
+    const towerPos = this.findCenterPos(controllerPos, cm, room, 3)
+    if (!towerPos) return null
+    markCm(towerPos, 1, cm)
+    buildOrder = buildOrder.concat(towersStamp(towerPos))
+    this.markProtectedArea(towerPos, 2)
 
-    //  Extensions
+    // Extensions
     for (let i = 0; i < 7; i++) {
       const extPos = this.findCenterPos(controllerPos, cm, room, 3)
       if (!extPos) return null
@@ -203,31 +206,83 @@ function rapidFillCluster(centerPos: { x: number; y: number }): BuildOrderStep[]
   ]
 }
 
-function labs(): string[][] {
+function labsStamp(centerPos: { x: number; y: number }): BuildOrderStep[] {
+  const { x: xx, y: yy } = centerPos
+
   return [
-    ["", STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD],
-    [STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB, STRUCTURE_ROAD],
-    [STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB, STRUCTURE_ROAD, STRUCTURE_LAB],
-    [STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB],
-    ["", STRUCTURE_ROAD, STRUCTURE_LAB, STRUCTURE_LAB, ""]
+    { x: xx - 1, y: yy, structureType: STRUCTURE_LAB },
+    { x: xx - 1, y: yy + 1, structureType: STRUCTURE_LAB },
+    { x: xx, y: yy + 1, structureType: STRUCTURE_LAB },
+    { x: xx + 1, y: yy + 1, structureType: STRUCTURE_LAB },
+    { x: xx + 1, y: yy, structureType: STRUCTURE_LAB },
+    { x: xx + 1, y: yy - 1, structureType: STRUCTURE_LAB },
+    { x: xx, y: yy - 1, structureType: STRUCTURE_LAB },
+    { x: xx - 1, y: yy - 2, structureType: STRUCTURE_LAB },
+    { x: xx - 2, y: yy - 1, structureType: STRUCTURE_LAB },
+    { x: xx - 2, y: yy - 2, structureType: STRUCTURE_LAB },
+
+    { x: xx - 2, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy - 2, structureType: STRUCTURE_ROAD }
   ]
 }
 
-function towers(): string[][] {
+function towersStamp(centerPos: { x: number; y: number }): BuildOrderStep[] {
+  const { x: xx, y: yy } = centerPos
+
   return [
-    [STRUCTURE_TOWER, STRUCTURE_TOWER, STRUCTURE_TOWER],
-    [STRUCTURE_TOWER, STRUCTURE_ROAD, STRUCTURE_TOWER],
-    [STRUCTURE_ROAD, STRUCTURE_TOWER, STRUCTURE_ROAD]
+    { x: xx - 1, y: yy, structureType: STRUCTURE_TOWER },
+    { x: xx, y: yy - 1, structureType: STRUCTURE_TOWER },
+    { x: xx + 1, y: yy, structureType: STRUCTURE_TOWER },
+    { x: xx, y: yy + 1, structureType: STRUCTURE_TOWER },
+    { x: xx - 1, y: yy - 1, structureType: STRUCTURE_TOWER },
+    { x: xx + 1, y: yy - 1, structureType: STRUCTURE_TOWER },
+    { x: xx, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy - 2, structureType: STRUCTURE_ROAD }
   ]
 }
 
-function anchor(): string[][] {
+function anchorsStamp(centerPos: { x: number; y: number }): BuildOrderStep[] {
+  const { x: xx, y: yy } = centerPos
+
   return [
-    [STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD],
-    [STRUCTURE_ROAD, STRUCTURE_FACTORY, STRUCTURE_NUKER, STRUCTURE_POWER_SPAWN, STRUCTURE_ROAD],
-    [STRUCTURE_ROAD, STRUCTURE_STORAGE, STRUCTURE_ROAD, STRUCTURE_LINK, STRUCTURE_ROAD],
-    [STRUCTURE_ROAD, STRUCTURE_TERMINAL, STRUCTURE_SPAWN, STRUCTURE_ROAD, STRUCTURE_ROAD],
-    [STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD, STRUCTURE_ROAD]
+    { x: xx - 1, y: yy, structureType: STRUCTURE_STORAGE },
+    { x: xx - 1, y: yy + 1, structureType: STRUCTURE_TERMINAL },
+    { x: xx, y: yy + 1, structureType: STRUCTURE_OBSERVER },
+    { x: xx + 1, y: yy, structureType: STRUCTURE_LINK },
+    { x: xx + 1, y: yy - 1, structureType: STRUCTURE_POWER_SPAWN },
+    { x: xx, y: yy - 1, structureType: STRUCTURE_NUKER },
+    { x: xx - 1, y: yy - 1, structureType: STRUCTURE_FACTORY },
+    { x: xx, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx + 2, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx + 1, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy - 2, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy - 1, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy, structureType: STRUCTURE_ROAD },
+    { x: xx - 2, y: yy + 1, structureType: STRUCTURE_ROAD },
+    { x: xx - 1, y: yy + 2, structureType: STRUCTURE_ROAD },
+    { x: xx, y: yy + 2, structureType: STRUCTURE_ROAD }
   ]
 }
 

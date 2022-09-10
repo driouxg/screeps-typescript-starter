@@ -12,8 +12,7 @@ export default class ClaimerSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     if (!this.isThousandthTick()) return null
 
-    if (this.creepPopulationDict[creepRoles.CLAIMER] < 1)
-      return new SpawnConfig([MOVE, MOVE, CLAIM], creepRoles.CLAIMER)
+    if (this.creepPopulationDict[creepRoles.CLAIMER] < 1) return new SpawnConfig([MOVE, CLAIM], creepRoles.CLAIMER)
     else return null
   }
 

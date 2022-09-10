@@ -80,6 +80,7 @@ declare global {
     role: string
     room: string
     working: boolean
+    // path: RoomPositionJson[]  // I added because moveTo
   }
 
   export type RoomPositionJson = {

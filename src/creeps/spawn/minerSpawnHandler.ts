@@ -23,9 +23,11 @@ export default class MinerSpawnHandler implements ISpawnHandler {
       if (miners.some(m => (m.memory as MinerMemory).targetSourceId === minerPos.sourceId)) continue
 
       return new SpawnConfig(buildCappedBodyParts([WORK, WORK, WORK, WORK, WORK], spawn.room, 5), this.role, {
-        targetSourceId: minerPos.sourceId,
-        targetSourcePos: minerPos.pos
-      } as MinerMemory)
+        memory: {
+          targetSourceId: minerPos.sourceId,
+          targetSourcePos: minerPos.pos
+        } as MinerMemory
+      })
     }
 
     return null

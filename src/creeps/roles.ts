@@ -11,3 +11,4 @@ export const WATCHER = "WATCHER" // https://github.com/TooAngel/screeps/blob/mas
 export const REMOTE_DROP_MINER = "REMOTE_DROP_MINER"
 export const REMOTE_HAULER = "REMOTE_HAULER"
 export const EXPANDER = "EXPANDER"
+export const RAPID_FILLER = "RAPID_FILLER"

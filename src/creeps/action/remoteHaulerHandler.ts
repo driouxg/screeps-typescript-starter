@@ -1,5 +1,5 @@
-import { jsonToRoomPosition } from "utils/jsonMapper"
-import { findOffloadSpot, hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
+import { hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
+import { offloadEnergy } from "./haulerHandler"
 import ICreepHandler from "./ICreepHandler"
 
 export default class RemoteHaulerHandler implements ICreepHandler {
@@ -16,7 +16,7 @@ export default class RemoteHaulerHandler implements ICreepHandler {
     else {
       if (hasMaxEnergy(creep)) memory.working = true
       if (!creep.pos.inRangeTo(source?.pos, 2)) {
-        moveToWithSinglePath(creep, source.pos)
+        creep.moveTo(source.pos)
         return
       }
 
@@ -32,30 +32,9 @@ export default class RemoteHaulerHandler implements ICreepHandler {
   private workUntilNoEnergy(creep: Creep) {
     const memory = creep.memory as RemoteHaulerMemory
     if (hasEnergy(creep)) {
-      if (creep.room.name === memory.birthRoomName) this.offloadEnergy(creep)
-      else moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.birthRoomName))
+      if (creep.room.name === memory.birthRoomName) offloadEnergy(creep)
+      else creep.moveTo(new RoomPosition(25, 25, memory.birthRoomName))
     } else memory.working = false
-  }
-
-  private offloadEnergy(creep: Creep) {
-    // console.log("REACHED 1.0")
-    const memory = creep.memory as RemoteHaulerMemory
-    memory.offloadTargetPos = memory.offloadTargetPos ?? creep.pos
-    let offloadSpot = jsonToRoomPosition(memory.offloadTargetPos)
-
-    const offloadStructure = creep.room.lookForAt(LOOK_STRUCTURES, offloadSpot)
-    // Drop resources at position
-    if (offloadStructure.length <= 0) {
-      if (creep.pos.isEqualTo(offloadSpot.x, offloadSpot.y)) {
-        creep.drop(RESOURCE_ENERGY)
-        memory.offloadTargetPos = findOffloadSpot(creep)
-      } else moveToWithSinglePath(creep, offloadSpot)
-    } else {
-      // Transfer resources to structure
-      if (creep.transfer(offloadStructure[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE)
-        memory.offloadTargetPos = findOffloadSpot(creep)
-      else moveToWithSinglePath(creep, offloadSpot)
-    }
   }
 }
 

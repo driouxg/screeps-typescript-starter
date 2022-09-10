@@ -69,7 +69,7 @@ export default class ClaimerHandler implements ICreepHandler {
 
     if (Game.map.getRoomStatus(room.name).status === "closed") return false
 
-    if (0 < room.find(FIND_HOSTILE_CREEPS).length) return false
+    if (room.memory.status !== undefined && room.memory.status === "aggressive") return false
 
     return true
   }
