@@ -43,11 +43,11 @@ export default class ScoutHandler implements ICreepHandler {
     if (!room.controller) status = "unclaimable"
     else if (room.controller?.my) status = "claimedMy"
     else if (
-      room.find(FIND_HOSTILE_CREEPS, {
-        filter: c =>
-          (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK)) &&
-          0 < room.find(FIND_MY_CREEPS).filter(c => c.hits < c.hitsMax * 0.75).length
-      })
+      0 <
+        room.find(FIND_HOSTILE_CREEPS, {
+          filter: c => 0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK)
+        }).length &&
+      0 < room.find(FIND_MY_CREEPS).filter(c => c.hits < c.hitsMax * 0.75).length
     )
       status = "aggressive"
     else if (room.controller && !room.controller?.owner) status = "claimable"

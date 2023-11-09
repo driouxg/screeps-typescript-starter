@@ -17,7 +17,7 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
 
     if (numCreeps <= builders.length) return null
 
-    return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], spawn.room, 20), this.role)
+    return new SpawnConfig(buildCappedBodyParts([WORK, WORK, CARRY, MOVE], spawn.room, 15), this.role)
   }
 
   private isHundredthTick(): boolean {

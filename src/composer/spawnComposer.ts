@@ -51,6 +51,7 @@ export default class SpawnComposer {
       new MeleeDefenderSpawnHandler(),
       new HealerSpawnHandler(),
       new PullerSpawnHandler(),
+      new RapidFillerSpawnHandler(),
       new HaulerSpawnHandler(),
       new MinerSpawnHandler(),
       new BuilderSpawnHandler(),
@@ -60,8 +61,7 @@ export default class SpawnComposer {
       new RemoteDropMinerSpawnHandler(),
       new RemoteHaulerSpawnHandler(),
       new ClaimerSpawnHandler(creepPopulationDict),
-      new ExpanderSpawnHandler(creepPopulationDict),
-      new RapidFillerSpawnHandler()
+      new ExpanderSpawnHandler(creepPopulationDict)
     ]
   }
 

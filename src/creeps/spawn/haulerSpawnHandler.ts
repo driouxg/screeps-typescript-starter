@@ -15,6 +15,6 @@ export default class HaulerSpawnHandler implements ISpawnHandler {
 
     if (miners.length * 2 <= haulers.length) return null
 
-    return new SpawnConfig(buildCappedBodyParts(bluePrint, spawn.room, 25), this.role)
+    return new SpawnConfig(buildCappedBodyParts(bluePrint, spawn.room, 10), this.role)
   }
 }

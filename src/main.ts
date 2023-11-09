@@ -45,6 +45,7 @@ declare global {
       | "claimedEnemy"
       | "hostile"
       | "unclaimable"
+      | "claimable"
       | "ownedMy"
       | "ownedEnemy"
       | "aggressive" // Enemy creeps in room with ATTACK body part
