@@ -71,13 +71,17 @@ export interface HaulerMemory extends CreepMemory {
   pickupPos: { x: number; y: number; roomName: string }
   offloadRoomName: string
   offloadPos: { x: number; y: number; roomName: string }
-  //   pickupTargetPos: { x: number; y: number; roomName: string }
 }
 
 export function offloadEnergy(creep: Creep) {
   const memory = creep.memory as HaulerMemory
   memory.offloadPos = memory.offloadPos ?? creep.pos
   let offloadSpot = jsonToRoomPosition(memory.offloadPos)
+
+  if (creep.pos.roomName !== memory.offloadRoomName) {
+    moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.offloadRoomName))
+    return
+  }
 
   const offloadStructure = creep.room
     .lookForAt(LOOK_STRUCTURES, offloadSpot)
