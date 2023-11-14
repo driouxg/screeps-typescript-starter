@@ -2,10 +2,12 @@ import BuilderHandler from "creeps/action/BuilderHandler"
 import HaulerHandler from "creeps/action/HaulerHandler"
 import MinerHandler from "creeps/action/MinerHandler"
 import ScoutHandler from "creeps/action/ScoutHandler"
+import UpgraderHandler from "creeps/action/UpgraderHandler"
 import SpawnBuilderEventEmitter from "eventEmitters/SpawnBuilderEventEmitter"
 import SpawnHaulerEventEmitter from "eventEmitters/SpawnHaulerEventEmitter"
 import SpawnMinerEventEmitter from "eventEmitters/SpawnMinerEventEmitter"
 import SpawnScoutEventEmitter from "eventEmitters/SpawnScoutEventEmitter"
+import SpawnUpgraderEventEmitter from "eventEmitters/SpawnUpgraderEventEmitter"
 import SpawnHandler from "eventHandlers/SpawnHandler"
 import ConstructionComposer from "roomPlans/roomPlanner"
 import { ErrorMapper } from "utils/ErrorMapper"
@@ -79,11 +81,18 @@ export const loop = ErrorMapper.wrapLoop(() => {
     new SpawnMinerEventEmitter(),
     new SpawnHaulerEventEmitter(),
     new SpawnScoutEventEmitter(),
-    new SpawnBuilderEventEmitter()
+    new SpawnBuilderEventEmitter(),
+    new SpawnUpgraderEventEmitter()
   ]
   eventEmitters.forEach(em => em.emit())
 
-  const creepHandlers = [new MinerHandler(), new HaulerHandler(), new ScoutHandler(), new BuilderHandler()]
+  const creepHandlers = [
+    new MinerHandler(),
+    new HaulerHandler(),
+    new ScoutHandler(),
+    new BuilderHandler(),
+    new UpgraderHandler()
+  ]
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName]
 

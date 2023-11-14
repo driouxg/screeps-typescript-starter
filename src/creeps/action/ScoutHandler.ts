@@ -45,14 +45,7 @@ export default class ScoutHandler implements ICreepHandler {
 
     if (!room.controller) status = "unclaimable"
     else if (room.controller?.my) status = "claimedMy"
-    else if (
-      room.find(FIND_HOSTILE_CREEPS, {
-        filter: c =>
-          (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK)) &&
-          0 < room.find(FIND_MY_CREEPS).filter(c => c.hits < c.hitsMax * 0.75).length
-      })
-    )
-      status = "aggressive"
+    else if (isRoomHostile(room)) status = "aggressive"
     else if (room.controller && !room.controller?.owner) status = "claimable"
     else if (room.controller?.reservation && room.controller.reservation.username === "DryOx") status = "reservedMy"
     else if (room.controller?.reservation && room.controller.reservation.username !== "DryOx") status = "reservedEnemy"
@@ -60,6 +53,16 @@ export default class ScoutHandler implements ICreepHandler {
     room.memory.lastScouted = Game.time
     room.memory.status = status as "unseen" | "reservedMy" | "reservedEnemy" | "claimedMy" | "claimedEnemy"
   }
+}
+
+function isRoomHostile(room: Room) {
+  const hostileCreeps = room.find(FIND_HOSTILE_CREEPS, {
+    filter: c => 0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK)
+  })
+
+  const myDamagedCreeps = room.find(FIND_MY_CREEPS).filter(c => c.hits < c.hitsMax * 0.75)
+
+  return 0 < hostileCreeps.length || 0 < myDamagedCreeps.length
 }
 
 export interface ScoutMemory extends CreepMemory {

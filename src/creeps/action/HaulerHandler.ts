@@ -24,8 +24,6 @@ export default class HaulerHandler implements ICreepHandler {
 
       let memory = creep.memory as HaulerMemory
 
-      // Go to target room name, look for energy piles greater than 500
-
       if (creep.pos.roomName !== memory.pickupRoomName) {
         moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.pickupRoomName))
         return
@@ -70,7 +68,7 @@ export default class HaulerHandler implements ICreepHandler {
 
 export interface HaulerMemory extends CreepMemory {
   pickupRoomName: string
-  pickupPos: RoomPosition
+  pickupPos: { x: number; y: number; roomName: string }
   offloadRoomName: string
   offloadPos: { x: number; y: number; roomName: string }
   //   pickupTargetPos: { x: number; y: number; roomName: string }

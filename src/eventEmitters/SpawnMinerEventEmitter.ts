@@ -4,10 +4,8 @@ import { MINER } from "creeps/roles"
 
 export default class SpawnMinerEventEmitter implements IEventEmitter {
   emit(): void {
-    if (Game.time % 10 !== 0) return
+    if (Game.time % 150 !== 0) return
     // look at resources of spawns and nearby rooms, if no miner next to it, emit event
-
-    console.log("REACHED!!!!")
 
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName]

@@ -7,15 +7,16 @@ import {
 } from "utils/structureUtils"
 
 import { MINER, REMOTE_DROP_MINER } from "creeps/roles"
+import { getAdjacent } from "utils/roomUtils"
 
 export function moveToWithSinglePath(
   creep: Creep,
   pos: RoomPosition
 ): CreepActionReturnCode | ERR_NO_PATH | ERR_NOT_FOUND {
   // Remove once you are caching creep calculated paths
-  if (!creepCanReachPosition(creep, pos)) return ERR_NO_PATH
+  // if (!creepCanReachPosition(creep, pos)) return ERR_NO_PATH
 
-  let code = creep.moveTo(pos, { reusePath: 0, ignoreCreeps: false })
+  let code = creep.moveTo(pos, { reusePath: 200, ignoreCreeps: true })
 
   return code
 }
@@ -151,7 +152,16 @@ function isFullOfEnergy(store: Store<"energy", false>) {
 }
 
 export function findPickupPosition(creep: Creep): RoomPosition {
-  // energy piles
+  // energy piles next to sources
+  for (const source of creep.room.find(FIND_SOURCES)) {
+    const adjacent = getAdjacent(source.pos)
+    for (const pos of adjacent) {
+      const energyPiles = pos.lookFor(LOOK_ENERGY)
+      if (0 < energyPiles.length && 250 <= energyPiles[0].amount) return energyPiles[0].pos
+    }
+  }
+
+  // energy piles on top of future container positions
   const energyPiles = findContainerPositionsNextToSource(creep)
     .map(p => creep.room.lookForAt(RESOURCE_ENERGY, p.x, p.y))
     .filter(e => filterPositionsThatHaveEnoughEnergyOnGround(creep, e))
