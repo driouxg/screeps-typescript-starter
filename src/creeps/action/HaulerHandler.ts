@@ -1,12 +1,23 @@
-import { findOffloadSpot, hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "creeps/common/creepBehavior"
+import {
+  findOffloadSpot,
+  findPickupPosition,
+  hasEnergy,
+  hasMaxEnergy,
+  isWorking,
+  moveToWithSinglePath
+} from "creeps/common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
 import { jsonToRoomPosition } from "utils/jsonMapper"
+import { HAULER } from "creeps/roles"
 
 /**
  * Goal: Haul energy from target room name to offload room name. If it runs into another hauler that is trying to haul energy back, take their energy and finish the job for them.
+ * TODO: add additional states instead of just working = true or false
  */
 export default class HaulerHandler implements ICreepHandler {
   handle(creep: Creep): void {
+    if (creep.memory.role !== HAULER) return
+
     if (isWorking(creep)) this.workUntilNoEnergy(creep)
     else {
       if (hasMaxEnergy(creep)) creep.memory.working = true
@@ -15,25 +26,38 @@ export default class HaulerHandler implements ICreepHandler {
 
       // Go to target room name, look for energy piles greater than 500
 
-      //   memory.pickupTargetPos = memory.pickupTargetPos || findPickupPosition(creep)
+      if (creep.pos.roomName !== memory.pickupRoomName) {
+        moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.pickupRoomName))
+        return
+      }
 
-      //   const targetPos = jsonToRoomPosition(memory.pickupTargetPos)
-      //   const structures = creep.room.lookForAt(LOOK_STRUCTURES, targetPos)
+      if (memory.pickupPos) {
+        // attempt to pickup, else move to it
+        const targetPos = jsonToRoomPosition(memory.pickupPos)
 
-      //   if (0 < structures.length) {
-      //     // Withdraw from structure
-      //     if (creep.withdraw(structures[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE)
-      //       memory.pickupTargetPos = findPickupPosition(creep)
-      //     else if (moveToWithSinglePath(creep, targetPos) !== ERR_NOT_IN_RANGE)
-      //       memory.pickupTargetPos = findPickupPosition(creep)
-      //   } else {
-      //     // Pickup at location
-      //     const energyPiles = creep.room.lookForAt(LOOK_ENERGY, targetPos)
-      //     if (energyPiles.length <= 0) memory.pickupTargetPos = findPickupPosition(creep)
-      //     if (creep.pickup(energyPiles[0]) !== ERR_NOT_IN_RANGE) memory.pickupTargetPos = findPickupPosition(creep)
-      //     else if (moveToWithSinglePath(creep, targetPos) === ERR_NO_PATH)
-      //       memory.pickupTargetPos = findPickupPosition(creep)
-      //   }
+        if (!creep.pos.isNearTo(memory.pickupPos.x, memory.pickupPos.y)) {
+          moveToWithSinglePath(creep, targetPos)
+          return
+        }
+
+        const structures = creep.room.lookForAt(LOOK_STRUCTURES, targetPos)
+
+        if (0 < structures.length) {
+          // Withdraw from structure
+          if (creep.withdraw(structures[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE)
+            memory.pickupPos = findPickupPosition(creep)
+          else if (moveToWithSinglePath(creep, targetPos) !== ERR_NOT_IN_RANGE)
+            memory.pickupPos = findPickupPosition(creep)
+        } else {
+          // Pickup at location
+          const energyPiles = creep.room.lookForAt(LOOK_ENERGY, targetPos)
+          if (energyPiles.length <= 0) memory.pickupPos = findPickupPosition(creep)
+          if (creep.pickup(energyPiles[0]) !== ERR_NOT_IN_RANGE) memory.pickupPos = findPickupPosition(creep)
+          else if (moveToWithSinglePath(creep, targetPos) === ERR_NO_PATH) memory.pickupPos = findPickupPosition(creep)
+        }
+      } else {
+        memory.pickupPos = findPickupPosition(creep)
+      }
     }
   }
 
@@ -45,16 +69,17 @@ export default class HaulerHandler implements ICreepHandler {
 }
 
 export interface HaulerMemory extends CreepMemory {
-  targetRoomName: string
-  offloadTargetRoomName: string
-  offloadTargetPos: { x: number; y: number; roomName: string }
+  pickupRoomName: string
+  pickupPos: RoomPosition
+  offloadRoomName: string
+  offloadPos: { x: number; y: number; roomName: string }
   //   pickupTargetPos: { x: number; y: number; roomName: string }
 }
 
 export function offloadEnergy(creep: Creep) {
   const memory = creep.memory as HaulerMemory
-  memory.offloadTargetPos = memory.offloadTargetPos ?? creep.pos
-  let offloadSpot = jsonToRoomPosition(memory.offloadTargetPos)
+  memory.offloadPos = memory.offloadPos ?? creep.pos
+  let offloadSpot = jsonToRoomPosition(memory.offloadPos)
 
   const offloadStructure = creep.room
     .lookForAt(LOOK_STRUCTURES, offloadSpot)
@@ -64,13 +89,12 @@ export function offloadEnergy(creep: Creep) {
   if (offloadStructure.length <= 0) {
     if (creep.pos.isEqualTo(offloadSpot.x, offloadSpot.y)) {
       creep.drop(RESOURCE_ENERGY)
-      memory.offloadTargetPos = findOffloadSpot(creep)
-    } else if (moveToWithSinglePath(creep, offloadSpot) === ERR_NO_PATH)
-      memory.offloadTargetPos = findOffloadSpot(creep)
+      memory.offloadPos = findOffloadSpot(creep)
+    } else if (moveToWithSinglePath(creep, offloadSpot) === ERR_NO_PATH) memory.offloadPos = findOffloadSpot(creep)
   } else {
     // Transfer resources to structure
     if (creep.transfer(offloadStructure[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE)
-      memory.offloadTargetPos = findOffloadSpot(creep)
-    else if (moveToWithSinglePath(creep, offloadSpot) === ERR_NO_PATH) memory.offloadTargetPos = findOffloadSpot(creep)
+      memory.offloadPos = findOffloadSpot(creep)
+    else if (moveToWithSinglePath(creep, offloadSpot) === ERR_NO_PATH) memory.offloadPos = findOffloadSpot(creep)
   }
 }

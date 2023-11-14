@@ -1,7 +1,12 @@
+import BuilderHandler from "creeps/action/BuilderHandler"
+import HaulerHandler from "creeps/action/HaulerHandler"
 import MinerHandler from "creeps/action/MinerHandler"
+import ScoutHandler from "creeps/action/ScoutHandler"
+import SpawnBuilderEventEmitter from "eventEmitters/SpawnBuilderEventEmitter"
 import SpawnHaulerEventEmitter from "eventEmitters/SpawnHaulerEventEmitter"
 import SpawnMinerEventEmitter from "eventEmitters/SpawnMinerEventEmitter"
-import SpawnHandler from "eventHandlers/spawnHandler"
+import SpawnScoutEventEmitter from "eventEmitters/SpawnScoutEventEmitter"
+import SpawnHandler from "eventHandlers/SpawnHandler"
 import ConstructionComposer from "roomPlans/roomPlanner"
 import { ErrorMapper } from "utils/ErrorMapper"
 import Event from "utils/Event"
@@ -68,8 +73,17 @@ declare global {
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
   Memory.events = Memory.events || []
+  deleteMissingCreepMemory()
 
-  const creepHandlers = [new MinerHandler()]
+  const eventEmitters = [
+    new SpawnMinerEventEmitter(),
+    new SpawnHaulerEventEmitter(),
+    new SpawnScoutEventEmitter(),
+    new SpawnBuilderEventEmitter()
+  ]
+  eventEmitters.forEach(em => em.emit())
+
+  const creepHandlers = [new MinerHandler(), new HaulerHandler(), new ScoutHandler(), new BuilderHandler()]
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName]
 
@@ -81,16 +95,12 @@ export const loop = ErrorMapper.wrapLoop(() => {
     eventHandlers.forEach(eh => eh.handle(event))
   }
 
-  const eventEmitters = [new SpawnMinerEventEmitter(), new SpawnHaulerEventEmitter()]
-  eventEmitters.forEach(em => em.emit())
-
   // upgraders: form a 3x3 square and just sit there upgrading, haulers will bring resources
 
   new ConstructionComposer().compose()
 
   Memory.events = Memory.events.filter(e => e.handled === false)
 
-  deleteMissingCreepMemory()
   // deleteOldRoomMemory()
 })
 
@@ -98,10 +108,6 @@ function deleteMissingCreepMemory() {
   for (const name in Memory.creeps) {
     if (!(name in Game.creeps)) delete Memory.creeps[name]
   }
-}
-
-export function myClaimedRoom(room: Room): boolean {
-  return room && room.controller !== undefined && room.controller!.my
 }
 
 export function deleteOldRoomMemory(): void {

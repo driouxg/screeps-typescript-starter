@@ -9,8 +9,6 @@ export default class SpawnConfig {
     role: string,
     opts?: { memory?: CreepMemory; directions?: DirectionConstant[] }
   ) {
-    console.log("Spawn config memory", JSON.stringify(opts?.memory))
-
     this.body = body
     this.role = role
     this.memory = opts?.memory

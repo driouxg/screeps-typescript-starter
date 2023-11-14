@@ -2,7 +2,7 @@ import Event, { SpawnEvent } from "utils/Event"
 import IEventHandler from "./IEventHandler"
 import SpawnConfig from "creeps/spawnConfig"
 import generateGuid from "utils/guidGenerator"
-import { HAULER, MINER } from "creeps/roles"
+import { HAULER, MINER, SCOUT } from "creeps/roles"
 import { MinerMemory } from "creeps/action/MinerHandler"
 import { HaulerMemory } from "creeps/action/HaulerHandler"
 
@@ -19,7 +19,7 @@ export default class SpawnHandler implements IEventHandler {
       const spawn: StructureSpawn = Game.spawns[spawnName]
       if (spawn.spawning) continue
 
-      if (typedEvent.role === MINER) {
+      if (typedEvent.role === MINER)
         this.spawn(
           spawn,
           new SpawnConfig(this.buildCappedBodyParts([WORK, WORK, MOVE], spawn.room, 5), MINER, {
@@ -28,23 +28,19 @@ export default class SpawnHandler implements IEventHandler {
             } as MinerMemory
           })
         )
+      else if (typedEvent.role === HAULER)
+        this.spawn(
+          spawn,
+          new SpawnConfig(this.buildCappedBodyParts([CARRY, MOVE], spawn.room, 25), HAULER, {
+            memory: {
+              pickupRoomName: typedEvent.targetRoomName,
+              offloadRoomName: spawn.room.name
+            } as HaulerMemory
+          })
+        )
+      else if (typedEvent.role === SCOUT) this.spawn(spawn, new SpawnConfig([MOVE], SCOUT, {}))
 
-        event.handled = true
-      }
-
-      if (typedEvent.role === HAULER) {
-        // this.spawn(
-        //   spawn,
-        //   new SpawnConfig(this.buildCappedBodyParts([CARRY, MOVE, CARRY, MOVE], spawn.room, 25), HAULER, {
-        //     memory: {
-        //       targetRoomName: typedEvent.targetRoomName,
-        //       offloadRoomName: spawn.room.name
-        //     } as HaulerMemory
-        //   })
-        // )
-
-        event.handled = true
-      }
+      event.handled = true
     }
   }
 

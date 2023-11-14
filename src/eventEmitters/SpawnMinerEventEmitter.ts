@@ -1,6 +1,5 @@
-import { myClaimedRoom } from "main"
 import IEventEmitter from "./IEventEmitter"
-import { getAdjacent, isWall } from "utils/roomUtils"
+import { getAdjacent, isWall, myClaimedRoom } from "utils/roomUtils"
 import { MINER } from "creeps/roles"
 
 export default class SpawnMinerEventEmitter implements IEventEmitter {
@@ -8,9 +7,11 @@ export default class SpawnMinerEventEmitter implements IEventEmitter {
     if (Game.time % 10 !== 0) return
     // look at resources of spawns and nearby rooms, if no miner next to it, emit event
 
+    console.log("REACHED!!!!")
+
     for (const roomName in Game.rooms) {
       const room = Game.rooms[roomName]
-      if (!myClaimedRoom(room)) continue
+      if (!isMineableRoom(room)) continue
 
       const sources = room.find(FIND_SOURCES)
 
@@ -28,6 +29,10 @@ export default class SpawnMinerEventEmitter implements IEventEmitter {
       })
     }
   }
+}
+
+function isMineableRoom(room: Room) {
+  return myClaimedRoom(room) || ["claimable", "reservedMy", "claimedMy"].includes(room.memory.status)
 }
 
 function isEmptyMinerSpot(pos: RoomPosition) {

@@ -8,7 +8,10 @@ import {
 
 import { MINER, REMOTE_DROP_MINER } from "creeps/roles"
 
-export function moveToWithSinglePath(creep: Creep, pos: RoomPosition) {
+export function moveToWithSinglePath(
+  creep: Creep,
+  pos: RoomPosition
+): CreepActionReturnCode | ERR_NO_PATH | ERR_NOT_FOUND {
   // Remove once you are caching creep calculated paths
   if (!creepCanReachPosition(creep, pos)) return ERR_NO_PATH
 
@@ -147,38 +150,38 @@ function isFullOfEnergy(store: Store<"energy", false>) {
   return store.getFreeCapacity(RESOURCE_ENERGY) <= 0
 }
 
-// export function findPickupPosition(creep: Creep): RoomPosition {
-//   // energy piles
-//   const energyPiles = findContainerPositionsNextToSource(creep)
-//     .map(p => creep.room.lookForAt(RESOURCE_ENERGY, p.x, p.y))
-//     .filter(e => filterPositionsThatHaveEnoughEnergyOnGround(creep, e))
+export function findPickupPosition(creep: Creep): RoomPosition {
+  // energy piles
+  const energyPiles = findContainerPositionsNextToSource(creep)
+    .map(p => creep.room.lookForAt(RESOURCE_ENERGY, p.x, p.y))
+    .filter(e => filterPositionsThatHaveEnoughEnergyOnGround(creep, e))
 
-//   if (0 < energyPiles.length && creepCanReachPosition(creep, energyPiles[0][0].pos)) return energyPiles[0][0].pos
+  if (0 < energyPiles.length && creepCanReachPosition(creep, energyPiles[0][0].pos)) return energyPiles[0][0].pos
 
-//   // containers
-//   const containers = findContainersNextToSource(creep)
-//     .filter(c => creep.store.getFreeCapacity() / 2 < c.store[RESOURCE_ENERGY])
-//     .sort((c1, c2) => c2.store[RESOURCE_ENERGY] - c1.store[RESOURCE_ENERGY])
+  // containers
+  const containers = findContainersNextToSource(creep)
+    .filter(c => creep.store.getFreeCapacity() / 2 < c.store[RESOURCE_ENERGY])
+    .sort((c1, c2) => c2.store[RESOURCE_ENERGY] - c1.store[RESOURCE_ENERGY])
 
-//   if (0 < containers.length && creepCanReachPosition(creep, containers[0].pos)) return containers[0].pos
+  if (0 < containers.length && creepCanReachPosition(creep, containers[0].pos)) return containers[0].pos
 
-//   // storage
-//   const storage = findStorage(creep.room).filter(s => 0 < s.store.getUsedCapacity(RESOURCE_ENERGY))
-//   if (0 < storage.length && creepCanReachPosition(creep, storage[0].pos)) return storage[0].pos
+  // storage
+  const storage = findStorage(creep.room).filter(s => 0 < s.store.getUsedCapacity(RESOURCE_ENERGY))
+  if (0 < storage.length && creepCanReachPosition(creep, storage[0].pos)) return storage[0].pos
 
-//   return creep.pos
-// }
+  return creep.pos
+}
 
 function filterPositionsThatHaveEnoughEnergyOnGround(creep: Creep, energyPiles: Resource[]): boolean {
   return energyPiles && energyPiles.length === 1 && creep.store.getFreeCapacity() / 2 <= energyPiles[0].amount
 }
 
-// function findContainersNextToSource(creep: Creep): StructureContainer[] {
-//   const containerPositions = findContainers(creep.room)
-//   return containerPositions.filter(c => isPositionNextToSource(creep, c.pos))
-// }
+function findContainersNextToSource(creep: Creep): StructureContainer[] {
+  const containerPositions = findContainers(creep.room)
+  return containerPositions.filter(c => isPositionNextToSource(creep, c.pos))
+}
 
-// function findContainerPositionsNextToSource(creep: Creep): RoomPosition[] {
-//   const poss = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER)
-//   return poss.filter(p => isPositionNextToSource(creep, p))
-// }
+function findContainerPositionsNextToSource(creep: Creep): RoomPosition[] {
+  const poss = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER)
+  return poss.filter(p => isPositionNextToSource(creep, p))
+}
