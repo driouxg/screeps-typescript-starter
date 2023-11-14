@@ -157,7 +157,7 @@ export function findPickupPosition(creep: Creep): RoomPosition {
     const adjacent = getAdjacent(source.pos)
     for (const pos of adjacent) {
       const energyPiles = pos.lookFor(LOOK_ENERGY)
-      if (0 < energyPiles.length && 250 <= energyPiles[0].amount) return energyPiles[0].pos
+      if (0 < energyPiles.length && 50 <= energyPiles[0].amount) return energyPiles[0].pos
     }
   }
 
