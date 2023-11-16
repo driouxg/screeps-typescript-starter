@@ -16,7 +16,10 @@ export function moveToWithSinglePath(
   // Remove once you are caching creep calculated paths
   // if (!creepCanReachPosition(creep, pos)) return ERR_NO_PATH
 
-  let code = creep.moveTo(pos, { reusePath: 200, ignoreCreeps: true })
+  // If stuck, move to random position
+  // if (creep.pos)
+
+  let code = creep.moveTo(pos, { reusePath: 200, ignoreCreeps: false })
 
   return code
 }
