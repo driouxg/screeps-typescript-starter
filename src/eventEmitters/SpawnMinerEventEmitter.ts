@@ -11,14 +11,14 @@ export default class SpawnMinerEventEmitter implements IEventEmitter {
 }
 
 function handleMinerCloseToDeath() {
-  if (Game.time % 25 !== 0) return
+  if (Game.time % 20 !== 0) return
 
   for (const creepName in Game.creeps) {
     const creep = Game.creeps[creepName]
 
     if (creep.memory.role !== MINER) continue
 
-    if (50 <= creep.ticksToLive!) continue
+    if (100 <= creep.ticksToLive!) continue
 
     Memory.events.push({
       type: "SPAWN",

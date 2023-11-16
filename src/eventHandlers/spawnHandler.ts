@@ -2,7 +2,7 @@ import Event, { SpawnEvent } from "utils/Event"
 import IEventHandler from "./IEventHandler"
 import SpawnConfig from "creeps/spawnConfig"
 import generateGuid from "utils/guidGenerator"
-import { HAULER, MINER, SCOUT, UPGRADER } from "creeps/roles"
+import { BUILDER, HAULER, MINER, SCOUT, UPGRADER } from "creeps/roles"
 import { MinerMemory } from "creeps/action/MinerHandler"
 import { HaulerMemory } from "creeps/action/HaulerHandler"
 
@@ -48,6 +48,12 @@ export default class SpawnHandler implements IEventHandler {
           break
         case UPGRADER:
           this.spawn(spawn, new SpawnConfig(this.buildCappedBodyParts([WORK], spawn.room, 10, [CARRY, MOVE]), UPGRADER))
+          break
+        case BUILDER:
+          this.spawn(
+            spawn,
+            new SpawnConfig(this.buildCappedBodyParts([WORK, WORK, CARRY, MOVE], spawn.room, 15), BUILDER)
+          )
           break
         default:
           typedEvent.handled = false
