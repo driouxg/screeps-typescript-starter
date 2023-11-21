@@ -1,15 +1,20 @@
 import BuilderHandler from "creeps/action/BuilderHandler"
+import ClaimerHandler from "creeps/action/ClaimerHandler"
+import ExpanderHandler from "creeps/action/ExpanderHandler"
 import HaulerHandler from "creeps/action/HaulerHandler"
 import MinerHandler from "creeps/action/MinerHandler"
 import ScoutHandler from "creeps/action/ScoutHandler"
 import UpgraderHandler from "creeps/action/UpgraderHandler"
 import SpawnBuilderEventEmitter from "eventEmitters/SpawnBuilderEventEmitter"
+import SpawnClaimerEventEmitter from "eventEmitters/SpawnClaimerEventEmitter"
+import SpawnExpanderEventEmitter from "eventEmitters/SpawnExpanderEventEmitter"
 import SpawnHaulerEventEmitter from "eventEmitters/SpawnHaulerEventEmitter"
 import SpawnMinerEventEmitter from "eventEmitters/SpawnMinerEventEmitter"
 import SpawnScoutEventEmitter from "eventEmitters/SpawnScoutEventEmitter"
 import SpawnUpgraderEventEmitter from "eventEmitters/SpawnUpgraderEventEmitter"
 import SpawnHandler from "eventHandlers/SpawnHandler"
 import ConstructionComposer from "roomPlans/roomPlanner"
+import TowerHandler from "structures/actions/TowerHandler"
 import { ErrorMapper } from "utils/ErrorMapper"
 import Event from "utils/Event"
 
@@ -27,6 +32,7 @@ declare global {
     uuid: number
     log: any
     events: Event[]
+    claimerTick: number // Time since claimer last spawned
   }
 
   interface CreepMemory {
@@ -47,6 +53,7 @@ declare global {
       | "claimedMy"
       | "claimedEnemy"
       | "hostile"
+      | "claimable"
       | "unclaimable"
       | "ownedMy"
       | "ownedEnemy"
@@ -82,7 +89,9 @@ export const loop = ErrorMapper.wrapLoop(() => {
     new SpawnHaulerEventEmitter(),
     new SpawnScoutEventEmitter(),
     new SpawnBuilderEventEmitter(),
-    new SpawnUpgraderEventEmitter()
+    new SpawnUpgraderEventEmitter(),
+    new SpawnClaimerEventEmitter(),
+    new SpawnExpanderEventEmitter()
   ]
   eventEmitters.forEach(em => em.emit())
 
@@ -91,7 +100,9 @@ export const loop = ErrorMapper.wrapLoop(() => {
     new HaulerHandler(),
     new ScoutHandler(),
     new BuilderHandler(),
-    new UpgraderHandler()
+    new UpgraderHandler(),
+    new ClaimerHandler(),
+    new ExpanderHandler()
   ]
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName]
@@ -104,7 +115,11 @@ export const loop = ErrorMapper.wrapLoop(() => {
     eventHandlers.forEach(eh => eh.handle(event))
   }
 
-  // upgraders: form a 3x3 square and just sit there upgrading, haulers will bring resources
+  const structureHandlers = [new TowerHandler()]
+  for (const roomName in Game.rooms) {
+    const room = Game.rooms[roomName]
+    structureHandlers.forEach(h => h.handle(room))
+  }
 
   new ConstructionComposer().compose()
 

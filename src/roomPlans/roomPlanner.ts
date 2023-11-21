@@ -25,18 +25,19 @@ export default class ConstructionComposer {
       const room = Game.rooms[roomName]
       if (!room.controller?.my) continue
 
+      // If builderOrder doesn't exist, create one
+      if (!room.memory.buildOrder) {
+        room.memory.buildOrder = []
+        this.cleanupRoomDebris(room)
+        const layout = this.firstValidLayout(room)
+
+        room.memory.buildOrder = layout.handle(room)
+        this.positionsMemoryUpdater.update(room)
+      }
+
       build(room)
 
       // this.constructionVisualizer.handle(room, room.memory.buildOrder)
-
-      if (room.memory.buildOrder) continue
-      room.memory.buildOrder = []
-      this.cleanupRoom(room)
-      const layout = this.firstValidLayout(room)
-
-      room.memory.buildOrder = layout.handle(room)
-
-      this.positionsMemoryUpdater.update(room)
     }
   }
 
@@ -65,7 +66,7 @@ export default class ConstructionComposer {
     ]
   }
 
-  private cleanupRoom(room: Room): void {
+  private cleanupRoomDebris(room: Room): void {
     room
       .find(FIND_STRUCTURES, {
         filter: c => c.structureType !== STRUCTURE_RAMPART && c.structureType !== STRUCTURE_SPAWN

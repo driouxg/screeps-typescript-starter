@@ -15,7 +15,11 @@ export default class SpawnBuilderEventEmitter implements IEventEmitter {
 
       if (constructionSites.length <= 0) continue
 
-      const builders = room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === BUILDER })
+      const creeps = room.find(FIND_MY_CREEPS)
+
+      if (creeps.length <= 7) continue
+
+      const builders = creeps.filter(c => c.memory.role === BUILDER)
 
       if (3 <= builders.length) continue
 
@@ -24,6 +28,7 @@ export default class SpawnBuilderEventEmitter implements IEventEmitter {
       Memory.events.push({
         type: "SPAWN",
         role: BUILDER,
+        handled: false,
         buildTargetPos: { x: c.x, y: c.y, roomName: c.roomName }
       } as any)
     }

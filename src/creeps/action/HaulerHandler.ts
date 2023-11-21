@@ -9,6 +9,7 @@ import {
 import ICreepHandler from "./ICreepHandler"
 import { jsonToRoomPosition } from "utils/jsonMapper"
 import { HAULER } from "creeps/roles"
+import { getAdjacent, isEdge } from "utils/roomUtils"
 
 /**
  * Goal: Haul energy from target room name to offload room name. If it runs into another hauler that is trying to haul energy back, take their energy and finish the job for them.
@@ -17,6 +18,8 @@ import { HAULER } from "creeps/roles"
 export default class HaulerHandler implements ICreepHandler {
   handle(creep: Creep): void {
     if (creep.memory.role !== HAULER) return
+
+    // console.log("HAULER pos", JSON.stringify(creep.pos), "     memory", JSON.stringify(creep.memory))
 
     if (isWorking(creep)) this.workUntilNoEnergy(creep)
     else {
@@ -28,6 +31,13 @@ export default class HaulerHandler implements ICreepHandler {
         moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.pickupRoomName))
         return
       }
+
+      if (isEdge(creep.pos.x, creep.pos.y)) {
+        creep.moveTo(25, 25)
+        return
+      }
+
+      pickupNearbyEnergyAlongTheWay(creep)
 
       if (memory.pickupPos) {
         // attempt to pickup, else move to it
@@ -66,6 +76,25 @@ export default class HaulerHandler implements ICreepHandler {
   }
 }
 
+function pickupNearbyEnergyAlongTheWay(creep: Creep) {
+  const memory = creep.memory as HaulerMemory
+
+  if (!memory.offloadPos) return
+
+  const energyPile = creep.pos
+    .findInRange(FIND_DROPPED_RESOURCES, 1)
+    .find(p => p.pos.x !== memory.offloadPos.x && p.pos.y !== memory.offloadPos.y)
+
+  if (
+    !energyPile ||
+    !memory.offloadPos ||
+    (energyPile.pos.x === memory.offloadPos.x && energyPile.pos.y === memory.offloadPos.y)
+  )
+    return
+
+  creep.pickup(energyPile)
+}
+
 export interface HaulerMemory extends CreepMemory {
   pickupRoomName: string
   pickupPos: { x: number; y: number; roomName: string }
@@ -75,11 +104,16 @@ export interface HaulerMemory extends CreepMemory {
 
 export function offloadEnergy(creep: Creep) {
   const memory = creep.memory as HaulerMemory
-  memory.offloadPos = memory.offloadPos ?? creep.pos
+  memory.offloadPos = memory.offloadPos ?? creep.pos // might be an issue
   let offloadSpot = jsonToRoomPosition(memory.offloadPos)
 
   if (creep.pos.roomName !== memory.offloadRoomName) {
     moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.offloadRoomName))
+    return
+  }
+
+  if (isEdge(creep.pos.x, creep.pos.y)) {
+    creep.moveTo(25, 25)
     return
   }
 

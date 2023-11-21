@@ -1,11 +1,10 @@
 import { SCOUT } from "creeps/roles"
 import IEventEmitter from "./IEventEmitter"
-
-const SCREEP_LIFETIME = 1500
+import { CREEP_LIFETIME } from "creeps/common/creepBehavior"
 
 export default class SpawnScoutEventEmitter implements IEventEmitter {
   emit(): void {
-    if (Game.time % SCREEP_LIFETIME !== 0) return
+    if (Game.time % CREEP_LIFETIME !== 0) return
 
     Memory.events.push({
       type: "SPAWN",

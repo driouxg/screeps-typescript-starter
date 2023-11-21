@@ -11,7 +11,10 @@ export default class MinerHandler implements ICreepHandler {
     const memory = creep.memory as MinerMemory
 
     const source = Game.getObjectById(memory.targetSourceId) as Source
-    if (creep.harvest(source) === ERR_NOT_IN_RANGE) creep.moveTo(source)
+
+    if (!source) return
+
+    if (creep.harvest(source) === ERR_NOT_IN_RANGE || !creep.pos.isNearTo(source.pos)) creep.moveTo(source)
   }
 }
 

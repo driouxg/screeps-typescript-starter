@@ -5,6 +5,8 @@ import {
   findStorage,
   findTowers
 } from "utils/structureUtils"
+// var Traveler = require("./Traveler.js")
+import { Traveler } from "./Traveler"
 
 import { MINER, REMOTE_DROP_MINER } from "creeps/roles"
 import { getAdjacent } from "utils/roomUtils"
@@ -16,12 +18,9 @@ export function moveToWithSinglePath(
   // Remove once you are caching creep calculated paths
   // if (!creepCanReachPosition(creep, pos)) return ERR_NO_PATH
 
-  // If stuck, move to random position
-  // if (creep.pos)
+  Traveler.travelTo(creep, pos)
 
-  let code = creep.moveTo(pos, { reusePath: 200, ignoreCreeps: false })
-
-  return code
+  return OK
 }
 
 /**
@@ -198,3 +197,18 @@ function findContainerPositionsNextToSource(creep: Creep): RoomPosition[] {
   const poss = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER)
   return poss.filter(p => isPositionNextToSource(creep, p))
 }
+
+export function findContainerNextToSpawn(creep: Creep) {
+  const containers = findContainersNextToSpawn(creep)
+  return 0 < containers.length ? containers[0] : null
+}
+
+export function findContainersNextToSpawn(creep: Creep) {
+  const containers = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER)
+
+  return containers.filter(pos =>
+    pos.findInRange(FIND_MY_STRUCTURES, 2, { filter: c => c.structureType === STRUCTURE_SPAWN })
+  )
+}
+
+export const CREEP_LIFETIME = 1500

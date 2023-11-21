@@ -53,3 +53,20 @@ To visit the docs, [click here](https://screepers.gitbook.io/screeps-typescript-
 ## Contributing
 
 Issues, Pull Requests, and contribution to the docs are welcome! See our [Contributing Guidelines](CONTRIBUTING.md) for more details.
+
+## TODO
+
+- Stamp layout is not placing main rapid fill cluster buildings in correct spots.
+- No roads are built between rapid fill cluster and rest of base
+- Add direction to SPAWN event so we can spawn rapid fillers in empty slot
+- Builders repair ramparts
+- Add conquest
+- Add expander
+- Add defenders
+- Some haulers are going to wrong miner spot (may not be a problem)
+- Traveler.js is having issues pathing to other room
+- Scout set target room to a room blocked off so it's just stuck on the edge. How to detect if room is reachable?
+- Tower handler should cache action.
+- Need to cache whether or not a room is buildable with our layout
+- If room controller is at least 2, build minimum miner of 5 WORK parts
+- Consider dedicating haulers to a source

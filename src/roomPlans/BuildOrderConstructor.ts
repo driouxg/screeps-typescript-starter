@@ -7,14 +7,14 @@ export default function build(room: Room) {
 
   const { buildCursor } = room.memory
 
+  if (Game.time % 1000 === 0) resetBuildCursorForSelfHealing(room)
+
   const buildItem = room.memory.buildOrder[buildCursor]
 
-  if (
-    room.lookForAt(LOOK_STRUCTURES, buildItem.x, buildItem.y).some(c => c.structureType === buildItem.structureType)
-  ) {
-    room.memory.buildCursor += 1
-    // console.log(`Structure ${buildItem.structureType} has already been built x: ${buildItem.x}, y: ${buildItem.y}`)
-  } else {
+  if (!buildItem) console.log(`ERROR: build order is corrupted at step ${buildCursor} for room ${room.name}`)
+
+  if (buildingAlreadyExists(room, buildItem)) room.memory.buildCursor += 1
+  else {
     const buildCode = room.createConstructionSite(buildItem.x, buildItem.y, buildItem.structureType)
 
     if (buildCode === ERR_RCL_NOT_ENOUGH) room.memory.buildCursor += 1
@@ -26,4 +26,14 @@ export default function build(room: Room) {
       room.memory.buildCursor += 1
     }
   }
+}
+
+function buildingAlreadyExists(room: Room, buildItem: BuildOrderStep) {
+  return room
+    .lookForAt(LOOK_STRUCTURES, buildItem.x, buildItem.y)
+    .some(c => c.structureType === buildItem.structureType)
+}
+
+function resetBuildCursorForSelfHealing(room: Room) {
+  room.memory.buildCursor = 0
 }

@@ -1,3 +1,5 @@
+import Queue from "roomPlans/utils/Queue"
+
 export function dirs(): number[][] {
   return [
     [-1, 0],
@@ -42,4 +44,37 @@ export function getAdjacent(pos: RoomPosition) {
 
 export function myClaimedRoom(room: Room): boolean {
   return room && room.controller !== undefined && room.controller!.my
+}
+
+export function getRoomsWithinDistance(room: Room, distance: number) {
+  let breadth = 0
+  let q = new Queue<string>()
+  let rooms = []
+
+  q.add(room.name)
+
+  while (0 < q.size() && breadth < distance) {
+    breadth++
+    const size = q.size()
+
+    for (let i = 0; i < size; i++) {
+      const roomName = q.remove()
+
+      if (!roomName) continue
+
+      rooms.push(roomName)
+
+      // Explore other closest options
+      const exits = Game.map.describeExits(roomName)
+      if (!exits) continue
+      const roomNames = Object.keys(exits).map(direction => exits[direction as ExitKey])
+
+      for (const roomName of roomNames) {
+        if (!roomName) continue
+        q.add(roomName)
+      }
+    }
+  }
+
+  return rooms
 }

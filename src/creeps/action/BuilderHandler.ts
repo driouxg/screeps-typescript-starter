@@ -1,5 +1,13 @@
 import { jsonToRoomPosition } from "utils/jsonMapper"
-import { findPickupPosition, hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "../common/creepBehavior"
+import {
+  findContainerNextToSpawn,
+  findContainersNextToSpawn,
+  findPickupPosition,
+  hasEnergy,
+  hasMaxEnergy,
+  isWorking,
+  moveToWithSinglePath
+} from "../common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
 import { BUILDER } from "creeps/roles"
 
@@ -23,7 +31,10 @@ export default class BuilderHandler implements ICreepHandler {
       if (hasMaxEnergy(creep)) creep.memory.working = true
 
       let memory = creep.memory as BuilderMemory
-      memory.pickupTargetPos = memory.pickupTargetPos || findPickupPosition(creep)
+
+      memory.pickupTargetPos = memory.pickupTargetPos || findContainerNextToSpawn(creep)
+
+      if (!memory.pickupTargetPos) return
 
       const targetPos = jsonToRoomPosition(memory.pickupTargetPos)
       const structures = creep.room.lookForAt(LOOK_STRUCTURES, targetPos)
@@ -32,13 +43,13 @@ export default class BuilderHandler implements ICreepHandler {
         // Withdraw from structure
         if (creep.withdraw(structures[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE)
           memory.pickupTargetPos = findPickupPosition(creep)
-        else creep.moveTo(targetPos)
+        else moveToWithSinglePath(creep, targetPos)
       } else {
         // Pickup at location
         const energyPiles = creep.room.lookForAt(LOOK_ENERGY, targetPos)
-        if (energyPiles.length <= 0) memory.pickupTargetPos = findPickupPosition(creep)
-        if (creep.pickup(energyPiles[0]) !== ERR_NOT_IN_RANGE) memory.pickupTargetPos = findPickupPosition(creep)
-        else creep.moveTo(targetPos)
+        if (energyPiles.length <= 0) memory.pickupTargetPos = findContainerNextToSpawn(creep)!
+        if (creep.pickup(energyPiles[0]) !== ERR_NOT_IN_RANGE) memory.pickupTargetPos = findContainerNextToSpawn(creep)!
+        else moveToWithSinglePath(creep, targetPos)
       }
     }
   }
@@ -63,7 +74,6 @@ export default class BuilderHandler implements ICreepHandler {
     }
 
     const buildCode = creep.build(constructionSites[0])
-    if (creep.name === "81c18dcd-16df-422b-ac4c-e81234b4d321") console.log("BUILD CODE: ", buildCode)
     if (buildCode === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, constructionSites[0].pos)
   }
 
