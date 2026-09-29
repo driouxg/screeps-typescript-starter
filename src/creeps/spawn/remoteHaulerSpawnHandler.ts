@@ -3,13 +3,15 @@ import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
-import { getOrderedExits, isRoomRemoteMineable } from "./utils/roomUtils"
+import { getOrderedExits, isRoomRemoteMineable, REMOTE_MINING_MIN_RCL } from "./utils/roomUtils"
 
 /**
  * Goal: Spawn a certain number of remote haulers per remote source
  */
 export default class RemoteHaulerSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
+    if ((spawn.room.controller?.level ?? 0) < REMOTE_MINING_MIN_RCL) return null
+
     const exits = getOrderedExits(spawn.room) as string[]
 
     const remoteHaulers = this.getRemoteDropMiners()

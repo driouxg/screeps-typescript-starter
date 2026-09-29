@@ -1,3 +1,9 @@
+/**
+ * Remote mining costs a miner and several haulers per source up front. Before this RCL the home room gets more out
+ * of that energy by building extensions and upgrading.
+ */
+export const REMOTE_MINING_MIN_RCL = 3
+
 export function isRoomRemoteMineable(roomName?: string) {
   if (!roomName) return false
 

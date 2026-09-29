@@ -138,13 +138,20 @@ function isFullOfEnergy(store: Store<"energy", false>) {
 }
 
 export function findPickupPosition(creep: Creep): RoomPosition {
-  // energy piles, largest first so haulers spread across sources instead of all draining the first one
-  const energyPiles = findContainerPositionsNextToSource(creep)
-    .map(p => creep.room.lookForAt(RESOURCE_ENERGY, p.x, p.y))
-    .filter(e => filterPositionsThatHaveEnoughEnergyOnGround(creep, e))
-    .sort((p1, p2) => p2[0].amount - p1[0].amount)
+  // energy piles next to sources (every miner drops its own), largest first so haulers spread across sources
+  // instead of all draining the first one
+  const minAmount = creep.store.getFreeCapacity() / 2
+  const energyPiles = ([] as Resource[])
+    .concat(
+      ...creep.room.find(FIND_SOURCES).map(s =>
+        s.pos.findInRange(FIND_DROPPED_RESOURCES, 1, {
+          filter: (r: Resource) => r.resourceType === RESOURCE_ENERGY && minAmount <= r.amount
+        })
+      )
+    )
+    .sort((p1, p2) => p2.amount - p1.amount)
 
-  for (const pile of energyPiles) if (creepCanReachPosition(creep, pile[0].pos)) return pile[0].pos
+  for (const pile of energyPiles) if (creepCanReachPosition(creep, pile.pos)) return pile.pos
 
   // containers
   const containers = findContainersNextToSource(creep)
@@ -160,16 +167,7 @@ export function findPickupPosition(creep: Creep): RoomPosition {
   return creep.pos
 }
 
-function filterPositionsThatHaveEnoughEnergyOnGround(creep: Creep, energyPiles: Resource[]): boolean {
-  return energyPiles && energyPiles.length === 1 && creep.store.getFreeCapacity() / 2 <= energyPiles[0].amount
-}
-
 function findContainersNextToSource(creep: Creep): StructureContainer[] {
   const containerPositions = findContainers(creep.room)
   return containerPositions.filter(c => isPositionNextToSource(creep, c.pos))
-}
-
-function findContainerPositionsNextToSource(creep: Creep): RoomPosition[] {
-  const poss = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER)
-  return poss.filter(p => isPositionNextToSource(creep, p))
 }

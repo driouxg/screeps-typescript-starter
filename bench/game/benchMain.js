@@ -29,6 +29,8 @@ const COUNT_STEPS = {
   link: [1, 2, 3]
 }
 const CREEP_STEPS = [1, 5, 10, 20]
+const UPGRADE_STEPS = [200, 1000, 2500, 5000, 10000, 25000, 45000]
+const BUILD_STEPS = [1000, 3000, 5000, 10000, 20000, 40000]
 
 function state() {
   if (!Memory.__bench) {
@@ -114,6 +116,8 @@ function record(b, cpu) {
   b.harvested += harvested
   const spent = b.spent || (b.spent = { upgrade: 0, build: 0, repair: 0, spawn: 0 })
   for (const key in spent) spent[key] += flow[key]
+  for (const step of UPGRADE_STEPS) if (spent.upgrade >= step) mark(b, `upgraded:${step}`)
+  for (const step of BUILD_STEPS) if (spent.build >= step) mark(b, `built:${step}`)
   for (const step of ENERGY_STEPS) if (b.harvested >= step) mark(b, `energy:${step}`)
 
   const structures = structureCounts(rooms)
@@ -152,6 +156,15 @@ function record(b, cpu) {
         r.find(FIND_DROPPED_RESOURCES).reduce((s, d) => s + (d.resourceType === RESOURCE_ENERGY ? d.amount : 0), 0),
       0
     ),
+    // Largest energy piles, to see where energy is stalling.
+    piles: rooms
+      .reduce(
+        (all, r) => all.concat(r.find(FIND_DROPPED_RESOURCES, { filter: d => d.resourceType === RESOURCE_ENERGY })),
+        []
+      )
+      .sort((p1, p2) => p2.amount - p1.amount)
+      .slice(0, 5)
+      .map(p => `${p.pos.x},${p.pos.y}:${p.amount}`),
     storedEnergy: rooms.reduce(
       (sum, r) =>
         sum +

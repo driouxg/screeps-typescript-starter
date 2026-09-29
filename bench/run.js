@@ -2,7 +2,7 @@
  * Runs dist/main.js on a private Screeps engine (screeps-server-mockup) for a fixed number of ticks and writes
  * ticks-to-milestone results to results/<label>.json. Meant to run inside the Docker image; see README.md.
  *
- *   node run.js [--ticks 20000] [--until-rcl 4] [--sample 100] [--label name] [--room W0N1] [--x 25 --y 25]
+ *   node run.js [--ticks 2000] [--until-rcl 4] [--sample 100] [--label name] [--room W0N1] [--x 25 --y 25]
  *
  * The spawn position is chosen automatically unless --x/--y are given.
  */
@@ -30,7 +30,7 @@ class Server extends ScreepsServer {
 }
 
 function parseArgs(argv) {
-  const opts = { ticks: 20000, untilRcl: null, sample: 100, label: null, room: "W0N1", x: null, y: null }
+  const opts = { ticks: 2000, untilRcl: null, sample: 100, label: null, room: "W0N1", x: null, y: null }
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase())
     if (!(key in opts)) throw new Error(`Unknown option ${argv[i]}`)

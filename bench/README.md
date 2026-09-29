@@ -7,7 +7,7 @@ whether a change makes the bot faster.
 ## Usage
 
 ```bash
-npm run bench                                   # build, then run 20000 ticks
+npm run bench                                   # build, then run 2000 ticks (~1 minute)
 npm run bench -- --ticks 30000 --until-rcl 4    # stop early once RCL 4 is reached
 npm run bench -- --label extensions-first       # name the result (default: <commit>_<timestamp>)
 
@@ -21,7 +21,7 @@ milestone was reached sooner.
 
 | Option | Default | |
 | --- | --- | --- |
-| `--ticks` | 20000 | Maximum ticks to run |
+| `--ticks` | 2000 | Maximum ticks to run |
 | `--until-rcl` | — | Stop once this RCL is reached |
 | `--sample` | 100 | Ticks between samples (CPU, creeps by role, structures, energy) |
 | `--label` | `<commit>_<timestamp>` | Result file name |
@@ -37,6 +37,7 @@ milestone was reached sooner.
 | `first:<type>` | First structure of that type completed |
 | `extension:N`, `tower:N`, `spawn:N`, `container:N`, `link:N` | Nth structure of that type completed |
 | `creeps:N` | N creeps alive at once |
+| `upgraded:N`, `built:N` | N energy spent upgrading the controller / building, for comparing short runs |
 
 The JSON also has `samples` (one every `--sample` ticks) with average and max CPU, bucket, energy/tick, creeps by
 role and structure counts, for when you need to see *why* a milestone moved.

@@ -2,44 +2,57 @@ import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import * as creepRoles from "../roles"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
+import { creepsOf } from "./utils/economy"
 
-/** Haulers walk around obstacles, so paths run longer than straight-line range. */
-const PATH_FACTOR = 1.2
 const MAX_HAULERS = 8
+/** Energy waiting at the sources that justifies each hauler beyond one per miner. */
+const BACKLOG_PER_EXTRA_HAULER = 500
+const BOOTSTRAP_ENERGY = 200
 
 /**
- * Goal: Keep enough CARRY parts to move every source's output to where it's used before it decays on the ground.
+ * Goal: Carry what the miners produce, without spawning haulers that would stand around.
  *
- * Each source yields SOURCE_ENERGY_CAPACITY / ENERGY_REGEN_TIME energy per tick (10 for a normal source). Moving
- * that over a round trip of 2 * distance ticks needs 2 * distance * 10 / CARRY_CAPACITY CARRY parts.
+ * "minimum" keeps one hauler per miner and runs early in the spawn order, so energy starts flowing to the spawn.
+ * "backlog" adds haulers only while energy piles up at the sources faster than the current haulers move it.
  */
 export default class HaulerSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.HAULER
 
+  public constructor(private mode: "minimum" | "backlog") {}
+
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
-    const creeps = spawn.room.find(FIND_MY_CREEPS)
+    const creeps = creepsOf(spawn.room)
     const miners = creeps.filter(c => c.memory.role === creepRoles.MINER)
-    const haulers = creeps.filter(c => c.memory.role === creepRoles.HAULER)
+    const haulers = creeps.filter(c => c.memory.role === this.role)
 
     if (miners.length <= 0 || MAX_HAULERS <= haulers.length) return null
 
-    // Always have two per miner; add more while there isn't enough carry capacity for the distances involved.
-    const carryParts = haulers.reduce((sum, h) => sum + h.getActiveBodyparts(CARRY), 0)
-    if (miners.length * 2 <= haulers.length && this.requiredCarryParts(spawn) <= carryParts) return null
-
-    return new SpawnConfig(buildCappedBodyParts([CARRY, MOVE, CARRY, MOVE], spawn.room, 25), this.role)
-  }
-
-  private requiredCarryParts(spawn: StructureSpawn): number {
-    const { room } = spawn
-    const destinations = [spawn.pos, room.controller?.pos].filter((p): p is RoomPosition => p !== undefined)
-
-    let parts = 0
-    for (const source of room.find(FIND_SOURCES)) {
-      const distance = Math.max(...destinations.map(d => source.pos.getRangeTo(d))) * PATH_FACTOR
-      const energyPerTick = source.energyCapacity / ENERGY_REGEN_TIME
-      parts += (2 * distance * energyPerTick) / CARRY_CAPACITY
+    if (this.mode === "minimum") {
+      if (miners.length <= haulers.length) return null
+    } else {
+      const extras = haulers.length - miners.length + 1
+      if (sourceBacklog(spawn.room) < extras * BACKLOG_PER_EXTRA_HAULER) return null
     }
-    return Math.ceil(parts)
+
+    // The first hauler gets energy flowing to the spawn, so don't wait for a full spawn to build it.
+    const minEnergy = haulers.length === 0 ? BOOTSTRAP_ENERGY : undefined
+    return new SpawnConfig(
+      buildCappedBodyParts([CARRY, MOVE, CARRY, MOVE], spawn.room, 25, undefined, minEnergy),
+      this.role
+    )
   }
+}
+
+/**
+ * Energy lying next to sources, on the ground or in containers.
+ */
+function sourceBacklog(room: Room): number {
+  let total = 0
+  for (const source of room.find(FIND_SOURCES)) {
+    for (const pile of source.pos.findInRange(FIND_DROPPED_RESOURCES, 1))
+      if (pile.resourceType === RESOURCE_ENERGY) total += pile.amount
+    for (const s of source.pos.findInRange(FIND_STRUCTURES, 1))
+      if (s.structureType === STRUCTURE_CONTAINER) total += s.store.energy
+  }
+  return total
 }

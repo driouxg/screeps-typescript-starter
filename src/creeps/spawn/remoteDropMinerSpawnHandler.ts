@@ -3,13 +3,15 @@ import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
-import { getOrderedExits, isRoomRemoteMineable } from "./utils/roomUtils"
+import { getOrderedExits, isRoomRemoteMineable, REMOTE_MINING_MIN_RCL } from "./utils/roomUtils"
 
 /**
  * Goal: Look at remote mineable rooms and see if # remote miners === # sources. If not, spawn a remote miner for that room.
  */
 export default class RemoteDropMinerSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
+    if ((spawn.room.controller?.level ?? 0) < REMOTE_MINING_MIN_RCL) return null
+
     const exits = getOrderedExits(spawn.room) as string[]
 
     const remoteMiners = this.getRemoteDropMiners()
