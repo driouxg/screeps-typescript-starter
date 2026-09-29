@@ -7,6 +7,8 @@
   "scripts": {
     "lint": "eslint \"src/**/*.ts\"",
     "build": "rollup -c",
+    "bench": "npm run build && node bench/docker.js",
+    "bench:compare": "node bench/compare.js",
     "push-main": "rollup -c --environment DEST:main",
     "push-pserver": "rollup -c --environment DEST:pserver",
     "push-season": "rollup -c --environment DEST:season",

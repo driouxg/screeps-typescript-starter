@@ -92,3 +92,8 @@ $RECYCLE.BIN/
 *.lnk
 
 .VSCodeCounter
+
+# Bench harness (see bench/README.md)
+/bench/node_modules
+/bench/results
+/bench/server

@@ -1,0 +1,8 @@
+{
+  "name": "screeps-bench",
+  "private": true,
+  "description": "Runs dist/main.js on a private Screeps engine and records ticks-to-milestone. Installed inside Docker (Node 22); see bench/README.md.",
+  "dependencies": {
+    "screeps-server-mockup": "1.5.1"
+  }
+}
