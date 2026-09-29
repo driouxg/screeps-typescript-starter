@@ -1,7 +1,7 @@
 import ILayoutHandler from "../ILayoutHandler"
 
 export default class ClusterLayoutHandler implements ILayoutHandler {
-  handle(room: Room): string[][] {
+  handle(room: Room): BuildOrderStep[] {
     throw new Error("Method not implemented.")
   }
   isRoomForLayout(room: Room): boolean {

@@ -1,9 +1,9 @@
 import distanceTransform from "utils/distanceTransform"
 import { floodFill } from "utils/floodFill"
-import { buildStringGrid } from "utils/gridBuilder"
 import IConstructionHandler from "../IConstructionHandler"
 import ILayoutHandler from "../ILayoutHandler"
 import { getTerrainCostMatrix } from "../stamp/StampLayoutHandler"
+import convert from "../util/buildOrderToDesiredState"
 
 /**
  * Goal: Build this bunker layout from: https://wiki.screepspl.us/index.php/File:BunkerExample.png
@@ -17,26 +17,30 @@ export default class BunkerLayoutHandler implements ILayoutHandler {
     this.constructionHandlers = constructionHandlers
   }
 
-  handle(room: Room): string[][] {
-    let desiredState = buildStringGrid()
+  handle(room: Room): BuildOrderStep[] {
+    let buildOrder: BuildOrderStep[] = []
 
-    for (const handler of this.constructionHandlers) desiredState = handler.handle(room, desiredState)
+    for (const handler of this.constructionHandlers) buildOrder = handler.handle(room, buildOrder)
 
     const pos = this.findBunkerLocation(room)
-    if (!pos) return desiredState
-    this.markLayout(new RoomPosition(pos.x - 6, pos.y - 6, room.name), desiredState)
+    if (!pos) return buildOrder
 
-    return desiredState
+    return this.markLayout(new RoomPosition(pos.x - 6, pos.y - 6, room.name), buildOrder)
   }
 
-  private markLayout(pos: RoomPosition, desiredState: string[][]) {
+  private markLayout(pos: RoomPosition, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    const desiredState = convert(buildOrder)
     const x = pos.x,
       y = pos.y
     for (let yy = y; yy < 50 && yy < y + this.layout.length; yy++) {
       for (let xx = x; xx < 50 && xx < x + this.layout.length; xx++) {
-        if (desiredState[yy][xx] === "") desiredState[yy][xx] = this.layout[yy - y][xx - x]
+        const structureType = this.layout[yy - y][xx - x]
+        if (desiredState[yy][xx] !== "" || structureType === "") continue
+        buildOrder = buildOrder.concat({ x: xx, y: yy, structureType: structureType as BuildableStructureConstant })
       }
     }
+
+    return buildOrder
   }
 
   public isRoomForLayout(room: Room) {
@@ -44,11 +48,11 @@ export default class BunkerLayoutHandler implements ILayoutHandler {
   }
 
   private findBunkerLocation(room: Room): { x: number; y: number } | null {
-    let desiredState = buildStringGrid()
+    let buildOrder: BuildOrderStep[] = []
 
-    for (const handler of this.constructionHandlers) desiredState = handler.handle(room, desiredState)
+    for (const handler of this.constructionHandlers) buildOrder = handler.handle(room, buildOrder)
 
-    let terrain = getTerrainCostMatrix(room.getTerrain(), desiredState)
+    let terrain = getTerrainCostMatrix(room.getTerrain(), buildOrder)
     const dt = distanceTransform(terrain, room)
     const pos = room.controller?.pos
     if (!pos) return null

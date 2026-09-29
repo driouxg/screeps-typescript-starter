@@ -1,22 +1,19 @@
-import IConstructionHandler from "../IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../../../utils/latticeSearch";
+import IConstructionHandler from "../IConstructionHandler"
+import { findNClosestEmptyPositionsLattice } from "../../../utils/latticeSearch"
+import convert from "../util/buildOrderToDesiredState"
 
 export default class PowerSpawnConstructionHandler implements IConstructionHandler {
-  private maxPowerSpawnsPerRoom = 1;
+  private maxPowerSpawnsPerRoom = 1
 
-  public handle(room: Room, desiredState: string[][]): string[][] {
-    if (!(room.controller && room.controller.my)) return desiredState;
+  public handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    if (!(room.controller && room.controller.my)) return buildOrder
 
     const positions: number[][] = findNClosestEmptyPositionsLattice(
       room.controller.pos,
-      desiredState,
+      convert(buildOrder),
       this.maxPowerSpawnsPerRoom
-    );
+    )
 
-    for (const position of positions) {
-      desiredState[position[1]][position[0]] = STRUCTURE_POWER_SPAWN;
-    }
-
-    return desiredState;
+    return buildOrder.concat(positions.map(([x, y]) => ({ x, y, structureType: STRUCTURE_POWER_SPAWN })))
   }
 }

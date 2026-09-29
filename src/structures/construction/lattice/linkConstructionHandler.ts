@@ -1,58 +1,51 @@
-import { findNClosestEmptyPositionsLattice, findNClosestEmptyPositionsWithBuffer } from "../../../utils/latticeSearch";
-import IConstructionHandler from "../IConstructionHandler";
+import { findNClosestEmptyPositionsLattice, findNClosestEmptyPositionsWithBuffer } from "../../../utils/latticeSearch"
+import IConstructionHandler from "../IConstructionHandler"
+import convert from "../util/buildOrderToDesiredState"
 
 export default class LinkConstructionHandler implements IConstructionHandler {
-  private maxLinksPerRoom = 6;
+  private maxLinksPerRoom = 6
 
-  public handle(room: Room, desiredState: string[][]): string[][] {
-    if (!(room.controller && room.controller.my)) return desiredState;
+  public handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    if (!(room.controller && room.controller.my)) return buildOrder
 
-    this.markLinksNextToMinerals(room, desiredState); // uses 2 links
-    this.markLinksNextToStorage(room, desiredState); // uses 1 link
+    buildOrder = this.markLinksNextToMinerals(room, buildOrder) // uses 2 links
+    buildOrder = this.markLinksNextToStorage(room, buildOrder) // uses 1 link
 
-    return desiredState;
+    return buildOrder
   }
 
-  private markLinksNextToStorage(room: Room, desiredState: string[][]): number {
-    const desiredLinks = 1;
-    for (let y = 0; y < desiredState.length; y++) {
-      for (let x = 0; x < desiredState[y].length; x++) {
-        if (desiredState[y][x] !== STRUCTURE_STORAGE) continue;
-        const positions: number[][] = findNClosestEmptyPositionsLattice(
-          new RoomPosition(x, y, room.name),
-          desiredState,
-          desiredLinks
-        );
+  private markLinksNextToStorage(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    const desiredLinks = 1
+    const storage = buildOrder.find(step => step.structureType === STRUCTURE_STORAGE)
+    if (!storage) return buildOrder
 
-        for (const position of positions) {
-          desiredState[position[1]][position[0]] = STRUCTURE_LINK;
-        }
+    const positions: number[][] = findNClosestEmptyPositionsLattice(
+      new RoomPosition(storage.x, storage.y, room.name),
+      convert(buildOrder),
+      desiredLinks
+    )
 
-        return positions.length;
-      }
-    }
-
-    return 0;
+    return buildOrder.concat(this.toLinkSteps(positions))
   }
 
-  private markLinksNextToMinerals(room: Room, desiredState: string[][]): number {
-    const desiredLinks = 2;
-    const minerals: Mineral<MineralConstant>[] = room.find(FIND_MINERALS);
+  private markLinksNextToMinerals(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    const desiredLinks = 2
+    const minerals: Mineral<MineralConstant>[] = room.find(FIND_MINERALS)
 
     for (const mineral of minerals) {
-      this.markPositions(mineral.pos, desiredState, desiredLinks);
+      const positions: number[][] = findNClosestEmptyPositionsWithBuffer(
+        mineral.pos,
+        convert(buildOrder),
+        desiredLinks,
+        2
+      )
+      buildOrder = buildOrder.concat(this.toLinkSteps(positions))
     }
 
-    return minerals.length;
+    return buildOrder
   }
 
-  private markPositions(roomPosition: RoomPosition, desiredState: string[][], numPositions: number): string[][] {
-    const positions: number[][] = findNClosestEmptyPositionsWithBuffer(roomPosition, desiredState, numPositions, 2);
-
-    for (const position of positions) {
-      desiredState[position[1]][position[0]] = STRUCTURE_LINK;
-    }
-
-    return desiredState;
+  private toLinkSteps(positions: number[][]): BuildOrderStep[] {
+    return positions.map(([x, y]) => ({ x, y, structureType: STRUCTURE_LINK }))
   }
 }

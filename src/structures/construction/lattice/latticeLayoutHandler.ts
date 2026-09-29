@@ -1,4 +1,3 @@
-import { buildStringGrid } from "utils/gridBuilder"
 import IConstructionHandler from "../IConstructionHandler"
 import ILayoutHandler from "../ILayoutHandler"
 
@@ -9,14 +8,14 @@ export default class LatticeLayoutHandler implements ILayoutHandler {
     this.constructionHandlers = constructionHandlers
   }
 
-  handle(room: Room): string[][] {
-    let desiredState = buildStringGrid()
+  handle(room: Room): BuildOrderStep[] {
+    let buildOrder: BuildOrderStep[] = []
 
     for (const constructionHandler of this.constructionHandlers) {
-      desiredState = constructionHandler.handle(room, desiredState)
+      buildOrder = constructionHandler.handle(room, buildOrder)
     }
 
-    return desiredState
+    return buildOrder
   }
 
   isRoomForLayout(_: Room): boolean {

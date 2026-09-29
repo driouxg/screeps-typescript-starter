@@ -1,11 +1,13 @@
 import { isBuildablePos, isInBounds, isWall } from "utils/gridBuilder"
 import IConstructionHandler from "../IConstructionHandler"
+import convert, { appendChanges } from "../util/buildOrderToDesiredState"
 
 export default class RoadConstructionHandler implements IConstructionHandler {
-  public handle(room: Room, desiredState: string[][]): string[][] {
-    if (!(room.controller && room.controller.my)) return desiredState
+  public handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    if (!(room.controller && room.controller.my)) return buildOrder
 
     const controller: StructureController = room.controller
+    const desiredState = convert(buildOrder)
 
     this.buildRoadsBetweenControllerAndContainers(controller, desiredState)
     this.buildRoadsBetweenControllerAndExits(controller, desiredState)
@@ -13,7 +15,7 @@ export default class RoadConstructionHandler implements IConstructionHandler {
     this.buildRoadsBetweenControllerAndSpawns(controller, desiredState)
     this.buildRoadsBetweenContainersAndSpawns(controller, desiredState)
 
-    return desiredState
+    return appendChanges(buildOrder, desiredState)
   }
 
   private buildRoadsBetweenControllerAndContainers(controller: StructureController, desiredState: string[][]): void {

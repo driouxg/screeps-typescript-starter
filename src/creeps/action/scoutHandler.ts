@@ -17,7 +17,7 @@ export default class ScoutHandler implements ICreepHandler {
   }
 
   private findNewTargetRoom(creep: Creep): string {
-    const exits = Game.map.describeExits(creep.room.name)
+    const exits = Game.map.describeExits(creep.room.name) ?? {}
     const roomNames = Object.keys(exits).map(direction => exits[direction as ExitKey])
     let memory = creep.memory as ScoutMemory
     roomNames.sort(() => Math.random() - 0.5)

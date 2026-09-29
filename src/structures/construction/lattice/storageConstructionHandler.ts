@@ -1,22 +1,19 @@
-import IConstructionHandler from "../IConstructionHandler";
-import { findNClosestEmptyPositionsLattice } from "../../../utils/latticeSearch";
+import IConstructionHandler from "../IConstructionHandler"
+import { findNClosestEmptyPositionsLattice } from "../../../utils/latticeSearch"
+import convert from "../util/buildOrderToDesiredState"
 
 export default class StorageConstructionHandler implements IConstructionHandler {
-  private maxStoragePerRoom = 1;
+  private maxStoragePerRoom = 1
 
-  public handle(room: Room, desiredState: string[][]): string[][] {
-    if (!(room.controller && room.controller.my)) return desiredState;
+  public handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
+    if (!(room.controller && room.controller.my)) return buildOrder
 
     const positions: number[][] = findNClosestEmptyPositionsLattice(
       room.controller.pos,
-      desiredState,
+      convert(buildOrder),
       this.maxStoragePerRoom
-    );
+    )
 
-    for (const position of positions) {
-      desiredState[position[1]][position[0]] = STRUCTURE_STORAGE;
-    }
-
-    return desiredState;
+    return buildOrder.concat(positions.map(([x, y]) => ({ x, y, structureType: STRUCTURE_STORAGE })))
   }
 }

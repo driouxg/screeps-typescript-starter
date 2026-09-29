@@ -11,13 +11,13 @@ export function isRoomRemoteMineable(roomName?: string) {
 }
 
 export function getUnorderedExits(room: Room) {
-  const exits = Game.map.describeExits(room.name)
+  const exits = Game.map.describeExits(room.name) ?? {}
   const roomNames = Object.keys(exits).map(direction => exits[direction as ExitKey])
 
   return roomNames.sort(() => Math.random() - 0.5)
 }
 
 export function getOrderedExits(room: Room) {
-  const exits = Game.map.describeExits(room.name)
+  const exits = Game.map.describeExits(room.name) ?? {}
   return Object.keys(exits).map(direction => exits[direction as ExitKey])
 }
