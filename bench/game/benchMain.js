@@ -48,17 +48,34 @@ function mark(b, key) {
   if (b.milestones[key] === undefined) b.milestones[key] = Game.time
 }
 
-function harvestedThisTick() {
-  let total = 0
+/**
+ * Energy harvested from sources, and energy spent by activity, this tick. Spawning is counted when a creep first
+ * appears (the spawn deducts the whole body cost at that point).
+ */
+function energyThisTick(b) {
+  const flow = { harvested: 0, upgrade: 0, build: 0, repair: 0, spawn: 0 }
   for (const roomName in Game.rooms) {
     for (const e of Game.rooms[roomName].getEventLog()) {
-      if (e.event !== EVENT_HARVEST) continue
       const creep = Game.getObjectById(e.objectId)
-      const target = Game.getObjectById(e.data.targetId)
-      if (creep && creep.my && target instanceof Source) total += e.data.amount
+      if (!creep || !creep.my) continue
+      if (e.event === EVENT_HARVEST) {
+        if (Game.getObjectById(e.data.targetId) instanceof Source) flow.harvested += e.data.amount
+      } else if (e.event === EVENT_UPGRADE_CONTROLLER) flow.upgrade += e.data.energySpent
+      // Build events only report `amount`, which equals energy spent for unboosted creeps.
+      else if (e.event === EVENT_BUILD) flow.build += e.data.energySpent ?? e.data.amount
+      else if (e.event === EVENT_REPAIR) flow.repair += e.data.energySpent
     }
   }
-  return total
+
+  const seen = b.seenCreeps || (b.seenCreeps = {})
+  for (const name in Game.creeps) {
+    if (seen[name]) continue
+    seen[name] = true
+    flow.spawn += Game.creeps[name].body.reduce((sum, part) => sum + BODYPART_COST[part.type], 0)
+  }
+  for (const name in seen) if (!Game.creeps[name]) delete seen[name]
+
+  return flow
 }
 
 function ownedRooms() {
@@ -92,8 +109,11 @@ function record(b, cpu) {
   const rcl = rooms.reduce((max, r) => Math.max(max, r.controller.level), 0)
   for (let level = 2; level <= rcl; level++) mark(b, `rcl:${level}`)
 
-  const harvested = harvestedThisTick()
+  const flow = energyThisTick(b)
+  const harvested = flow.harvested
   b.harvested += harvested
+  const spent = b.spent || (b.spent = { upgrade: 0, build: 0, repair: 0, spawn: 0 })
+  for (const key in spent) spent[key] += flow[key]
   for (const step of ENERGY_STEPS) if (b.harvested >= step) mark(b, `energy:${step}`)
 
   const structures = structureCounts(rooms)
@@ -119,11 +139,34 @@ function record(b, cpu) {
     rcl,
     controllerProgress: controller ? controller.progress : 0,
     harvestedTotal: b.harvested,
+    spentTotal: Object.assign({}, spent),
     harvestedPerTick: iv.ticks ? iv.harvested / iv.ticks : 0,
     cpuAvg: iv.ticks ? iv.cpuSum / iv.ticks : 0,
     cpuMax: iv.cpuMax,
     bucket: Game.cpu.bucket,
     energyAvailable: rooms.reduce((sum, r) => sum + r.energyAvailable, 0),
+    // Energy lying on the ground or in containers/storage: harvested but not yet used.
+    droppedEnergy: rooms.reduce(
+      (sum, r) =>
+        sum +
+        r.find(FIND_DROPPED_RESOURCES).reduce((s, d) => s + (d.resourceType === RESOURCE_ENERGY ? d.amount : 0), 0),
+      0
+    ),
+    storedEnergy: rooms.reduce(
+      (sum, r) =>
+        sum +
+        r
+          .find(FIND_STRUCTURES)
+          .reduce(
+            (s, st) =>
+              s +
+              (st.structureType === STRUCTURE_CONTAINER || st.structureType === STRUCTURE_STORAGE
+                ? st.store.energy
+                : 0),
+            0
+          ),
+      0
+    ),
     energyCapacity: rooms.reduce((sum, r) => sum + r.energyCapacityAvailable, 0),
     creeps: creepCounts(),
     structures

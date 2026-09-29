@@ -138,12 +138,13 @@ function isFullOfEnergy(store: Store<"energy", false>) {
 }
 
 export function findPickupPosition(creep: Creep): RoomPosition {
-  // energy piles
+  // energy piles, largest first so haulers spread across sources instead of all draining the first one
   const energyPiles = findContainerPositionsNextToSource(creep)
     .map(p => creep.room.lookForAt(RESOURCE_ENERGY, p.x, p.y))
     .filter(e => filterPositionsThatHaveEnoughEnergyOnGround(creep, e))
+    .sort((p1, p2) => p2[0].amount - p1[0].amount)
 
-  if (0 < energyPiles.length && creepCanReachPosition(creep, energyPiles[0][0].pos)) return energyPiles[0][0].pos
+  for (const pile of energyPiles) if (creepCanReachPosition(creep, pile[0].pos)) return pile[0].pos
 
   // containers
   const containers = findContainersNextToSource(creep)

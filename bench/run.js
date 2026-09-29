@@ -105,6 +105,8 @@ function printSummary(result) {
   console.log(`\n=== ${meta.label}  (${meta.ticksRun} ticks, ${meta.msPerTick.toFixed(1)} ms/tick) ===`)
   for (const [key, tick] of Object.entries(milestones)) console.log(`  ${key.padEnd(22)} ${String(tick).padStart(7)}`)
   console.log(`  harvested total        ${result.harvested}`)
+  for (const [activity, amount] of Object.entries(result.spent))
+    console.log(`  spent on ${activity.padEnd(13)} ${amount}  (${((amount / (result.harvested || 1)) * 100).toFixed(0)}%)`)
   console.log(`  errors logged          ${result.errors.logged}  (uncaught: ${result.errors.uncaught})`)
   if (result.errors.first) console.log(`  first error: ${result.errors.first.split("\n")[0]}`)
   if (result.errors.last) console.log(`  last error @${result.errors.last.tick}: ${result.errors.last.message.split("\n")[0]}`)
@@ -189,6 +191,7 @@ async function main() {
     },
     milestones: Object.fromEntries(Object.entries(bench.milestones).sort((a, b) => a[1] - b[1])),
     harvested: bench.harvested,
+    spent: bench.spent || {},
     errors: { logged: loggedErrors, uncaught: bench.errors, first: firstError, last: bench.lastError },
     samples: bench.samples
   }
