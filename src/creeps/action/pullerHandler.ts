@@ -2,6 +2,7 @@ import PullRequestEvent from "room/pullRequestEvent"
 import { findCachedStructurePositions } from "utils/structureUtils"
 import { clearTile, smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
+import * as creepRoles from "../roles"
 
 export default class PullerHandler implements ICreepHandler {
   handle(creep: Creep): void {
@@ -38,9 +39,10 @@ export default class PullerHandler implements ICreepHandler {
 
   /**
    * First pull request whose destination is free (or held by a creep that can be shoved), so one unreachable
-   * request can't block the rest.
+   * request can't block the rest. Miners go first: every other role depends on the energy they produce.
    */
   private getFirstPullRequest(creep: Creep): PullRequestEvent | null {
+    let fallback: PullRequestEvent | null = null
     for (const event of creep.room.memory.events) {
       if (event.type !== "PULL_REQUEST") continue
       const request = event as PullRequestEvent
@@ -50,9 +52,12 @@ export default class PullerHandler implements ICreepHandler {
       const destination = new RoomPosition(request.destination.x, request.destination.y, target.room.name)
       const occupant = destination.lookFor(LOOK_CREEPS)[0]
       const blocked = occupant && occupant.id !== target.id && occupant.id !== creep.id && !canMove(occupant)
-      if (!blocked) return request
+      if (blocked) continue
+
+      if (target.memory.role === creepRoles.MINER) return request
+      fallback = fallback ?? request
     }
-    return null
+    return fallback
   }
 }
 

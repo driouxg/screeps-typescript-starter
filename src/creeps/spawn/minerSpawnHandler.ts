@@ -5,6 +5,8 @@ import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 import { MinerMemory } from "creeps/action/minerHandler"
 import { findCachedStructurePositions } from "utils/structureUtils"
 
+const MINER_REPLACEMENT_LEAD = 100
+
 export default class MinerSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.MINER
 
@@ -17,7 +19,11 @@ export default class MinerSpawnHandler implements ISpawnHandler {
 
     this.calcMinerPositions(spawn.room)
 
-    const miners = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === this.role })
+    // A miner about to die doesn't count, so its replacement is spawned and pulled into place before the source
+    // goes idle. Miners have no MOVE parts, so replacing one takes spawn time plus the puller's trip.
+    const miners = spawn.room.find(FIND_MY_CREEPS, {
+      filter: c => c.memory.role === this.role && (c.spawning || MINER_REPLACEMENT_LEAD < (c.ticksToLive ?? 0))
+    })
 
     for (let minerPos of roomMemory.minerPositions) {
       if (miners.some(m => (m.memory as MinerMemory).targetSourceId === minerPos.sourceId)) continue
