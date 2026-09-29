@@ -1,3 +1,4 @@
+import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
 
 /**
@@ -9,11 +10,11 @@ export default class ScoutHandler implements ICreepHandler {
     memory.targetRoom = memory.targetRoom ?? creep.memory.room
 
     if (creep.room.name === memory.targetRoom) {
-      creep.moveTo(25, 25) // Move creep off of border
+      smartMove(creep, new RoomPosition(25, 25, creep.room.name), 20) // Move creep off of border
       this.updateRoomStatus(creep.room)
 
       memory.targetRoom = this.findNewTargetRoom(creep)
-    } else creep.moveTo(new RoomPosition(25, 25, memory.targetRoom))
+    } else smartMove(creep, new RoomPosition(25, 25, memory.targetRoom), 20)
   }
 
   private findNewTargetRoom(creep: Creep): string {

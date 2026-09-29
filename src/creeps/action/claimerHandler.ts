@@ -1,3 +1,4 @@
+import { smartMove } from "./common/movement"
 import Queue from "utils/queue"
 import { moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
@@ -21,7 +22,7 @@ export default class ClaimerHandler implements ICreepHandler {
 
       if (status === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, controller.pos)
       if (status === ERR_GCL_NOT_ENOUGH) creep.suicide()
-    } else creep.moveTo(new RoomPosition(25, 25, memory.targetRoom))
+    } else smartMove(creep, new RoomPosition(25, 25, memory.targetRoom), 20)
   }
 
   private findClaimableRoom(creep: Creep): string {

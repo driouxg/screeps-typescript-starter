@@ -1,3 +1,4 @@
+import { smartMove } from "./common/movement"
 import { hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
 import { offloadEnergy } from "./haulerHandler"
 import ICreepHandler from "./ICreepHandler"
@@ -16,7 +17,7 @@ export default class RemoteHaulerHandler implements ICreepHandler {
     else {
       if (hasMaxEnergy(creep)) memory.working = true
       if (!creep.pos.inRangeTo(source?.pos, 2)) {
-        creep.moveTo(source.pos)
+        smartMove(creep, source, 2)
         return
       }
 
@@ -33,7 +34,7 @@ export default class RemoteHaulerHandler implements ICreepHandler {
     const memory = creep.memory as RemoteHaulerMemory
     if (hasEnergy(creep)) {
       if (creep.room.name === memory.birthRoomName) offloadEnergy(creep)
-      else creep.moveTo(new RoomPosition(25, 25, memory.birthRoomName))
+      else smartMove(creep, new RoomPosition(25, 25, memory.birthRoomName), 20)
     } else memory.working = false
   }
 }

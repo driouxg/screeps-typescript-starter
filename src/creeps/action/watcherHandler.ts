@@ -9,6 +9,6 @@ export default class WatcherHandler implements ICreepHandler {
 
     if (creep.room.name === memory.targetRoomName && !isEdge(creep.pos.x, creep.pos.y)) return
 
-    moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.targetRoomName))
+    moveToWithSinglePath(creep, new RoomPosition(25, 25, memory.targetRoomName), 20)
   }
 }

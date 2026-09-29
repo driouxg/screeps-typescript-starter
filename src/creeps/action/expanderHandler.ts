@@ -21,7 +21,7 @@ export default class ExpanderHandler implements ICreepHandler {
         .filter(c => c.structureType === STRUCTURE_SPAWN)
 
       if (constructionSites.length <= 0) creep.suicide()
-      if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, spawnPos)
+      if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, spawnPos, 3)
     } else memory.working = false
   }
 

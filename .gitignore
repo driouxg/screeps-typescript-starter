@@ -97,3 +97,4 @@ $RECYCLE.BIN/
 /bench/node_modules
 /bench/results
 /bench/server
+/bench/build

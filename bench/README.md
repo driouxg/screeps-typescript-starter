@@ -49,6 +49,21 @@ milestones on every run. Any difference between two runs comes from your change.
 The stub world's terrain is fixed and isn't a typical room. Treat the numbers as a relative benchmark between
 versions of your bot, not a prediction of live-server timings.
 
+## Movement scenarios
+
+```bash
+npm run test-movement
+```
+
+Compiles [movement.ts](../src/creeps/action/common/movement.ts) on its own and runs it against scripted scenarios
+on the real engine:
+- 1-wide corridors with friendly or hostile blockers
+- two creeps meeting head-on
+- creeps boxed in on all 8 sides by idle friendly creeps, immovable (no MOVE) friendly creeps, or hostile creeps
+
+Each creep must either reach its target or, when there's no way out, report `ERR_NO_PATH` so its role picks a new
+target. Scenarios are defined in `movement-scenarios.js`.
+
 ## How it works
 
 - `docker.js` runs on your machine. It builds the `screeps-bench` image (cached after the first build) and runs

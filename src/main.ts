@@ -129,9 +129,15 @@ export const loop = ErrorMapper.wrapLoop(() => {
 function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName]
-    const handler: ICreepHandler = creepHandlerDict[creep.memory.role]
-    // console.log("Handling creep with role: ", creep.memory.role, JSON.stringify(creep.memory))
-    handler.handle(creep)
+    const handler: ICreepHandler | undefined = creepHandlerDict[creep.memory.role]
+    if (!handler) continue
+
+    // One creep failing shouldn't stop the rest of the tick (other creeps, spawning, construction).
+    try {
+      handler.handle(creep)
+    } catch (e) {
+      console.log(`Error in ${creep.memory.role} ${creep.name}: ${e instanceof Error ? e.stack : e}`)
+    }
   }
 }
 

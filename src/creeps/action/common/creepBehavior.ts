@@ -1,4 +1,3 @@
-import { dirs } from "utils/directions"
 import {
   findCachedStructurePositions,
   findContainers,
@@ -6,54 +5,45 @@ import {
   findStorage,
   findTowers
 } from "utils/structureUtils"
-import * as creepRoles from "../../../creeps/roles"
+import { applyCreepCosts, smartMove } from "./movement"
 
-export function moveToWithSinglePath(creep: Creep, pos: RoomPosition): CreepReturnCode {
-  // Remove once you are caching creep calculated paths
-  if (!creepCanReachPosition(creep, pos)) return ERR_NO_PATH
-
-  let code = creep.moveTo(pos, { reusePath: 0, ignoreCreeps: false })
-
-  return code
+/**
+ * Move within `range` of pos. Returns ERR_NO_PATH when the creep is stuck and should pick a new target.
+ */
+export function moveToWithSinglePath(creep: Creep, pos: RoomPosition, range = 1): CreepReturnCode {
+  return smartMove(creep, pos, range)
 }
 
 /**
- * Need to somehow cache this path. Maybe change return type of findPickupPosition to findPickupPath
+ * Whether pos is reachable, treating friendly creeps that can move as passable (they get shoved out of the way).
  */
 function creepCanReachPosition(creep: Creep, pos: RoomPosition): boolean {
-  // if (creep.room.name !== pos.roomName) return true
-  const r = PathFinder.search(creep.pos, pos, {
-    roomCallback(roomName) {
-      let costs = new PathFinder.CostMatrix()
-      let room = Game.rooms[roomName]
-      if (!room) return false
+  const r = PathFinder.search(
+    creep.pos,
+    { pos, range: 1 },
+    {
+      roomCallback(roomName) {
+        let costs = new PathFinder.CostMatrix()
+        let room = Game.rooms[roomName]
+        if (!room) return false
 
-      room.find(FIND_STRUCTURES).forEach(struct => {
-        if (struct.structureType === STRUCTURE_ROAD) {
-          // Favor roads over plain tiles
-          costs.set(struct.pos.x, struct.pos.y, 1)
-        } else if (
-          !struct.pos.isEqualTo(pos) &&
-          struct.structureType !== STRUCTURE_CONTAINER &&
-          (struct.structureType !== STRUCTURE_RAMPART || !struct.my)
-        ) {
-          // Can't walk through non-walkable buildings
-          costs.set(struct.pos.x, struct.pos.y, 255)
-        }
-      })
+        room.find(FIND_STRUCTURES).forEach(struct => {
+          if (struct.structureType === STRUCTURE_ROAD) {
+            // Favor roads over plain tiles
+            costs.set(struct.pos.x, struct.pos.y, 1)
+          } else if (
+            struct.structureType !== STRUCTURE_CONTAINER &&
+            (struct.structureType !== STRUCTURE_RAMPART || !struct.my)
+          ) {
+            // Can't walk through non-walkable buildings
+            costs.set(struct.pos.x, struct.pos.y, 255)
+          }
+        })
 
-      // Avoid certain creeps in the room
-      room.find(FIND_CREEPS).forEach(c => {
-        if (!c.my || !c.memory) {
-          costs.set(c.pos.x, c.pos.y, 255)
-          return
-        } else if ([creepRoles.MINER, creepRoles.REMOTE_DROP_MINER].includes(c.memory.role)) return
-        costs.set(c.pos.x, c.pos.y, 255)
-      })
-
-      return costs
+        return applyCreepCosts(roomName, costs)
+      }
     }
-  })
+  )
 
   return !r.incomplete
 }

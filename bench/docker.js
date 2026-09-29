@@ -26,6 +26,24 @@ function run(cmd, args) {
   if (res.status !== 0) process.exit(res.status ?? 1)
 }
 
+console.log("Building bench image (cached after the first run)...")
+run("docker", ["build", "-q", "-t", IMAGE, __dirname])
+
+// `--movement-test`: run movement-scenarios.js against bench/build/movement.js (see `npm run test-movement`).
+if (process.argv[2] === "--movement-test") {
+  run("docker", [
+    "run",
+    "--rm",
+    "-v",
+    `${path.join(__dirname, "build")}:/bench/build:ro`,
+    "--entrypoint",
+    "node",
+    IMAGE,
+    "movement-scenarios.js"
+  ])
+  process.exit(0)
+}
+
 const commit = git("rev-parse --short HEAD")
 const dirty = git("status --porcelain -- src") !== ""
 const args = process.argv.slice(2)
@@ -36,9 +54,6 @@ if (!args.includes("--label")) {
 }
 
 fs.mkdirSync(RESULTS, { recursive: true })
-
-console.log("Building bench image (cached after the first run)...")
-run("docker", ["build", "-q", "-t", IMAGE, __dirname])
 
 run("docker", [
   "run",

@@ -25,7 +25,7 @@ export default class HaulerHandler implements ICreepHandler {
         // Withdraw from structure
         if (creep.withdraw(structures[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE)
           memory.pickupTargetPos = findPickupPosition(creep)
-        else if (moveToWithSinglePath(creep, targetPos) !== ERR_NOT_IN_RANGE)
+        else if (moveToWithSinglePath(creep, targetPos) === ERR_NO_PATH)
           memory.pickupTargetPos = findPickupPosition(creep)
       } else {
         // Pickup at location
@@ -64,7 +64,7 @@ export function offloadEnergy(creep: Creep) {
     if (creep.pos.isEqualTo(offloadSpot.x, offloadSpot.y)) {
       creep.drop(RESOURCE_ENERGY)
       memory.offloadTargetPos = findOffloadSpot(creep)
-    } else if (moveToWithSinglePath(creep, offloadSpot) === ERR_NO_PATH)
+    } else if (moveToWithSinglePath(creep, offloadSpot, 0) === ERR_NO_PATH)
       memory.offloadTargetPos = findOffloadSpot(creep)
   } else {
     // Transfer resources to structure
