@@ -1,5 +1,5 @@
 import PullRequestEvent from "room/pullRequestEvent"
-import { clearTile, smartMove } from "./common/movement"
+import { pullTo } from "./common/movement"
 import { park, unpark } from "./common/parking"
 import ICreepHandler from "./ICreepHandler"
 import * as creepRoles from "../roles"
@@ -19,17 +19,7 @@ export default class PullerHandler implements ICreepHandler {
     if (!target) return
 
     const targetPos = new RoomPosition(pullRequest.destination.x, pullRequest.destination.y, target.room.name)
-    if (target.pos.isEqualTo(targetPos)) return
-
-    if (creep.pull(target) === ERR_NOT_IN_RANGE) smartMove(creep, target, 1)
-    else {
-      target.move(creep)
-      if (creep.pos.isEqualTo(targetPos)) creep.move(creep.pos.getDirectionTo(target))
-      else {
-        if (creep.pos.isNearTo(targetPos)) clearTile(targetPos)
-        smartMove(creep, targetPos, 0)
-      }
-    }
+    pullTo(creep, target, targetPos)
   }
 
   /**

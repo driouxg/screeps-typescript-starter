@@ -61,6 +61,8 @@ on the real engine:
 - 1-wide corridors with friendly or hostile blockers
 - two creeps meeting head-on
 - creeps boxed in on all 8 sides by idle friendly creeps, immovable (no MOVE) friendly creeps, or hostile creeps
+- a puller towing a creep without MOVE parts through a 1-wide corridor, a packed crowd, and onto an occupied
+  destination
 - a spawn boxed in by 8 idle creeps, which the loiter rule in [parking.ts](../src/creeps/action/common/parking.ts)
   must clear
 

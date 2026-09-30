@@ -13,6 +13,10 @@ const GIVE_UP_AFTER = 6
 const REUSE_PATH = 5
 /** Path cost of our own construction sites for obstacle structures: walkable, but standing there blocks building. */
 const OBSTACLE_SITE_COST = 10
+/** How many creeps deep a tow may push through a packed crowd to clear its next tile. */
+const SHOVE_DEPTH = 3
+/** Ticks a tow may fail to advance before the puller paths around the crowd instead of through it. */
+const TOW_REPATH_AFTER = 3
 
 interface MoveState {
   x: number
@@ -25,6 +29,10 @@ interface MoveState {
 declare global {
   interface CreepMemory {
     moveState?: MoveState
+    /** Puller: where it was last tick while towing, and for how many ticks it hasn't advanced. */
+    tow?: { key: string; tick: number; stuck: number }
+    /** Tick this creep was moved aside for a tow; its own move that tick is skipped so it doesn't step back. */
+    shovedTick?: number
   }
 }
 
@@ -33,7 +41,7 @@ export type MoveResult = CreepMoveReturnCode | ERR_NO_PATH | ERR_INVALID_TARGET 
 export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPosition }, range = 1): MoveResult {
   const pos = target instanceof RoomPosition ? target : target.pos
 
-  if (creep.spawning) return ERR_BUSY
+  if (creep.spawning || creep.memory.shovedTick === Game.time) return ERR_BUSY
   if (creep.pos.roomName === pos.roomName && creep.pos.inRangeTo(pos, range)) {
     delete creep.memory.moveState
     return OK
@@ -57,6 +65,127 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
     ignoreCreeps: stuck < REPATH_AFTER,
     costCallback: (roomName, matrix) => applyCreepCosts(roomName, matrix)
   })
+}
+
+/**
+ * Pull `target` (a creep without MOVE parts) to `dest`: walk to it, then tow it there. Call once per tick.
+ *
+ * Towing can't use smartMove's shove: that swaps the blocker into the puller's tile, which is exactly where the
+ * towed creep needs to step, so the puller and blocker would swap back and forth forever. Instead the blocker is
+ * moved aside onto a tile off the train (shoving its own neighbours, up to SHOVE_DEPTH deep, if the crowd is
+ * packed). If the train still hasn't moved after TOW_REPATH_AFTER ticks, the puller paths around the crowd.
+ */
+export function pullTo(puller: Creep, target: Creep, dest: RoomPosition): void {
+  if (target.pos.isEqualTo(dest)) {
+    delete puller.memory.tow
+    return
+  }
+
+  if (puller.pull(target) === ERR_NOT_IN_RANGE) {
+    delete puller.memory.tow
+    smartMove(puller, target, 1)
+    return
+  }
+  if (puller.fatigue > 0) return
+
+  if (puller.pos.isEqualTo(dest)) {
+    // Step back onto the towed creep's tile while it's pulled forward onto ours.
+    puller.move(puller.pos.getDirectionTo(target))
+    target.move(puller) // a creep without MOVE parts can only move by following its puller
+    return
+  }
+
+  const stuck = updateTowStuck(puller)
+  const path = towPath(puller, target, dest, TOW_REPATH_AFTER <= stuck)
+  if (path.length <= 0) return
+
+  const next = new RoomPosition(path[0].x, path[0].y, puller.room.name)
+  const blocker = next.lookFor(LOOK_CREEPS)[0]
+  if (blocker) {
+    const train = new Set([tileKey(puller.pos), tileKey(target.pos)])
+    const ahead = new Set(path.slice(1, 4).map(p => `${p.x},${p.y}`))
+    // Prefer moving the blocker somewhere that isn't further along our path, so it doesn't block us again.
+    const cleared =
+      makeRoom(blocker, new Set([...train, ...ahead]), SHOVE_DEPTH) || makeRoom(blocker, train, SHOVE_DEPTH)
+    if (!cleared) return // wait; after TOW_REPATH_AFTER ticks we path around instead
+  }
+
+  puller.move(puller.pos.getDirectionTo(next))
+  target.move(puller)
+}
+
+/** Tow path to dest. Normally straight through creeps we can move aside; around every creep once stuck. */
+function towPath(puller: Creep, target: Creep, dest: RoomPosition, avoidCreeps: boolean): PathStep[] {
+  return puller.pos.findPathTo(dest, {
+    range: 0,
+    ignoreCreeps: !avoidCreeps,
+    maxOps: 2000,
+    costCallback: (roomName, matrix) => {
+      applyCreepCosts(roomName, matrix)
+      matrix.set(target.pos.x, target.pos.y, 0xff) // don't path back through the train
+      return matrix
+    }
+  })
+}
+
+function updateTowStuck(puller: Creep): number {
+  const key = tileKey(puller.pos)
+  const prev = puller.memory.tow
+  const stuck = prev && prev.key === key && prev.tick === Game.time - 1 ? prev.stuck + 1 : 0
+  puller.memory.tow = { key, tick: Game.time, stuck }
+  return stuck
+}
+
+/**
+ * Move `creep` onto a free neighbouring tile that isn't in `avoid`. If every such tile has a creep on it, first
+ * make room for one of those (recursively, `depth` more creeps deep) and move into the tile it leaves.
+ * Returns whether a move was issued.
+ */
+function makeRoom(creep: Creep, avoid: Set<string>, depth: number): boolean {
+  if (!canBeShoved(creep) || 0 < creep.fatigue || creep.memory.shovedTick === Game.time) return false
+
+  const terrain = creep.room.getTerrain()
+  const candidates: RoomPosition[] = []
+  for (const direction of shuffledDirections()) {
+    const [dx, dy] = DIRECTION_OFFSETS[direction]
+    const x = creep.pos.x + dx
+    const y = creep.pos.y + dy
+    if (x < 1 || 48 < x || y < 1 || 48 < y || terrain.get(x, y) === TERRAIN_MASK_WALL) continue
+    if (avoid.has(`${x},${y}`) || claimedThisTick().has(`${x},${y}`)) continue
+    if (creep.room.lookForAt(LOOK_STRUCTURES, x, y).some(isObstacleStructure)) continue
+    candidates.push(new RoomPosition(x, y, creep.room.name))
+  }
+
+  const occupant = (pos: RoomPosition) => pos.lookFor(LOOK_CREEPS)[0] || pos.lookFor(LOOK_POWER_CREEPS)[0]
+
+  const free = candidates.find(pos => !occupant(pos))
+  if (free) return moveShoved(creep, free)
+  if (depth <= 0) return false
+
+  const deeper = new Set(avoid).add(tileKey(creep.pos))
+  for (const pos of candidates) {
+    const other = occupant(pos)
+    if (other instanceof Creep && makeRoom(other, deeper, depth - 1)) return moveShoved(creep, pos)
+  }
+  return false
+}
+
+function moveShoved(creep: Creep, pos: RoomPosition): boolean {
+  creep.move(creep.pos.getDirectionTo(pos))
+  creep.memory.shovedTick = Game.time
+  claimedThisTick().add(tileKey(pos))
+  return true
+}
+
+/** Tiles a shoved creep is moving onto this tick, so two shoves don't pick the same tile. */
+let claimed: { tick: number; tiles: Set<string> } = { tick: -1, tiles: new Set() }
+function claimedThisTick(): Set<string> {
+  if (claimed.tick !== Game.time) claimed = { tick: Game.time, tiles: new Set() }
+  return claimed.tiles
+}
+
+function tileKey(pos: RoomPosition): string {
+  return `${pos.x},${pos.y}`
 }
 
 /**

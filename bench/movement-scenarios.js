@@ -11,7 +11,7 @@ const fs = require("fs")
 const path = require("path")
 const { ScreepsServer, TerrainMatrix } = require("screeps-server-mockup")
 
-const TICKS = 60
+const TICKS = 100
 
 class Server extends ScreepsServer {
   startProcess(name, execPath, env) {
@@ -36,6 +36,13 @@ const MOVERS = {
   M7a: [[9, 40], [21, 40], "head-on in 1-wide corridor (east-bound)", "arrive"],
   M7b: [[21, 40], [9, 40], "head-on in 1-wide corridor (west-bound)", "arrive"]
 }
+// puller name -> [puller start, pulled creep start, destination, description]. The pulled creep has no MOVE parts.
+const PULLS = {
+  P1: [[7, 12], [6, 12], [22, 12], "tow through 1-wide corridor with idle friendly creep inside"],
+  P2: [[35, 30], [34, 30], [45, 30], "tow through a dense 5x7 crowd of idle friendly creeps"],
+  P3: [[35, 20], [34, 20], [40, 20], "tow onto a destination an idle friendly creep stands on"]
+}
+
 const around = (x, y) =>
   [
     [-1, -1],
@@ -49,7 +56,8 @@ const around = (x, y) =>
   ].map(([dx, dy]) => [x + dx, y + dy])
 
 const botMain = `
-const { smartMove } = require("movement")
+const { smartMove, pullTo } = require("movement")
+const PULLS = ${JSON.stringify(Object.fromEntries(Object.entries(PULLS).map(([k, v]) => [k, v[2]])))}
 const { clearLoiterersFromSpawns } = require("parking")
 const MOVERS = ${JSON.stringify(Object.fromEntries(Object.entries(MOVERS).map(([k, v]) => [k, v[1]])))}
 module.exports.loop = function () {
@@ -64,6 +72,16 @@ module.exports.loop = function () {
     if (r === ERR_NO_PATH) st.noPath++
     if (c.pos.x === x && c.pos.y === y && st.arrived === null) st.arrived = Game.time
     st.pos = c.pos.x + "," + c.pos.y
+  }
+  for (const name in PULLS) {
+    const puller = Game.creeps[name]
+    const pulled = Game.creeps[name + "-pulled"]
+    const st = s[name] || (s[name] = { exc: null, arrived: null })
+    if (!puller || !pulled) { st.missing = true; continue }
+    const [x, y] = PULLS[name]
+    try { pullTo(puller, pulled, new RoomPosition(x, y, pulled.room.name)) } catch (e) { st.exc = String(e.stack || e); continue }
+    if (pulled.pos.x === x && pulled.pos.y === y && st.arrived === null) st.arrived = Game.time
+    st.pos = pulled.pos.x + "," + pulled.pos.y
   }
   clearLoiterersFromSpawns()
 }`
@@ -81,6 +99,7 @@ module.exports.loop = function () {
   corridor(5)
   corridor(22)
   corridor(40)
+  corridor(12)
   await s.world.setTerrain(ROOM, t)
 
   const me = await s.world.addBot({
@@ -128,6 +147,13 @@ module.exports.loop = function () {
   await creep("hostile-corridor", 15, 22, foe.id, ["move"]) // M4
   for (const [x, y] of around(30, 25)) if (!(x === 29 && y === 25)) await creep(`w${n++}`, x, y, me.id, ["work"]) // M5
   for (const [x, y] of around(30, 35)) await creep(`w${n++}`, x, y, me.id, ["work"]) // M6
+  for (const [name, [[px, py], [mx, my]]] of Object.entries(PULLS)) {
+    await creep(name, px, py, me.id, ["move", "move"])
+    await creep(`${name}-pulled`, mx, my, me.id, ["work"])
+  }
+  await creep("c-idle", 15, 12, me.id, ["move"]) // P1
+  for (let y = 27; y <= 33; y++) for (let x = 38; x <= 42; x++) await creep(`crowd${x},${y}`, x, y, me.id, ["move"]) // P2
+  await creep("dest-idle", 40, 20, me.id, ["move"]) // P3
   // Spawn boxed in on all 8 sides by idle creeps: the loiter rule must park them away from it.
   const loiterers = around(SPAWN[0], SPAWN[1]).map(([x, y], i) => ({ name: `L${i}`, x, y }))
   for (const l of loiterers) await creep(l.name, l.x, l.y, me.id, ["move"])
@@ -145,6 +171,16 @@ module.exports.loop = function () {
       `${ok ? "PASS" : "FAIL"}  ${name.padEnd(4)} ${desc.padEnd(62)} expect ${expect.padEnd(8)} arrived@${
         st?.arrived ?? "-"
       } pos ${st?.pos} noPath=${st?.noPath}${st?.exc ? " EXC " + st.exc : ""}`
+    )
+  }
+  for (const [name, [, , , desc]] of Object.entries(PULLS)) {
+    const st = mem.s[name]
+    const ok = st && !st.exc && !st.missing && st.arrived !== null
+    pass = pass && ok
+    console.log(
+      `${ok ? "PASS" : "FAIL"}  ${name.padEnd(4)} ${desc.padEnd(62)} expect arrive   arrived@${
+        st?.arrived ?? "-"
+      } pos ${st?.pos}${st?.exc ? " EXC " + st.exc : ""}`
     )
   }
   const objects = await s.world.roomObjects(ROOM)
