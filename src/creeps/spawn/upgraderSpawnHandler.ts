@@ -3,6 +3,7 @@ import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 import { creepsOf, workerBudget, workerSpend } from "./utils/economy"
+import { upgraderSpots } from "creeps/action/upgraderHandler"
 
 /** Spots next to the controller container are limited; more upgraders just crowd them. */
 const MAX_UPGRADERS = 4
@@ -23,7 +24,9 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
     if (!hasRole(creepRoles.MINER) || !hasRole(creepRoles.HAULER)) return null
 
     const upgraders = creeps.filter(c => c.memory.role === this.role)
-    if (MAX_UPGRADERS <= upgraders.length) return null
+    // No more upgraders than there are spots to work from; the rest would wait by the spawn (they can't move alone).
+    const spots = upgraderSpots(room, room.controller).length
+    if (Math.min(MAX_UPGRADERS, spots) <= upgraders.length) return null
 
     const workers = creeps.filter(c => c.memory.role === this.role || c.memory.role === creepRoles.BUILDER)
     if (0 < upgraders.length && workerBudget(room) <= workerSpend(workers)) return null
