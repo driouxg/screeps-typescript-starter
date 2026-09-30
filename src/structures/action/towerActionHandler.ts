@@ -1,3 +1,4 @@
+import { isAlly } from "config/allies"
 import { isEdge } from "utils/gridBuilder"
 import { defencesBelow, RAMPART_CRITICAL_HITS, RAMPART_MIN_HITS } from "structures/rampartPolicy"
 import IStructureActionHandler from "./IStructureActionHandler"
@@ -19,7 +20,9 @@ export default class TowerActionHandler implements IStructureActionHandler {
     }) as StructureTower[]
     if (towers.length <= 0) return
 
-    const enemies = room.find(FIND_HOSTILE_CREEPS, { filter: c => !isEdge(c.pos.x, c.pos.y) })
+    const enemies = room.find(FIND_HOSTILE_CREEPS, {
+      filter: c => !isEdge(c.pos.x, c.pos.y) && !isAlly(c.owner.username)
+    })
     if (0 < enemies.length) {
       const healers = enemies.filter(c => 0 < c.getActiveBodyparts(HEAL))
       const target = healers[0] ?? enemies[0]

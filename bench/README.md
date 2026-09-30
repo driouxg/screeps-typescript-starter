@@ -50,6 +50,21 @@ npm run bench -- --start-rcl 3 --start-ramparts 1 --ramparts-at 1000 --ticks 250
 Milestones `expansion:claiming`, `rooms:2` (claimed) and `spawn:2` (the new room's spawn is built) track an
 expansion.
 
+### Other players and remote mining
+
+```bash
+npm run bench -- --start-rcl 4 --ticks 3000 --ally-rooms W1N1,W0N2 --hostile-rooms W2N1
+```
+
+| Option | Default | |
+| --- | --- | --- |
+| `--ally-rooms` | — | Rooms owned by a player "ally", who is added to our `Memory.allies` |
+| `--hostile-rooms` | — | Rooms owned by a player "enemy" |
+
+Both players' code does nothing. The result's `roomsVisited` counts creep-ticks per room (so you can check nothing
+entered a hostile room), and `botState` holds the bot's remote mining plan and `remoteReport` (every candidate
+source and why it was or wasn't chosen). In the stub world, W0N1's only exits are W0N2 and W1N1.
+
 ### Attack scenarios
 
 ```bash
@@ -117,7 +132,7 @@ and reports CPU per plan. Results go to `results/layout-<mode>.json`.
 npm run test-movement
 ```
 
-Compiles [movement.ts](../src/creeps/action/common/movement.ts) and `parking.ts` on their own and runs them against scripted scenarios
+Bundles [movement.ts](../src/creeps/action/common/movement.ts) and `parking.ts` and runs them against scripted scenarios
 on the real engine:
 - 1-wide corridors with friendly or hostile blockers
 - two creeps meeting head-on

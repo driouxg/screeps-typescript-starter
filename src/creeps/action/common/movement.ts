@@ -1,3 +1,4 @@
+import { blockedMatrix, isHostileRoom } from "utils/roomSafety"
 /**
  * Goal: Move creeps without letting them get stuck.
  *
@@ -65,7 +66,11 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
     range,
     reusePath: stuck === 0 ? REUSE_PATH : 0,
     ignoreCreeps: stuck < REPATH_AFTER,
-    costCallback: (roomName, matrix) => applyCreepCosts(roomName, matrix)
+    // Never route through a hostile room (see isHostileRoom) we aren't already in or headed for.
+    costCallback: (roomName, matrix) =>
+      roomName !== pos.roomName && roomName !== creep.room.name && isHostileRoom(roomName)
+        ? blockedMatrix()
+        : applyCreepCosts(roomName, matrix)
   })
 }
 

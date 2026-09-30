@@ -9,8 +9,8 @@ import * as creepRoles from "../../roles"
  * spare   - income - upkeep: what's left for workers to spend on upgrading and building
  */
 
-/** Remote energy loses a lot to travel, decay and the haulers that carry it. */
-const REMOTE_EFFICIENCY = 0.5
+/** Remote energy lost to decay on the way home (the haulers themselves are counted as upkeep). */
+const REMOTE_EFFICIENCY = 0.9
 /** Share of the time builders spend building rather than walking or collecting (measured with the bench, with build staging). */
 export const BUILDER_DUTY_CYCLE = 0.4
 
@@ -46,10 +46,13 @@ export function income(room: Room): number {
     total += Math.min(source.energyCapacity / ENERGY_REGEN_TIME, workParts * HARVEST_POWER)
   }
 
-  const remoteWork = creeps
-    .filter(c => c.memory.role === creepRoles.REMOTE_DROP_MINER)
-    .reduce((sum, c) => sum + c.getActiveBodyparts(WORK), 0)
-  total += remoteWork * HARVEST_POWER * REMOTE_EFFICIENCY
+  // Remote sources being mined: what the miner harvests, discounted for what's lost carrying it home.
+  for (const miner of creeps.filter(c => c.memory.role === creepRoles.REMOTE_DROP_MINER)) {
+    const remote = Memory.remotes?.[(miner.memory as { targetSourceId?: string }).targetSourceId ?? ""]
+    if (!remote) continue
+    const regen = (remote.reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
+    total += Math.min(regen, miner.getActiveBodyparts(WORK) * HARVEST_POWER) * REMOTE_EFFICIENCY
+  }
 
   return total
 }

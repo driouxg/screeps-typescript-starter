@@ -53,9 +53,12 @@ function parseArgs(argv) {
     // With --start-rcl: also build the planned ramparts with this many hits (1 = just finished by builders).
     startRamparts: null,
     // Tick to add those ramparts (default: with the fast-forward). Later means they arrive in a running economy.
-    rampartsAt: null
+    rampartsAt: null,
+    // Other players: rooms owned by a friendly player (added to our Memory.allies) or a hostile one.
+    allyRooms: null,
+    hostileRooms: null
   }
-  const strings = ["label", "room", "attackBody"]
+  const strings = ["label", "room", "attackBody", "allyRooms", "hostileRooms"]
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase())
     if (!(key in opts)) throw new Error(`Unknown option ${argv[i]}`)
@@ -170,6 +173,26 @@ async function addPlannedRamparts(server, player, room, rcl, hits) {
   return n
 }
 
+/**
+ * Another player owning `rooms`: a spawn in the first (so the player exists) and the other controllers claimed. Its
+ * code does nothing, so it never attacks; whether we treat it as friendly depends on Memory.allies.
+ */
+async function addNeighbour(server, username, rooms) {
+  const [first, ...rest] = rooms
+  const { x, y } = await chooseSpawnPos(server.world, first)
+  const bot = await server.world.addBot({
+    username,
+    room: first,
+    x,
+    y,
+    modules: { main: "module.exports.loop=()=>{}" }
+  })
+  const { db } = server.common.storage
+  for (const room of rest)
+    await db["rooms.objects"].update({ room, type: "controller" }, { $set: { user: bot.id, level: 1 } })
+  return bot
+}
+
 async function readBench(player) {
   const memory = JSON.parse((await player.memory) || "{}")
   return memory.__bench || { milestones: {}, samples: [], harvested: 0, errors: 0 }
@@ -227,6 +250,8 @@ async function main() {
   if (opts.x === null || opts.y === null) ({ x: opts.x, y: opts.y } = await chooseSpawnPos(server.world, opts.room))
   // Added before our bot: adding a second player after the first makes the first one's tick-1 start fail.
   const raider = opts.attack !== null ? await addRaider(server) : null
+  const ally = opts.allyRooms ? await addNeighbour(server, "ally", opts.allyRooms.split(",")) : null
+  if (opts.hostileRooms) await addNeighbour(server, "enemy", opts.hostileRooms.split(","))
   const player = await server.world.addBot({
     username: "bench",
     room: opts.room,
@@ -256,6 +281,7 @@ async function main() {
   })
 
   await server.start()
+  if (ally) await player.console(`Memory.allies = ["ally"]`)
   console.log(
     `Running ${opts.ticks} ticks in ${opts.room}, spawn at ${opts.x},${opts.y}${
       opts.untilRcl ? `, stopping at RCL ${opts.untilRcl}` : ""
@@ -324,6 +350,8 @@ async function main() {
       attack: opts.attack === null ? null : { tick: opts.attack, body: opts.attackBody, count: opts.attackCount },
       safeMode: opts.safeMode,
       gcl: opts.gcl,
+      allyRooms: opts.allyRooms,
+      hostileRooms: opts.hostileRooms,
       startRcl: opts.startRcl
     },
     milestones: Object.fromEntries(Object.entries(bench.milestones).sort((a, b) => a[1] - b[1])),
@@ -337,6 +365,26 @@ async function main() {
         }
       : {},
     defence: bench.defence || null,
+    roomsVisited: bench.roomsVisited || {},
+    // The bot's own view at the end: remote mining plan, allies, and what it knows about each room.
+    botState: await (async () => {
+      const m = JSON.parse((await player.memory) || "{}")
+      const intel = Object.fromEntries(
+        Object.entries(m.rooms || {})
+          .filter(([, r]) => r.intel)
+          .map(([n, r]) => [
+            n,
+            {
+              owner: r.intel.controller && r.intel.controller.owner,
+              sources: r.intel.sources,
+              positions: (r.intel.sourcePositions || []).length,
+              hostileStructures: r.intel.hostileStructures,
+              tick: r.intel.tick
+            }
+          ])
+      )
+      return { remotes: m.remotes, remoteReport: m.remoteReport, remotePaused: m.remotePaused, allies: m.allies, intel }
+    })(),
     errors: { logged: loggedErrors, uncaught: bench.errors, first: firstError, last: bench.lastError },
     samples: bench.samples
   }

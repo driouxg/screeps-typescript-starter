@@ -8,8 +8,7 @@ import MeleeDefenderSpawnHandler from "creeps/spawn/meleeDefenderSpawnHandler"
 import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler"
 import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
 import RapidFillerSpawnHandler from "creeps/spawn/rapidFillerSpawnHandler"
-import RemoteDropMinerSpawnHandler from "creeps/spawn/remoteDropMinerSpawnHandler"
-import RemoteHaulerSpawnHandler from "creeps/spawn/remoteHaulerSpawnHandler"
+import RemoteSpawnHandler from "creeps/spawn/remoteSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
@@ -62,14 +61,14 @@ export default class SpawnComposer {
       // Expansion (see ExpansionPlanner) is a one-off investment that saves up ahead of the workers.
       new ClaimerSpawnHandler(),
       new ExpanderSpawnHandler(),
+      // Remote mining is income (see RemotePlanner), so it's staffed before the workers that spend it.
+      new RemoteSpawnHandler(),
       // Workers are sized by the energy budget (see utils/economy.ts). Builders get first claim while
       // construction sites exist.
       new BuilderSpawnHandler(),
       new UpgraderSpawnHandler(),
       new ScoutSpawnHandler(),
-      new WatcherSpawnHandler(),
-      new RemoteDropMinerSpawnHandler(),
-      new RemoteHaulerSpawnHandler()
+      new WatcherSpawnHandler()
     ]
   }
 }

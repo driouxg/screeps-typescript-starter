@@ -272,6 +272,12 @@ function record(b, cpu) {
   for (const step of CREEP_STEPS) if (creepTotal >= step) mark(b, `creeps:${step}`)
 
   recordDefence(b, rooms)
+  // Creep-ticks spent in each room, to see where our creeps go (e.g. that they never enter a hostile room).
+  const visited = b.roomsVisited || (b.roomsVisited = {})
+  for (const name in Game.creeps) {
+    const room = Game.creeps[name].room.name
+    visited[room] = (visited[room] || 0) + 1
+  }
   const crowd = crowding(rooms)
   const totals = b.crowd || (b.crowd = { nearSpawn: 0, boxedTicks: 0, ticks: 0 })
   totals.ticks++

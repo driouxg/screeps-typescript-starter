@@ -110,10 +110,8 @@ module.exports.loop = function () {
     modules: {
       main: botMain,
       movement: fs.readFileSync(path.join(__dirname, "build", "movement.js"), "utf8"),
-      // Screeps modules are flat, so point parking at the "movement" module by name.
-      parking: fs
-        .readFileSync(path.join(__dirname, "build", "parking.js"), "utf8")
-        .replace(`require("./movement")`, `require("movement")`)
+      // One bundle has both; the bot's code requires them by these names.
+      parking: fs.readFileSync(path.join(__dirname, "build", "movement.js"), "utf8")
     }
   })
   const foe = await s.world.addBot({

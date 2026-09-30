@@ -1,3 +1,4 @@
+import { isAlly } from "config/allies"
 import { applyCreepCosts } from "creeps/action/common/movement"
 import { isCombatant } from "./threat"
 
@@ -18,7 +19,7 @@ export function fleeIfThreatened(creep: Creep): boolean {
   if (controller?.my && controller.safeMode) return false
 
   const dangers = creep.room
-    .find(FIND_HOSTILE_CREEPS, { filter: isCombatant })
+    .find(FIND_HOSTILE_CREEPS, { filter: c => isCombatant(c) && !isAlly(c.owner.username) })
     .map(h => ({ pos: h.pos, range: reach(h) + 1 }))
     .filter(d => creep.pos.inRangeTo(d.pos, d.range - 1))
   if (dangers.length <= 0) return false

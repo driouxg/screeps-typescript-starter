@@ -1,3 +1,4 @@
+import { isAlly } from "config/allies"
 import { isCombatant } from "defence/threat"
 import { smartMove } from "./common/movement"
 import { park } from "./common/parking"
@@ -9,7 +10,9 @@ import ICreepHandler from "./ICreepHandler"
  */
 export default class MeleeDefenderHandler implements ICreepHandler {
   public handle(creep: Creep): void {
-    const hostiles = creep.room.find(FIND_HOSTILE_CREEPS, { filter: h => !isOnEdge(h.pos) })
+    const hostiles = creep.room.find(FIND_HOSTILE_CREEPS, {
+      filter: h => !isOnEdge(h.pos) && !isAlly(h.owner.username)
+    })
     const fighters = hostiles.filter(isCombatant)
     const enemy = creep.pos.findClosestByRange(0 < fighters.length ? fighters : hostiles)
 

@@ -1,3 +1,4 @@
+import { isAlly } from "config/allies"
 /**
  * Goal: Remember what we've seen of each room, so expansion can pick a target without vision of every candidate.
  *
@@ -17,6 +18,10 @@ export interface RoomIntel {
   hostileFighters: number
   swampRatio: number
   wallRatio: number
+  /** Source positions, for remote mining without vision. */
+  sourcePositions?: { id: string; x: number; y: number }[]
+  /** Source keeper lairs: keepers guard the sources and attack anything nearby. */
+  keeperLairs?: number
 }
 
 declare global {
@@ -41,7 +46,8 @@ export function recordIntel(room: Room, force = false): void {
       s.structureType === STRUCTURE_INVADER_CORE
   }).length
   const hostileFighters = room.find(FIND_HOSTILE_CREEPS, {
-    filter: c => 0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK)
+    filter: c =>
+      !isAlly(c.owner.username) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
   }).length
 
   room.memory.intel = {
@@ -60,6 +66,8 @@ export function recordIntel(room: Room, force = false): void {
         }
       : undefined,
     hostileStructures,
+    sourcePositions: sources.map(s => ({ id: s.id as string, x: s.pos.x, y: s.pos.y })),
+    keeperLairs: room.find(FIND_HOSTILE_STRUCTURES, { filter: s => s.structureType === STRUCTURE_KEEPER_LAIR }).length,
     hostileFighters,
     ...terrainRatios(room.name)
   }

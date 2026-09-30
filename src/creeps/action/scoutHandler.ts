@@ -1,3 +1,5 @@
+import { isHostileRoom } from "utils/roomSafety"
+import { isAlly } from "config/allies"
 import { recordIntel } from "expansion/intel"
 import { myUsername } from "utils/username"
 import { smartMove } from "./common/movement"
@@ -32,7 +34,7 @@ export default class ScoutHandler implements ICreepHandler {
 
     let best: { name: string; seen: number; distance: number } | null = null
     for (const [name, distance] of roomsWithin(home, SCOUT_RANGE)) {
-      if (name === creep.room.name || Memory.rooms[name]?.status === "aggressive") continue
+      if (name === creep.room.name || Memory.rooms[name]?.status === "aggressive" || isHostileRoom(name)) continue
       const seen = lastSeen(name)
       if (!best || seen < best.seen || (seen === best.seen && distance < best.distance)) best = { name, seen, distance }
     }
@@ -52,7 +54,8 @@ export default class ScoutHandler implements ICreepHandler {
     else if (
       0 <
       room.find(FIND_HOSTILE_CREEPS, {
-        filter: c => 0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK)
+        filter: c =>
+          !isAlly(c.owner.username) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
       }).length
     )
       status = "aggressive"

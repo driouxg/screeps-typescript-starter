@@ -11,6 +11,7 @@ import StructureActionComposer from "composer/structureActionComposer"
 import { clearLoiterersFromSpawns } from "creeps/action/common/parking"
 import { fleeIfThreatened } from "defence/flee"
 import ExpansionPlanner from "expansion/expansionPlanner"
+import RemotePlanner from "remote/remotePlanner"
 
 declare global {
   /*
@@ -114,6 +115,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   clearLoiterersFromSpawns()
   creepCpu = Game.cpu.getUsed()
   new ExpansionPlanner().run()
+  new RemotePlanner().run()
   new SpawnComposer().compose()
   spawnCpu = Game.cpu.getUsed()
   manageStructureActions(new StructureActionComposer().structureActionHandlers())
