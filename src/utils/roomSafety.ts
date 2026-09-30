@@ -1,17 +1,16 @@
-import { isAlly } from "config/allies"
-import { myUsername } from "./username"
+import { isHostilePlayer } from "config/relations"
 
 /**
- * Rooms our creeps must not path through: owned by a player who isn't us or an ally (their towers shoot on sight),
- * or source keeper rooms (keepers attack anything near their sources). Judged from intel, so it works without vision;
+ * Rooms our creeps must not path through: owned by a hostile player (see config/relations; their towers shoot on
+ * sight), or source keeper rooms (keepers attack anything near their sources). Allies' and neutral players' rooms are
+ * fine to cross. Judged from intel, so it works without vision;
  * rooms we know nothing about are assumed passable.
  */
 export function isHostileRoom(roomName: string): boolean {
   const intel = Memory.rooms?.[roomName]?.intel
   if (!intel) return false
   if (0 < (intel.keeperLairs ?? 0)) return true
-  const owner = intel.controller?.owner
-  return !!owner && owner !== myUsername() && !isAlly(owner)
+  return isHostilePlayer(intel.controller?.owner)
 }
 
 /** A cost matrix no path can cross, for rooms to avoid entirely. */

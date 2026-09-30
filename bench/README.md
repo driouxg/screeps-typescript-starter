@@ -59,9 +59,11 @@ npm run bench -- --start-rcl 4 --ticks 3000 --ally-rooms W1N1,W0N2 --hostile-roo
 | Option | Default | |
 | --- | --- | --- |
 | `--ally-rooms` | — | Rooms owned by a player "ally", who is added to our `Memory.allies` |
-| `--hostile-rooms` | — | Rooms owned by a player "enemy" |
+| `--hostile-rooms` | — | Rooms owned by a player "enemy", who is added to our `Memory.enemies` |
+| `--neutral-rooms` | — | Rooms owned by a player "neutral" that we don't classify |
+| `--neutral-towers` | 0 | `1`: the neutral gets a tower that shoots any foreign creep, so the bot should flag it hostile |
 
-Both players' code does nothing. The result's `roomsVisited` counts creep-ticks per room (so you can check nothing
+The ally's and enemy's code does nothing. The result's `roomsVisited` counts creep-ticks per room (so you can check nothing
 entered a hostile room), and `botState` holds the bot's remote mining plan and `remoteReport` (every candidate
 source and why it was or wasn't chosen). In the stub world, W0N1's only exits are W0N2 and W1N1.
 

@@ -1,4 +1,4 @@
-import { isAlly } from "config/allies"
+import { isHostile } from "config/relations"
 /**
  * Goal: Remember what we've seen of each room, so expansion can pick a target without vision of every candidate.
  *
@@ -46,8 +46,7 @@ export function recordIntel(room: Room, force = false): void {
       s.structureType === STRUCTURE_INVADER_CORE
   }).length
   const hostileFighters = room.find(FIND_HOSTILE_CREEPS, {
-    filter: c =>
-      !isAlly(c.owner.username) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
+    filter: c => isHostile(c) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
   }).length
 
   room.memory.intel = {

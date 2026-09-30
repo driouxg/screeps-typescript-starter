@@ -1,5 +1,5 @@
 import * as creepRoles from "creeps/roles"
-import { isAlly } from "config/allies"
+import { isHostile } from "config/relations"
 import { myUsername } from "utils/username"
 import { blockedMatrix, isHostileRoom } from "utils/roomSafety"
 
@@ -82,8 +82,7 @@ export default class RemotePlanner {
       const room = Game.rooms[name]
       if (!room) continue
       const fighters = room.find(FIND_HOSTILE_CREEPS, {
-        filter: c =>
-          !isAlly(c.owner.username) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
+        filter: c => isHostile(c) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
       })
       const core = room.find(FIND_HOSTILE_STRUCTURES, { filter: s => s.structureType === STRUCTURE_INVADER_CORE })
       if (fighters.length || core.length) {

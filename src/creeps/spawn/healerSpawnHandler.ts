@@ -1,4 +1,4 @@
-import { isAlly } from "config/allies"
+import { isHostile } from "config/relations"
 import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
@@ -9,7 +9,7 @@ export default class HealerSpawnHandler implements ISpawnHandler {
 
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     const enemies = spawn.room.find(FIND_HOSTILE_CREEPS, {
-      filter: c => !isAlly(c.owner.username) && 0 < c.getActiveBodyparts(ATTACK)
+      filter: c => isHostile(c) && 0 < c.getActiveBodyparts(ATTACK)
     })
     const healers = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === this.role })
 

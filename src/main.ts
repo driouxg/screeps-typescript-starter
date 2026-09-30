@@ -10,6 +10,7 @@ import SpawnComposer from "composer/spawnComposer"
 import StructureActionComposer from "composer/structureActionComposer"
 import { clearLoiterersFromSpawns } from "creeps/action/common/parking"
 import { fleeIfThreatened } from "defence/flee"
+import { recordAggression } from "config/relations"
 import ExpansionPlanner from "expansion/expansionPlanner"
 import RemotePlanner from "remote/remotePlanner"
 
@@ -108,6 +109,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
     structureCpu = 0
 
   initRoomMemory()
+  recordAggression()
   startCpu = Game.cpu.getUsed()
   deleteMissingCreepMemory()
 

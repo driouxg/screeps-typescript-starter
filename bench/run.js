@@ -54,11 +54,15 @@ function parseArgs(argv) {
     startRamparts: null,
     // Tick to add those ramparts (default: with the fast-forward). Later means they arrive in a running economy.
     rampartsAt: null,
-    // Other players: rooms owned by a friendly player (added to our Memory.allies) or a hostile one.
+    // Other players: rooms owned by a friendly player (added to our Memory.allies) or a hostile one (Memory.enemies).
     allyRooms: null,
-    hostileRooms: null
+    hostileRooms: null,
+    // Rooms owned by a player we don't classify (neutral); with --neutral-towers 1 its first room gets a tower that
+    // shoots any foreign creep in range.
+    neutralRooms: null,
+    neutralTowers: 0
   }
-  const strings = ["label", "room", "attackBody", "allyRooms", "hostileRooms"]
+  const strings = ["label", "room", "attackBody", "allyRooms", "hostileRooms", "neutralRooms"]
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase())
     if (!(key in opts)) throw new Error(`Unknown option ${argv[i]}`)
@@ -177,7 +181,7 @@ async function addPlannedRamparts(server, player, room, rcl, hits) {
  * Another player owning `rooms`: a spawn in the first (so the player exists) and the other controllers claimed. Its
  * code does nothing, so it never attacks; whether we treat it as friendly depends on Memory.allies.
  */
-async function addNeighbour(server, username, rooms) {
+async function addNeighbour(server, username, rooms, code) {
   const [first, ...rest] = rooms
   const { x, y } = await chooseSpawnPos(server.world, first)
   const bot = await server.world.addBot({
@@ -185,13 +189,32 @@ async function addNeighbour(server, username, rooms) {
     room: first,
     x,
     y,
-    modules: { main: "module.exports.loop=()=>{}" }
+    modules: { main: code || "module.exports.loop=()=>{}" }
   })
   const { db } = server.common.storage
+  if (code) {
+    // A working tower next to its spawn (towers need RCL 3).
+    await db["rooms.objects"].update({ room: first, type: "controller" }, { $set: { level: 3 } })
+    await server.world.addRoomObject(first, "tower", x + 2, y, {
+      user: bot.id,
+      store: { energy: 1000 },
+      storeCapacityResource: { energy: 1000 },
+      hits: 3000,
+      hitsMax: 3000
+    })
+  }
   for (const room of rest)
     await db["rooms.objects"].update({ room, type: "controller" }, { $set: { user: bot.id, level: 1 } })
   return bot
 }
+
+/** Code for a player whose towers shoot any foreign creep in their room. */
+const TOWER_SHOOTER = `module.exports.loop = function () {
+  for (const t of Object.values(Game.structures).filter(s => s.structureType === STRUCTURE_TOWER)) {
+    const target = t.pos.findClosestByRange(FIND_HOSTILE_CREEPS)
+    if (target) t.attack(target)
+  }
+}`
 
 async function readBench(player) {
   const memory = JSON.parse((await player.memory) || "{}")
@@ -252,6 +275,8 @@ async function main() {
   const raider = opts.attack !== null ? await addRaider(server) : null
   const ally = opts.allyRooms ? await addNeighbour(server, "ally", opts.allyRooms.split(",")) : null
   if (opts.hostileRooms) await addNeighbour(server, "enemy", opts.hostileRooms.split(","))
+  if (opts.neutralRooms)
+    await addNeighbour(server, "neutral", opts.neutralRooms.split(","), opts.neutralTowers ? TOWER_SHOOTER : undefined)
   const player = await server.world.addBot({
     username: "bench",
     room: opts.room,
@@ -282,6 +307,8 @@ async function main() {
 
   await server.start()
   if (ally) await player.console(`Memory.allies = ["ally"]`)
+  // The "enemy" player is one we've declared hostile, as a player would in config/relations or Memory.enemies.
+  if (opts.hostileRooms) await player.console(`Memory.enemies = ["enemy"]`)
   console.log(
     `Running ${opts.ticks} ticks in ${opts.room}, spawn at ${opts.x},${opts.y}${
       opts.untilRcl ? `, stopping at RCL ${opts.untilRcl}` : ""
@@ -352,6 +379,8 @@ async function main() {
       gcl: opts.gcl,
       allyRooms: opts.allyRooms,
       hostileRooms: opts.hostileRooms,
+      neutralRooms: opts.neutralRooms,
+      neutralTowers: opts.neutralTowers,
       startRcl: opts.startRcl
     },
     milestones: Object.fromEntries(Object.entries(bench.milestones).sort((a, b) => a[1] - b[1])),
@@ -383,7 +412,14 @@ async function main() {
             }
           ])
       )
-      return { remotes: m.remotes, remoteReport: m.remoteReport, remotePaused: m.remotePaused, allies: m.allies, intel }
+      return {
+        remotes: m.remotes,
+        remoteReport: m.remoteReport,
+        remotePaused: m.remotePaused,
+        allies: m.allies,
+        hostilePlayers: m.hostilePlayers,
+        intel
+      }
     })(),
     errors: { logged: loggedErrors, uncaught: bench.errors, first: firstError, last: bench.lastError },
     samples: bench.samples

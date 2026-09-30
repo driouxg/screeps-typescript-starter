@@ -1,5 +1,5 @@
 import { isHostileRoom } from "utils/roomSafety"
-import { isAlly } from "config/allies"
+import { isHostile } from "config/relations"
 import { recordIntel } from "expansion/intel"
 import { myUsername } from "utils/username"
 import { smartMove } from "./common/movement"
@@ -54,8 +54,7 @@ export default class ScoutHandler implements ICreepHandler {
     else if (
       0 <
       room.find(FIND_HOSTILE_CREEPS, {
-        filter: c =>
-          !isAlly(c.owner.username) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
+        filter: c => isHostile(c) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
       }).length
     )
       status = "aggressive"

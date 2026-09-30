@@ -1,4 +1,4 @@
-import { isAlly } from "config/allies"
+import { isHostile } from "config/relations"
 /**
  * Goal: Size up hostiles in a room against what we can put against them, so defence reacts to real threats and
  * ignores harmless ones (scouts, NPC-free rooms).
@@ -29,7 +29,7 @@ export function creepDamage(creep: Creep): number {
 /** Hostile creeps in the room that can fight or heal; scouts and haulers aren't a threat. */
 export function assessThreat(room: Room): Threat {
   const hostiles = room.find(FIND_HOSTILE_CREEPS, {
-    filter: c => !isAlly(c.owner.username) && (isCombatant(c) || 0 < c.getActiveBodyparts(HEAL))
+    filter: c => isHostile(c) && (isCombatant(c) || 0 < c.getActiveBodyparts(HEAL))
   })
   return {
     hostiles,
