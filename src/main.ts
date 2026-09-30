@@ -9,6 +9,7 @@ import IStructureActionHandler from "structures/action/IStructureActionHandler"
 import SpawnComposer from "composer/spawnComposer"
 import StructureActionComposer from "composer/structureActionComposer"
 import { clearLoiterersFromSpawns } from "creeps/action/common/parking"
+import { fleeIfThreatened } from "defence/flee"
 
 declare global {
   /*
@@ -136,6 +137,7 @@ function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandl
 
     // One creep failing shouldn't stop the rest of the tick (other creeps, spawning, construction).
     try {
+      if (fleeIfThreatened(creep)) continue
       handler.handle(creep)
     } catch (e) {
       console.log(`Error in ${creep.memory.role} ${creep.name}: ${e instanceof Error ? e.stack : e}`)

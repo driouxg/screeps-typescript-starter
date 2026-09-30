@@ -10,7 +10,13 @@ export default class HealerSpawnHandler implements ISpawnHandler {
     const enemies = spawn.room.find(FIND_HOSTILE_CREEPS, { filter: c => 0 < c.getActiveBodyparts(ATTACK) })
     const healers = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === this.role })
 
-    if (0 < enemies.length && healers.length <= 0)
+    // A healer only helps if there are defenders to keep alive.
+    const defenders = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === creepRoles.MELEE_DEFENDER })
+
+    // ...and not during safe mode, when hostiles can't hurt anyone.
+    if (spawn.room.controller?.safeMode) return null
+
+    if (0 < enemies.length && 0 < defenders.length && healers.length <= 0)
       return new SpawnConfig(buildDynamicBodyParts([TOUGH, MOVE, HEAL], spawn.room), this.role)
     else return null
   }

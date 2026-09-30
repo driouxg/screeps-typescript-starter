@@ -28,6 +28,24 @@ milestone was reached sooner.
 | `--room` | W0N1 | Starting room in the stub world |
 | `--x`, `--y` | auto | Spawn position. By default the harness picks open ground close to the sources and controller |
 
+### Attack scenarios
+
+```bash
+npm run bench -- --attack 1200 --safe-mode 0                        # one 3-ATTACK raider at tick 1200
+npm run bench -- --attack 1200 --attack-count 3 --safe-mode -1 \
+  --attack-body tough,tough,attack,attack,attack,move,move,move,move,move
+```
+
+| Option | Default | |
+| --- | --- | --- |
+| `--attack` | — | Tick the raiders arrive, at the room edge nearest our spawn ([attack.js](attack.js)) |
+| `--attack-body` | `attack,attack,attack,move,move,move` | Body of each raider |
+| `--attack-count` | 1 | Number of raiders |
+| `--safe-mode` | 1 | `1`: safe mode active, as for a new player. `0`: off, one charge available. `-1`: off, and no charges when the raid starts (each RCL reached grants one) |
+
+Raiders attack the closest creep, then the spawn, then other structures. The summary adds a `defence` line with
+raiders killed, our creeps killed by role, the lowest spawn hits, and when safe mode was activated.
+
 ## Milestones
 
 | Key | Meaning |
@@ -38,6 +56,7 @@ milestone was reached sooner.
 | `extension:N`, `tower:N`, `spawn:N`, `container:N`, `link:N` | Nth structure of that type completed |
 | `creeps:N` | N creeps alive at once |
 | `upgraded:N`, `built:N` | N energy spent upgrading the controller / building, for comparing short runs |
+| `hostile:arrived`, `hostile:cleared`, `lost:spawn` | Raiders entered the room; all raiders dead; our last spawn destroyed |
 
 The JSON also has `samples` (one every `--sample` ticks) with average and max CPU, bucket, energy/tick, creeps by
 role and structure counts, for when you need to see *why* a milestone moved.

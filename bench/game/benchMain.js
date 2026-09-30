@@ -159,6 +159,50 @@ function idleCreeps() {
   return idle
 }
 
+/**
+ * Defence stats: raiders seen and killed, our creeps killed (gone before their time ran out) by role, the lowest
+ * spawn hits, and when safe mode came on.
+ */
+function recordDefence(b, rooms) {
+  const d =
+    b.defence ||
+    (b.defence = { hostilesSeen: 0, hostilesKilled: 0, lost: 0, lostRoles: {}, spawnMinHits: null, safeModeTick: null })
+
+  const prev = b.prevCreeps || {}
+  for (const name in prev) {
+    if (Game.creeps[name] || prev[name].ttl <= 2) continue
+    d.lost++
+    d.lostRoles[prev[name].role] = (d.lostRoles[prev[name].role] || 0) + 1
+  }
+  b.prevCreeps = {}
+  for (const name in Game.creeps) {
+    const c = Game.creeps[name]
+    if (!c.spawning) b.prevCreeps[name] = { ttl: c.ticksToLive, role: (c.memory && c.memory.role) || "unknown" }
+  }
+
+  const seen = b.hostiles || (b.hostiles = {})
+  const hostiles = rooms.reduce((all, r) => all.concat(r.find(FIND_HOSTILE_CREEPS)), [])
+  for (const h of hostiles) {
+    if (seen[h.id] === undefined) {
+      d.hostilesSeen++
+      mark(b, "hostile:arrived")
+    }
+    seen[h.id] = h.ticksToLive
+  }
+  for (const id in seen) {
+    if (hostiles.some(h => h.id === id)) continue
+    if (2 < seen[id]) d.hostilesKilled++
+    delete seen[id]
+  }
+  if (0 < d.hostilesSeen && hostiles.length === 0) mark(b, "hostile:cleared")
+
+  for (const r of rooms) {
+    for (const s of r.find(FIND_MY_SPAWNS)) d.spawnMinHits = Math.min(d.spawnMinHits ?? s.hits, s.hits)
+    if (r.controller.safeMode && d.safeModeTick === null && 0 < d.hostilesSeen) d.safeModeTick = Game.time
+  }
+  if (0 < d.hostilesSeen && rooms.every(r => r.find(FIND_MY_SPAWNS).length === 0)) mark(b, "lost:spawn")
+}
+
 function record(b, cpu) {
   const rooms = ownedRooms()
   const rcl = rooms.reduce((max, r) => Math.max(max, r.controller.level), 0)
@@ -182,6 +226,7 @@ function record(b, cpu) {
   const creepTotal = Object.keys(Game.creeps).length
   for (const step of CREEP_STEPS) if (creepTotal >= step) mark(b, `creeps:${step}`)
 
+  recordDefence(b, rooms)
   const crowd = crowding(rooms)
   const totals = b.crowd || (b.crowd = { nearSpawn: 0, boxedTicks: 0, ticks: 0 })
   totals.ticks++
