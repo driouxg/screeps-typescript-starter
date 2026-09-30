@@ -26,10 +26,15 @@ export default class SpawnComposer {
         const spawnConfig = spawner.spawnCreep(spawn)
         if (!spawnConfig || spawnConfig.getBody().length === 0) continue
         const cost = spawnConfig.getBody().reduce((acc, val) => acc + BODYPART_COST[val], 0)
-        if (spawn.room.energyAvailable < cost) continue
+        if (spawn.room.energyAvailable < cost) {
+          // Saving up for this creep: don't let lower priorities spend the energy meanwhile.
+          if (spawnConfig.shouldWaitForEnergy()) break
+          continue
+        }
 
         console.log("Spawning", spawnConfig.getRole(), spawn.room.name)
 
+        const directions = spawnConfig.getDirections()
         spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
           memory: {
             role: spawnConfig.getRole(),
@@ -37,7 +42,7 @@ export default class SpawnComposer {
             room: spawn.room.name,
             ...spawnConfig.getMemory()
           },
-          ...(spawnConfig.getDirections() || {})
+          ...(directions ? { directions } : {})
         })
         return
       }

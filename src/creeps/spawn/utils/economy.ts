@@ -11,8 +11,8 @@ import * as creepRoles from "../../roles"
 
 /** Remote energy loses a lot to travel, decay and the haulers that carry it. */
 const REMOTE_EFFICIENCY = 0.5
-/** Share of the time builders spend building rather than walking or collecting (measured with the bench). */
-export const BUILDER_DUTY_CYCLE = 0.25
+/** Share of the time builders spend building rather than walking or collecting (measured with the bench, with build staging). */
+export const BUILDER_DUTY_CYCLE = 0.4
 
 const WORKER_ROLES = [creepRoles.UPGRADER, creepRoles.BUILDER]
 
@@ -67,7 +67,28 @@ export function supportUpkeep(room: Room): number {
 export function workerBudget(room: Room): number {
   const workers = creepsOf(room).filter(c => WORKER_ROLES.includes(c.memory.role))
   const workerUpkeep = workers.reduce((sum, c) => sum + upkeepOf(c), 0)
-  return income(room) - supportUpkeep(room) - workerUpkeep
+  return income(room) - supportUpkeep(room) - workerUpkeep + surplus(room)
+}
+
+/** Energy kept in hand (on the ground, in containers and storage) for refilling the spawn and emergencies. */
+const ENERGY_RESERVE = 1000
+/** Spread spending of stockpiled energy over this many ticks. */
+const SURPLUS_SPEND_TICKS = 1000
+
+/**
+ * Stockpiled energy above ENERGY_RESERVE, as extra energy per tick for workers. Without this a backlog just sits
+ * there (and decays, if it's on the ground) because income alone says we can't afford more workers.
+ */
+export function surplus(room: Room): number {
+  const dropped = room
+    .find(FIND_DROPPED_RESOURCES, { filter: r => r.resourceType === RESOURCE_ENERGY })
+    .reduce((sum, r) => sum + r.amount, 0)
+  const stored = room
+    .find(FIND_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_CONTAINER || s.structureType === STRUCTURE_STORAGE
+    })
+    .reduce((sum, s) => sum + (s as StructureContainer | StructureStorage).store.energy, 0)
+  return Math.max(0, dropped + stored - ENERGY_RESERVE) / SURPLUS_SPEND_TICKS
 }
 
 /**

@@ -55,17 +55,27 @@ function mark(b, key) {
  * appears (the spawn deducts the whole body cost at that point).
  */
 function energyThisTick(b) {
-  const flow = { harvested: 0, upgrade: 0, build: 0, repair: 0, spawn: 0 }
+  const flow = { harvested: 0, upgrade: 0, build: 0, repair: 0, spawn: 0, byRole: {} }
+  const byRole = (creep, activity, amount) => {
+    const role = (creep.memory && creep.memory.role) || "unknown"
+    const r = flow.byRole[role] || (flow.byRole[role] = {})
+    r[activity] = (r[activity] || 0) + amount
+  }
   for (const roomName in Game.rooms) {
     for (const e of Game.rooms[roomName].getEventLog()) {
       const creep = Game.getObjectById(e.objectId)
       if (!creep || !creep.my) continue
       if (e.event === EVENT_HARVEST) {
         if (Game.getObjectById(e.data.targetId) instanceof Source) flow.harvested += e.data.amount
-      } else if (e.event === EVENT_UPGRADE_CONTROLLER) flow.upgrade += e.data.energySpent
+      } else if (e.event === EVENT_UPGRADE_CONTROLLER) {
+        flow.upgrade += e.data.energySpent
+        byRole(creep, "upgrade", e.data.energySpent)
+      }
       // Build events only report `amount`, which equals energy spent for unboosted creeps.
-      else if (e.event === EVENT_BUILD) flow.build += e.data.energySpent ?? e.data.amount
-      else if (e.event === EVENT_REPAIR) flow.repair += e.data.energySpent
+      else if (e.event === EVENT_BUILD) {
+        flow.build += e.data.energySpent ?? e.data.amount
+        byRole(creep, "build", e.data.energySpent ?? e.data.amount)
+      } else if (e.event === EVENT_REPAIR) flow.repair += e.data.energySpent
     }
   }
 
@@ -213,6 +223,11 @@ function record(b, cpu) {
   b.harvested += harvested
   const spent = b.spent || (b.spent = { upgrade: 0, build: 0, repair: 0, spawn: 0 })
   for (const key in spent) spent[key] += flow[key]
+  const spentByRole = b.spentByRole || (b.spentByRole = {})
+  for (const role in flow.byRole) {
+    const r = spentByRole[role] || (spentByRole[role] = {})
+    for (const activity in flow.byRole[role]) r[activity] = (r[activity] || 0) + flow.byRole[role][activity]
+  }
   for (const step of UPGRADE_STEPS) if (spent.upgrade >= step) mark(b, `upgraded:${step}`)
   for (const step of BUILD_STEPS) if (spent.build >= step) mark(b, `built:${step}`)
   for (const step of ENERGY_STEPS) if (b.harvested >= step) mark(b, `energy:${step}`)

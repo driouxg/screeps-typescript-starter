@@ -11,27 +11,43 @@
 const MAX_OPEN_SITES = 5
 const PLACE_INTERVAL = 5
 
-/** Lower builds first. Anything unlisted builds after roads. */
+/**
+ * Build priority, lower first. Each structure only becomes buildable at the RCL the game allows it, so this one
+ * table gives the order within every RCL:
+ *
+ * - RCL 2: extensions (spawn capacity means bigger creeps), then containers at sources and the controller (stop
+ *   dropped energy decaying), then roads.
+ * - RCL 3: a tower first (defence; it also repairs and heals), then the new extensions.
+ * - RCL 4: storage right after extensions, to bank surplus. RCL 5: links. RCL 6+: terminal, extractor, labs, ...
+ *
+ * Roads come after everything else: they cost upkeep and matter less than capacity and defence. Ramparts and walls
+ * wait for a tower (see NEEDS_TOWER).
+ */
 const PRIORITY: Partial<Record<BuildableStructureConstant, number>> = {
   [STRUCTURE_SPAWN]: 0,
-  [STRUCTURE_EXTENSION]: 1,
-  [STRUCTURE_TOWER]: 2,
+  [STRUCTURE_TOWER]: 1,
+  [STRUCTURE_EXTENSION]: 2,
   [STRUCTURE_STORAGE]: 4,
-  [STRUCTURE_CONTAINER]: 5,
-  [STRUCTURE_LINK]: 6,
-  [STRUCTURE_TERMINAL]: 7,
-  [STRUCTURE_EXTRACTOR]: 8,
-  [STRUCTURE_LAB]: 8,
-  [STRUCTURE_FACTORY]: 9,
-  [STRUCTURE_POWER_SPAWN]: 9,
-  [STRUCTURE_OBSERVER]: 9,
-  [STRUCTURE_NUKER]: 9,
-  [STRUCTURE_ROAD]: 10,
-  [STRUCTURE_RAMPART]: 11,
-  [STRUCTURE_WALL]: 12
+  [STRUCTURE_LINK]: 5,
+  [STRUCTURE_TERMINAL]: 6,
+  [STRUCTURE_EXTRACTOR]: 6,
+  [STRUCTURE_LAB]: 7,
+  [STRUCTURE_FACTORY]: 8,
+  [STRUCTURE_POWER_SPAWN]: 8,
+  [STRUCTURE_OBSERVER]: 8,
+  [STRUCTURE_NUKER]: 8,
+  [STRUCTURE_CONTAINER]: 8.5,
+  [STRUCTURE_ROAD]: 9,
+  [STRUCTURE_RAMPART]: 10,
+  [STRUCTURE_WALL]: 11
 }
-/** Containers next to sources and the controller feed miners and upgraders, so they come before storage. */
+/** Containers next to sources and the controller feed miners and upgraders, so they come right after extensions. */
 const RESOURCE_CONTAINER_PRIORITY = 3
+/**
+ * Not worth building until a tower can maintain them: a rampart is built with 1 hit and decays away in about 100
+ * ticks unless something keeps repairing it.
+ */
+const NEEDS_TOWER: StructureConstant[] = [STRUCTURE_RAMPART, STRUCTURE_WALL]
 
 export default function build(room: Room) {
   const buildOrder = room.memory.buildOrder
@@ -69,12 +85,14 @@ export default function build(room: Room) {
     .sort((a, b) => b.priority - a.priority)
 
   const terrain = room.getTerrain()
+  const hasTower = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }).length > 0
   pending.sort((a, b) => a.priority - b.priority || a.index - b.index)
 
   for (const { step, priority } of pending) {
     const allowed = CONTROLLER_STRUCTURES[step.structureType]?.[room.controller.level] ?? 0
     if (allowed <= (counts[step.structureType] || 0)) continue
     if (!isPlaceable(step, terrain)) continue
+    if (!hasTower && NEEDS_TOWER.includes(step.structureType)) continue
 
     if (MAX_OPEN_SITES <= open) {
       const victim = evictable[0]

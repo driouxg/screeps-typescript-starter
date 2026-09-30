@@ -243,6 +243,7 @@ async function main() {
     milestones: Object.fromEntries(Object.entries(bench.milestones).sort((a, b) => a[1] - b[1])),
     harvested: bench.harvested,
     spent: bench.spent || {},
+    spentByRole: bench.spentByRole || {},
     crowding: bench.crowd
       ? {
           nearSpawnPerTick: +(bench.crowd.nearSpawn / bench.crowd.ticks).toFixed(2),

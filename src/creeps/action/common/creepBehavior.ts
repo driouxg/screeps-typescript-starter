@@ -6,6 +6,7 @@ import {
   findTowers
 } from "utils/structureUtils"
 import { applyCreepCosts, smartMove } from "./movement"
+import { buildStagingPos } from "./buildStaging"
 
 /**
  * Move within `range` of pos. Returns ERR_NO_PATH when the creep is stuck and should pick a new target.
@@ -84,6 +85,10 @@ export function findOffloadSpot(creep: Creep): RoomPosition | null {
   // offload to towers
   const towers = findTowers(creep.room).filter(t => !isFullOfEnergy(t.store))
   if (0 < towers.length && creepCanReachPosition(creep, towers[0].pos)) return towers[0].pos
+
+  // drop next to the construction site builders are working on
+  const staging = buildStagingPos(creep.room)
+  if (staging && creepCanReachPosition(creep, staging)) return staging
 
   // offload to controller container / position
   const controllerCntPositions = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER).filter(c =>

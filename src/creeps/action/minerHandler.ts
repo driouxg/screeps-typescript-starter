@@ -14,6 +14,27 @@ export default class MinerHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const memory = creep.memory as MinerMemory
 
+    // Spawned to take over a tile another miner (smaller, or dying) still holds: get pulled next to the tile first,
+    // then retire the old miner and step in, so the source is only idle for a tick or two.
+    if (memory.replaces && !creep.spawning) {
+      const old = Game.creeps[memory.replaces]
+      const tile = isRoomPositionJson(memory.targetSourcePos) ? jsonToRoomPosition(memory.targetSourcePos) : null
+      if (!old || !tile) delete memory.replaces
+      else if (creep.pos.isNearTo(tile)) {
+        old.suicide()
+        delete memory.replaces
+      } else {
+        const waitAt = this.tileNextTo(tile, creep)
+        if (waitAt) {
+          creep.room.memory.events.push(new PullRequestEvent(waitAt, creep.name))
+          return
+        }
+        // Nowhere to wait next to it: hand over now and accept the trip.
+        old.suicide()
+        delete memory.replaces
+      }
+    }
+
     let source = memory.targetSourceId ? Game.getObjectById(memory.targetSourceId as Id<Source>) : null
     if (!source) {
       source = this.leastMinedSource(creep)
@@ -41,6 +62,27 @@ export default class MinerHandler implements ICreepHandler {
     creep.room.memory.events.push(new PullRequestEvent(jsonToRoomPosition(memory.targetSourcePos), creep.name))
   }
 
+  /** A free walkable tile next to `tile` (and not on it), closest to the creep. */
+  private tileNextTo(tile: RoomPosition, creep: Creep): RoomPosition | null {
+    const terrain = creep.room.getTerrain()
+    let best: RoomPosition | null = null
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = tile.x + dx
+        const y = tile.y + dy
+        if ((dx === 0 && dy === 0) || x < 1 || 48 < x || y < 1 || 48 < y) continue
+        if (terrain.get(x, y) === TERRAIN_MASK_WALL) continue
+        const pos = new RoomPosition(x, y, tile.roomName)
+        if (pos.lookFor(LOOK_STRUCTURES).some(s => (OBSTACLE_OBJECT_TYPES as string[]).includes(s.structureType)))
+          continue
+        const occupant = pos.lookFor(LOOK_CREEPS)[0]
+        if (occupant && occupant.id !== creep.id) continue
+        if (!best || creep.pos.getRangeTo(pos) < creep.pos.getRangeTo(best)) best = pos
+      }
+    }
+    return best
+  }
+
   private otherMiners(creep: Creep): Creep[] {
     return creep.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === creepRoles.MINER && c.id !== creep.id })
   }
@@ -56,4 +98,6 @@ export default class MinerHandler implements ICreepHandler {
 export interface MinerMemory extends CreepMemory {
   targetSourcePos: { x: number; y: number; roomName: string }
   targetSourceId: string
+  /** Name of a smaller miner this one replaces on the same tile. */
+  replaces?: string
 }

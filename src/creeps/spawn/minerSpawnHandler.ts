@@ -12,11 +12,26 @@ const MINER_REPLACEMENT_LEAD = 100
 const WORK_PER_SOURCE = SOURCE_ENERGY_CAPACITY / ENERGY_REGEN_TIME / HARVEST_POWER
 const MAX_MINERS_PER_SOURCE = 3
 
+function workBody(work: number): BodyPartConstant[] {
+  return Array<BodyPartConstant>(Math.max(1, work)).fill(WORK)
+}
+
+function tileOf(miner: Creep): RoomPosition {
+  const p = (miner.memory as MinerMemory).targetSourcePos
+  return p ? new RoomPosition(p.x, p.y, p.roomName) : miner.pos
+}
+
 /**
- * Goal: Harvest every source at its full 10 energy/tick.
+ * Goal: Harvest every source at its full 10 energy/tick with as few, as large miners as the room can afford.
  *
- * Early on the spawn can only afford 3 WORK miners (6/tick), so extra miners are added on other tiles next to the
- * source until it has WORK_PER_SOURCE. Once a full-size miner fits in one body, one miner per source is enough.
+ * - A source nobody is mining gets a miner right away, sized to the energy available now.
+ * - Otherwise miners are sized to the room's energy capacity, and we save up for them rather than spawn a small one
+ *   that would under-mine the source for its whole 1500 ticks.
+ * - Early on the spawn can only afford 3 WORK miners (6/tick), so extra miners go on other free tiles next to the
+ *   source until it has WORK_PER_SOURCE.
+ * - A source with no free tile left but too little WORK gets its weakest miner replaced by a larger one once the room
+ *   can afford it; the old miner retires when its replacement has spawned (see MinerHandler).
+ * - A dying miner's replacement takes over its tile.
  */
 export default class MinerSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.MINER
@@ -29,25 +44,50 @@ export default class MinerSpawnHandler implements ISpawnHandler {
 
     const miners = room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === this.role })
     const healthy = miners.filter(c => c.spawning || MINER_REPLACEMENT_LEAD < (c.ticksToLive ?? 0))
+    const affordableWork = Math.min(WORK_PER_SOURCE, Math.floor(room.energyCapacityAvailable / BODYPART_COST[WORK]))
+    const workOf = (c: Creep) => c.getActiveBodyparts(WORK)
 
     for (const source of room.find(FIND_SOURCES)) {
-      const assigned = healthy.filter(m => (m.memory as MinerMemory).targetSourceId === source.id)
-      const work = assigned.reduce((sum, m) => sum + m.getActiveBodyparts(WORK), 0)
-      if (WORK_PER_SOURCE <= work || MAX_MINERS_PER_SOURCE <= assigned.length) continue
+      const onSource = (m: Creep) => (m.memory as MinerMemory).targetSourceId === source.id
+      const assigned = healthy.filter(onSource)
+      const work = assigned.reduce((sum, m) => sum + workOf(m), 0)
+      if (WORK_PER_SOURCE <= work) continue
+
+      // Nobody mining at all: take what we can get now.
+      if (!miners.some(onSource)) {
+        const pos = freeMiningPosition(room, source, miners)
+        if (pos) return this.config(buildCappedBodyParts([WORK], room, WORK_PER_SOURCE), source, pos)
+        continue
+      }
 
       const pos = freeMiningPosition(room, source, miners)
-      if (!pos) continue
+      if (pos && assigned.length < MAX_MINERS_PER_SOURCE)
+        return this.config(workBody(Math.min(WORK_PER_SOURCE - work, affordableWork)), source, pos, true)
+      if (pos) continue
 
-      const body = buildCappedBodyParts([WORK], room, WORK_PER_SOURCE - work)
-      return new SpawnConfig(body, this.role, {
-        memory: {
-          targetSourceId: source.id as string,
-          targetSourcePos: { x: pos.x, y: pos.y, roomName: room.name }
-        } as MinerMemory
-      })
+      // No free tile. Replace a dying miner on its tile, or (once, straight to full size, since every swap idles the
+      // source briefly) upgrade the weakest one. Either way the replacement takes over at the tile (MinerHandler).
+      const replaced = (m: Creep) => miners.some(r => (r.memory as MinerMemory).replaces === m.name)
+      const dying = miners.find(m => onSource(m) && !healthy.includes(m) && !replaced(m))
+      if (dying) return this.config(workBody(affordableWork), source, tileOf(dying), true, dying.name)
+
+      const weakest = assigned.filter(m => !m.spawning).sort((a, b) => workOf(a) - workOf(b))[0]
+      if (weakest && !replaced(weakest) && affordableWork === WORK_PER_SOURCE && workOf(weakest) < WORK_PER_SOURCE)
+        return this.config(workBody(affordableWork), source, tileOf(weakest), true, weakest.name)
     }
 
     return null
+  }
+
+  private config(body: BodyPartConstant[], source: Source, pos: RoomPosition, wait = false, replaces?: string) {
+    return new SpawnConfig(body, this.role, {
+      memory: {
+        targetSourceId: source.id as string,
+        targetSourcePos: { x: pos.x, y: pos.y, roomName: pos.roomName },
+        ...(replaces ? { replaces } : {})
+      } as MinerMemory,
+      waitForEnergy: wait
+    })
   }
 
   private calcMinerPositions(room: Room): { sourceId: string; pos: { x: number; y: number; roomName: string } }[] {
