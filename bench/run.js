@@ -46,7 +46,10 @@ function parseArgs(argv) {
     attack: null,
     attackBody: "attack,attack,attack,move,move,move",
     attackCount: 1,
-    safeMode: 1
+    safeMode: 1,
+    // Mid-game start: GCL level for the player, and an RCL to jump the home room to (see fastForwardRcl).
+    gcl: 1,
+    startRcl: null
   }
   const strings = ["label", "room", "attackBody"]
   for (let i = 0; i < argv.length; i++) {
@@ -99,6 +102,48 @@ function loadModules(sampleInterval) {
   const sourceMap = path.join(DIST, "main.js.map.js")
   if (fs.existsSync(sourceMap)) modules["main.js.map"] = fs.readFileSync(sourceMap, "utf8")
   return modules
+}
+
+/** GCL points for a GCL level: the game's formula, GCL_MULTIPLY * (level - 1) ^ GCL_POW. */
+function gclPoints(level) {
+  return level <= 1 ? 0 : Math.ceil(1000000 * Math.pow(level - 1, 2.4)) + 1
+}
+
+/** Late enough that the bot has planned its layout (it does on its first ticks). */
+const FAST_FORWARD_TICK = 5
+const EXTENSIONS_PER_RCL = [0, 0, 5, 10, 20, 30, 40, 50, 60]
+const EXTENSION_ENERGY_PER_RCL = [0, 0, 50, 50, 50, 50, 50, 100, 200]
+const TOWERS_PER_RCL = [0, 0, 0, 1, 1, 2, 2, 3, 6]
+
+/**
+ * Jump the home room to `rcl`: set the controller level, and build the extensions and towers that RCL allows at
+ * the positions the bot planned for them, full of energy. Lets expansion and later-game logic be tested without
+ * playing through the early game first.
+ */
+async function fastForwardRcl(server, player, room, rcl) {
+  const { db } = server.common.storage
+  await db["rooms.objects"].update({ room, type: "controller" }, { $set: { level: rcl, progress: 0 } })
+
+  const memory = JSON.parse((await player.memory) || "{}")
+  const buildOrder = (memory.rooms && memory.rooms[room] && memory.rooms[room].buildOrder) || []
+  const want = { extension: EXTENSIONS_PER_RCL[rcl], tower: TOWERS_PER_RCL[rcl] }
+  const placed = { extension: 0, tower: 0 }
+  for (const step of buildOrder) {
+    const type = step.structureType
+    if (!(type in want) || want[type] <= placed[type]) continue
+    const energy = type === "tower" ? 1000 : EXTENSION_ENERGY_PER_RCL[rcl]
+    const hits = type === "tower" ? 3000 : 1000
+    await server.world.addRoomObject(room, type, step.x, step.y, {
+      user: player.id,
+      store: { energy },
+      storeCapacityResource: { energy },
+      hits,
+      hitsMax: hits,
+      notifyWhenAttacked: true
+    })
+    placed[type]++
+  }
+  return `${placed.extension} extensions, ${placed.tower} towers`
 }
 
 async function readBench(player) {
@@ -163,6 +208,7 @@ async function main() {
     room: opts.room,
     x: opts.x,
     y: opts.y,
+    gcl: gclPoints(opts.gcl),
     modules: loadModules(opts.sample)
   })
 
@@ -196,6 +242,10 @@ async function main() {
   let tick = 0
   let bench = null
   for (tick = 1; tick <= opts.ticks; tick++) {
+    if (opts.startRcl && tick === FAST_FORWARD_TICK) {
+      const placed = await fastForwardRcl(server, player, opts.room, opts.startRcl)
+      console.log(`tick ${String(tick).padStart(6)}  fast-forwarded to RCL ${opts.startRcl}: ${placed}`)
+    }
     if (raider && tick === opts.attack) {
       const body = opts.attackBody.split(",").map(p => p.trim())
       // Each RCL reached grants a safe mode charge, so "none" has to be enforced when the raid starts.
@@ -238,7 +288,9 @@ async function main() {
       msPerTick: (wallSeconds * 1000) / ticksRun,
       sampleInterval: opts.sample,
       attack: opts.attack === null ? null : { tick: opts.attack, body: opts.attackBody, count: opts.attackCount },
-      safeMode: opts.safeMode
+      safeMode: opts.safeMode,
+      gcl: opts.gcl,
+      startRcl: opts.startRcl
     },
     milestones: Object.fromEntries(Object.entries(bench.milestones).sort((a, b) => a[1] - b[1])),
     harvested: bench.harvested,

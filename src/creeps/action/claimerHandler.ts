@@ -1,78 +1,31 @@
 import { smartMove } from "./common/movement"
-import Queue from "utils/queue"
-import { moveToWithSinglePath } from "./common/creepBehavior"
 import ICreepHandler from "./ICreepHandler"
 
 /**
- * Goal: Try to expand to closest claimable room.
+ * Goal: Walk to the expansion target and claim its controller. The ExpansionPlanner notices the claim (or gives up
+ * on the target) and moves on.
  */
 export default class ClaimerHandler implements ICreepHandler {
   handle(creep: Creep): void {
-    let memory = creep.memory as ClaimerMemory
-    memory.targetRoom = memory.targetRoom ?? creep.room.name
+    const memory = creep.memory as ClaimerMemory
+    const target = memory.targetRoom ?? Memory.expansion?.target
+    if (!target) return
 
-    if (creep.room.name === memory.targetRoom) {
-      if (!this.isClaimableRoom(creep.room.name)) {
-        memory.targetRoom = this.findClaimableRoom(creep)
-        return
-      }
-
-      const controller = creep.room.controller as StructureController
-      const status = creep.claimController(controller)
-
-      if (status === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, controller.pos)
-      if (status === ERR_GCL_NOT_ENOUGH) creep.suicide()
-    } else smartMove(creep, new RoomPosition(25, 25, memory.targetRoom), 20)
-  }
-
-  private findClaimableRoom(creep: Creep): string {
-    let q = new Queue<string>()
-
-    q.add(creep.room.name)
-
-    while (0 < q.size() && q.size() < 20) {
-      const size = q.size()
-
-      for (let i = 0; i < size; i++) {
-        const roomName = q.remove()
-
-        if (!roomName) continue
-
-        if (this.isClaimableRoom(roomName)) return roomName
-
-        // Explore other closest options
-        const exits = Game.map.describeExits(roomName)
-        if (!exits) continue
-        const roomNames = Object.keys(exits).map(direction => exits[direction as ExitKey])
-
-        for (const roomName of roomNames) {
-          if (!roomName) continue
-          q.add(roomName)
-        }
-      }
+    if (creep.room.name !== target) {
+      smartMove(creep, new RoomPosition(25, 25, target), 20)
+      return
     }
 
-    return creep.room.name
-  }
+    const controller = creep.room.controller
+    if (!controller || controller.my) return
 
-  private isClaimableRoom(roomName: string) {
-    const room = Game.rooms[roomName]
-
-    if (!room) return false
-
-    if (room.controller === undefined) return false
-
-    if (room.find(FIND_SOURCES).length < 2) return false
-
-    if (room.controller.owner) return false
-
-    if (room.controller.reservation && room.controller.reservation.username !== "DryOx") return false
-
-    if (Game.map.getRoomStatus(room.name).status === "closed") return false
-
-    if (room.memory.status !== undefined && room.memory.status === "aggressive") return false
-
-    return true
+    const code = creep.claimController(controller)
+    if (code === ERR_NOT_IN_RANGE) smartMove(creep, controller, 1)
+    else if (code === ERR_GCL_NOT_ENOUGH) creep.suicide()
+    else if (code === ERR_INVALID_TARGET && controller.reservation) {
+      // Reserved by someone else: wear the reservation down, then claim.
+      if (creep.attackController(controller) === ERR_NOT_IN_RANGE) smartMove(creep, controller, 1)
+    }
   }
 }
 

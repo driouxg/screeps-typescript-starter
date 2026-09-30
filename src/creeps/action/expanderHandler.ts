@@ -1,45 +1,84 @@
-import { jsonToRoomPosition } from "utils/jsonMapper"
-import { hasEnergy, hasMaxEnergy, isWorking, moveToWithSinglePath } from "./common/creepBehavior"
+import * as creepRoles from "../roles"
+import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
 
+/** Upgrade instead of building if the new controller gets this close to downgrading. */
+const DOWNGRADE_SAFETY = 5000
+
 /**
- * Goal: Go to target room. Harvest and complete construction site.
+ * Goal: Pioneer for a newly claimed room. Walk there, harvest its sources (spread across them, picking up dropped
+ * energy first), and build the first spawn. Once the spawn exists, stay on as one of the room's builders.
  */
 export default class ExpanderHandler implements ICreepHandler {
   handle(creep: Creep): void {
-    if (isWorking(creep)) this.workUntilNoEnergy(creep)
-    else this.harvestUntilMaxEnergy(creep)
+    const memory = creep.memory as ExpanderMemory
+    const target = memory.targetRoom
+    if (!target) return
+
+    if (creep.room.name !== target) {
+      smartMove(creep, new RoomPosition(25, 25, target), 20)
+      return
+    }
+
+    if (0 < creep.room.find(FIND_MY_SPAWNS).length) {
+      // Job done: the new room's own spawn and economy take over; help it as a builder.
+      creep.memory.role = creepRoles.BUILDER
+      creep.memory.room = target
+      return
+    }
+
+    if (memory.working && creep.store.energy <= 0) memory.working = false
+    if (!memory.working && creep.store.getFreeCapacity() <= 0) memory.working = true
+
+    if (memory.working) this.work(creep)
+    else this.gather(creep)
   }
 
-  private workUntilNoEnergy(creep: Creep) {
-    const memory = creep.memory as ExpanderMemory
+  private work(creep: Creep) {
+    const controller = creep.room.controller
+    const site = creep.pos.findClosestByRange(FIND_MY_CONSTRUCTION_SITES, {
+      filter: s => s.structureType === STRUCTURE_SPAWN
+    })
+    const mustUpgrade = controller?.my && (controller.ticksToDowngrade ?? Infinity) < DOWNGRADE_SAFETY
 
-    if (hasEnergy(creep)) {
-      const spawnPos = jsonToRoomPosition(memory.targetSpawnPos)
-      const constructionSites = creep.room
-        .lookForAt(LOOK_CONSTRUCTION_SITES, spawnPos)
-        .filter(c => c.structureType === STRUCTURE_SPAWN)
-
-      if (constructionSites.length <= 0) creep.suicide()
-      if (creep.build(constructionSites[0]) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, spawnPos, 3)
-    } else memory.working = false
+    if (site && !mustUpgrade) {
+      if (creep.build(site) === ERR_NOT_IN_RANGE) smartMove(creep, site, 3)
+    } else if (controller?.my) {
+      if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) smartMove(creep, controller, 3)
+    }
   }
 
-  private harvestUntilMaxEnergy(creep: Creep) {
-    const memory = creep.memory as ExpanderMemory
-    const targetPos = jsonToRoomPosition(memory.targetSpawnPos)
+  private gather(creep: Creep) {
+    const pile = creep.pos.findClosestByRange(FIND_DROPPED_RESOURCES, {
+      filter: r => r.resourceType === RESOURCE_ENERGY && 50 <= r.amount
+    })
+    if (pile && creep.pos.getRangeTo(pile) <= 10) {
+      if (creep.pickup(pile) === ERR_NOT_IN_RANGE) smartMove(creep, pile, 1)
+      return
+    }
 
-    if (creep.room.name === targetPos.roomName) {
-      if (hasMaxEnergy(creep)) memory.working = true
-      if (memory.targetSourceId) {
-        const source = Game.getObjectById(memory.targetSourceId) as Source
-        if (creep.harvest(source) === ERR_NOT_IN_RANGE) moveToWithSinglePath(creep, source.pos)
-      } else memory.targetSourceId = creep.room.find(FIND_SOURCES)[0].id
-    } else moveToWithSinglePath(creep, targetPos)
+    const memory = creep.memory as ExpanderMemory
+    let source = memory.targetSourceId ? Game.getObjectById(memory.targetSourceId as Id<Source>) : null
+    if (!source || source.energy <= 0) {
+      source = this.leastBusySource(creep)
+      memory.targetSourceId = source?.id
+    }
+    if (source && creep.harvest(source) === ERR_NOT_IN_RANGE) smartMove(creep, source, 1)
+  }
+
+  /** The source with energy left that the fewest other pioneers are assigned to, closest first. */
+  private leastBusySource(creep: Creep): Source | null {
+    const others = creep.room.find(FIND_MY_CREEPS, {
+      filter: c => c.memory.role === creepRoles.EXPANDER && c.id !== creep.id
+    })
+    const load = (s: Source) => others.filter(c => (c.memory as ExpanderMemory).targetSourceId === s.id).length
+    const sources = creep.room.find(FIND_SOURCES_ACTIVE)
+    sources.sort((a, b) => load(a) - load(b) || creep.pos.getRangeTo(a) - creep.pos.getRangeTo(b))
+    return sources[0] ?? null
   }
 }
 
 export interface ExpanderMemory extends CreepMemory {
-  targetSourceId: string
-  targetSpawnPos: { x: number; y: number; roomName: string }
+  targetRoom: string
+  targetSourceId?: string
 }

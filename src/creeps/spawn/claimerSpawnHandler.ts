@@ -1,22 +1,24 @@
 import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
+import { ClaimerMemory } from "creeps/action/claimerHandler"
 
+/**
+ * Goal: One claimer for the current expansion target (see ExpansionPlanner), from the expansion's home room.
+ *
+ * A CLAIM creep only lives 600 ticks, so it gets two MOVE parts to keep full speed on plain and most swamp.
+ */
 export default class ClaimerSpawnHandler implements ISpawnHandler {
-  private creepPopulationDict: { [key: string]: number }
-
-  public constructor(creepPopulationDict: { [key: string]: number }) {
-    this.creepPopulationDict = creepPopulationDict
-  }
-
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
-    if (!this.isThousandthTick()) return null
+    const expansion = Memory.expansion
+    if (!expansion || expansion.state !== "claiming" || expansion.home !== spawn.room.name) return null
 
-    if (this.creepPopulationDict[creepRoles.CLAIMER] < 1) return new SpawnConfig([MOVE, CLAIM], creepRoles.CLAIMER)
-    else return null
-  }
+    const claimers = Object.values(Game.creeps).filter(c => c.memory.role === creepRoles.CLAIMER)
+    if (0 < claimers.length) return null
 
-  private isThousandthTick(): boolean {
-    return Game.time % 1000 === 0
+    return new SpawnConfig([CLAIM, MOVE, MOVE], creepRoles.CLAIMER, {
+      memory: { targetRoom: expansion.target } as ClaimerMemory,
+      waitForEnergy: true
+    })
   }
 }

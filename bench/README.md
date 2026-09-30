@@ -28,6 +28,20 @@ milestone was reached sooner.
 | `--room` | W0N1 | Starting room in the stub world |
 | `--x`, `--y` | auto | Spawn position. By default the harness picks open ground close to the sources and controller |
 
+### Mid-game starts and expansion
+
+```bash
+npm run bench -- --start-rcl 3 --gcl 2 --ticks 4500    # expansion: claim a second room and build its spawn
+```
+
+| Option | Default | |
+| --- | --- | --- |
+| `--gcl` | 1 | The player's GCL level (how many rooms it may own) |
+| `--start-rcl` | — | At tick 5, jump the home room to this RCL and build the extensions and towers it allows at the bot's planned positions, full of energy |
+
+Milestones `expansion:claiming`, `rooms:2` (claimed) and `spawn:2` (the new room's spawn is built) track an
+expansion.
+
 ### Attack scenarios
 
 ```bash

@@ -1,4 +1,3 @@
-import * as creepRoles from "creeps/roles"
 import BuilderSpawnHandler from "creeps/spawn/builderSpawnHandler"
 import ClaimerSpawnHandler from "creeps/spawn/claimerSpawnHandler"
 import ExpanderSpawnHandler from "creeps/spawn/expanderSpawnHandler"
@@ -50,8 +49,6 @@ export default class SpawnComposer {
   }
 
   public spawners(): ISpawnHandler[] {
-    const creepPopulationDict: { [key: string]: number } = this.creepPopulationDict()
-
     return [
       new MeleeDefenderSpawnHandler(),
       new HealerSpawnHandler(),
@@ -61,6 +58,9 @@ export default class SpawnComposer {
       new MinerSpawnHandler(),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
+      // Expansion (see ExpansionPlanner) is a one-off investment that saves up ahead of the workers.
+      new ClaimerSpawnHandler(),
+      new ExpanderSpawnHandler(),
       // Workers are sized by the energy budget (see utils/economy.ts). Builders get first claim while
       // construction sites exist.
       new BuilderSpawnHandler(),
@@ -69,23 +69,7 @@ export default class SpawnComposer {
       new WatcherSpawnHandler(),
       new RemoteDropMinerSpawnHandler(),
       new RemoteHaulerSpawnHandler(),
-      new ClaimerSpawnHandler(creepPopulationDict),
-      new ExpanderSpawnHandler(creepPopulationDict),
       new RapidFillerSpawnHandler()
     ]
-  }
-
-  private creepPopulationDict(): { [key: string]: number } {
-    const creepDict: { [key: string]: number } = {}
-
-    for (const creepRole in creepRoles) {
-      creepDict[creepRole] = 0
-    }
-
-    for (const creepName in Game.creeps) {
-      creepDict[Game.creeps[creepName].memory.role] += 1
-    }
-
-    return creepDict
   }
 }

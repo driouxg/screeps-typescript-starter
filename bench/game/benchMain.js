@@ -238,6 +238,9 @@ function record(b, cpu) {
     for (const step of COUNT_STEPS[type] || []) if (structures[type] >= step) mark(b, `${type}:${step}`)
   }
 
+  for (let n = 2; n <= rooms.length; n++) mark(b, `rooms:${n}`)
+  if (Memory.expansion) mark(b, `expansion:${Memory.expansion.state}`)
+
   const creepTotal = Object.keys(Game.creeps).length
   for (const step of CREEP_STEPS) if (creepTotal >= step) mark(b, `creeps:${step}`)
 
