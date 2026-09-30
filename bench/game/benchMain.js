@@ -55,7 +55,7 @@ function mark(b, key) {
  * appears (the spawn deducts the whole body cost at that point).
  */
 function energyThisTick(b) {
-  const flow = { harvested: 0, upgrade: 0, build: 0, repair: 0, spawn: 0, byRole: {} }
+  const flow = { harvested: 0, upgrade: 0, build: 0, repair: 0, spawn: 0, decay: 0, byRole: {} }
   const byRole = (creep, activity, amount) => {
     const role = (creep.memory && creep.memory.role) || "unknown"
     const r = flow.byRole[role] || (flow.byRole[role] = {})
@@ -81,6 +81,22 @@ function energyThisTick(b) {
       }
     }
   }
+
+  // Energy lost from piles on the ground in our rooms: each loses ceil(amount / ENERGY_DECAY) per tick.
+  for (const room of ownedRooms())
+    for (const r of room.find(FIND_DROPPED_RESOURCES))
+      if (r.resourceType === RESOURCE_ENERGY) {
+        const lost = Math.ceil(r.amount / ENERGY_DECAY)
+        flow.decay += lost
+        // Where: next to a source, near the controller, or elsewhere (spawn, build sites).
+        const where = r.pos.findInRange(FIND_SOURCES, 1).length
+          ? "source"
+          : r.pos.inRangeTo(room.controller, 3)
+          ? "controller"
+          : "other"
+        b.decayAt = b.decayAt || {}
+        b.decayAt[where] = (b.decayAt[where] || 0) + lost
+      }
 
   const seen = b.seenCreeps || (b.seenCreeps = {})
   for (const name in Game.creeps) {
@@ -249,6 +265,7 @@ function record(b, cpu) {
   const harvested = flow.harvested
   b.harvested += harvested
   const spent = b.spent || (b.spent = { upgrade: 0, build: 0, repair: 0, spawn: 0 })
+  if (spent.decay === undefined) spent.decay = 0
   for (const key in spent) spent[key] += flow[key]
   const spentByRole = b.spentByRole || (b.spentByRole = {})
   for (const role in flow.byRole) {
@@ -289,6 +306,13 @@ function record(b, cpu) {
   iv.near = iv.near || {}
   for (const role in crowd.near) iv.near[role] = (iv.near[role] || 0) + crowd.near[role]
   iv.cpuSum += cpu
+  // What each role's creeps are doing (creep-ticks): parked (memory.parkPos), working (memory.working) or not.
+  iv.states = iv.states || {}
+  for (const name in Game.creeps) {
+    const m = Game.creeps[name].memory || {}
+    const key = (m.role || "unknown") + ":" + (m.parkPos ? "parked" : m.working ? "working" : "collecting")
+    iv.states[key] = (iv.states[key] || 0) + 1
+  }
   iv.cpuMax = Math.max(iv.cpuMax, cpu)
   iv.ticks++
   iv.harvested += harvested
@@ -323,6 +347,19 @@ function record(b, cpu) {
       .sort((p1, p2) => p2.amount - p1.amount)
       .slice(0, 5)
       .map(p => `${p.pos.x},${p.pos.y}:${p.amount}`),
+    // Containers and their energy, and which creep role stands on each.
+    containers: rooms.reduce(
+      (all, r) =>
+        all.concat(
+          r
+            .find(FIND_STRUCTURES, { filter: s => s.structureType === STRUCTURE_CONTAINER })
+            .map(c => {
+              const on = c.pos.lookFor(LOOK_CREEPS)[0]
+              return `${c.pos.x},${c.pos.y}:${c.store.energy}${on ? " " + ((on.memory && on.memory.role) || "?") : ""}`
+            })
+        ),
+      []
+    ),
     storedEnergy: rooms.reduce(
       (sum, r) =>
         sum +
@@ -352,6 +389,7 @@ function record(b, cpu) {
     // Average creeps per tick standing next to a spawn, by role; creeps that haven't moved for 20+ ticks, by role.
     nearSpawn: Object.fromEntries(Object.entries(iv.near || {}).map(([r, n]) => [r, +(n / iv.ticks).toFixed(2)])),
     idle,
+    states: Object.fromEntries(Object.entries(iv.states || {}).map(([k, v]) => [k, +(v / iv.ticks).toFixed(1)])),
     structures
   })
   b.interval = { cpuSum: 0, cpuMax: 0, ticks: 0, harvested: 0 }

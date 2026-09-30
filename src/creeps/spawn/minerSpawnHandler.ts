@@ -82,8 +82,10 @@ export default class MinerSpawnHandler implements ISpawnHandler {
         return this.config(workBody(Math.min(WORK_PER_SOURCE - work, affordableWork)), source, pos, true)
       if (pos) continue
 
-      // No free tile. Replace a dying miner on its tile, or (once, straight to full size, since every swap idles the
-      // source briefly) upgrade the weakest one. Either way the replacement takes over at the tile (MinerHandler).
+      // No free tile. Replace a dying miner on its tile, or upgrade the weakest one as soon as a larger one is
+      // affordable: each WORK part more harvests 2 energy/tick, about 3000 over a miner's life, far more than the
+      // few idle ticks of a swap or the old miner's remaining life cost. Either way the replacement takes over at the
+      // tile (MinerHandler).
       const dying = miners.find(m => onSource(m) && !healthy.includes(m) && !replaced(m))
       // Only what the source is missing: other healthy miners already cover `work`.
       if (dying)
@@ -96,10 +98,7 @@ export default class MinerSpawnHandler implements ISpawnHandler {
         )
 
       const weakest = assigned.filter(m => !m.spawning).sort((a, b) => workOf(a) - workOf(b))[0]
-      // The room's first miner (the small one that walked, see above) is replaced as soon as a larger one is affordable.
-      const bootstrap = weakest && 0 < weakest.getActiveBodyparts(MOVE)
-      const upgrade = affordableWork === WORK_PER_SOURCE || bootstrap
-      if (weakest && !replaced(weakest) && upgrade && workOf(weakest) < affordableWork)
+      if (weakest && !replaced(weakest) && workOf(weakest) < affordableWork)
         return this.config(workBody(affordableWork), source, tileOf(weakest), true, weakest.name)
     }
 

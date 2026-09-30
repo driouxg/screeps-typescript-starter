@@ -248,6 +248,12 @@ function printSummary(result) {
     console.log(
       `  spent on ${activity.padEnd(13)} ${amount}  (${((amount / (result.harvested || 1)) * 100).toFixed(0)}%)`
     )
+  if (Object.keys(result.decayAt || {}).length)
+    console.log(
+      `  decayed at             ${Object.entries(result.decayAt)
+        .map(([k, v]) => `${k} ${v}`)
+        .join(", ")}`
+    )
   if (result.crowding.nearSpawnPerTick !== undefined)
     console.log(
       `  next to spawn          ${result.crowding.nearSpawnPerTick} creeps/tick  (spawn boxed in ${result.crowding.spawnBoxedTicks} ticks)`
@@ -393,6 +399,7 @@ async function main() {
     harvested: bench.harvested,
     spent: bench.spent || {},
     spentByRole: bench.spentByRole || {},
+    decayAt: bench.decayAt || {},
     crowding: bench.crowd
       ? {
           nearSpawnPerTick: +(bench.crowd.nearSpawn / bench.crowd.ticks).toFixed(2),

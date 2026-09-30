@@ -56,6 +56,8 @@ export default class SpawnComposer {
       // One upgrader right away: the controller is the only thing to spend on at RCL 1.
       new UpgraderSpawnHandler("first"),
       new MinerSpawnHandler(),
+      // Two builders once the sources are staffed: they upgrade until RCL 2, then start on the extensions straight away.
+      new BuilderSpawnHandler("first"),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
       // Cheap, and once in place they take over filling the rapid fill's spawns and extensions.
@@ -67,7 +69,7 @@ export default class SpawnComposer {
       new RemoteSpawnHandler(),
       // Workers are sized by the energy budget (see utils/economy.ts). Builders get first claim while
       // construction sites exist.
-      new BuilderSpawnHandler(),
+      new BuilderSpawnHandler("budget"),
       new UpgraderSpawnHandler("budget"),
       new ScoutSpawnHandler(),
       new WatcherSpawnHandler()

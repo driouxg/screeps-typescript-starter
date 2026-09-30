@@ -98,7 +98,29 @@ raiders killed, our creeps killed by role, the lowest spawn hits, and when safe 
 | `hostile:arrived`, `hostile:cleared`, `lost:spawn` | Raiders entered the room; all raiders dead; our last spawn destroyed |
 
 The JSON also has `samples` (one every `--sample` ticks) with average and max CPU, bucket, energy/tick, creeps by
-role and structure counts, for when you need to see *why* a milestone moved.
+role and structure counts, for when you need to see *why* a milestone moved. Each sample also has the largest energy
+`piles`, every `containers`' energy (and the role of the creep standing on it), and `states`: creeps per role that are
+parked, working or collecting (from `memory.parkPos` / `memory.working`), averaged over the interval.
+
+`spent on decay` is energy lost from piles on the ground (each loses `ceil(amount / 1000)` per tick), and `decayed at`
+splits it into piles next to a source, near the controller, and elsewhere. A drop miner's pile never quite empties,
+so it costs at least 1 energy per tick for as long as there's no container under the miner.
+
+## Comparing other bots
+
+`--bot-dist <folder>` runs any bot's built code instead of `dist/`: every `.js` file in the folder becomes a module
+(`main.js` is wrapped by the recorder like ours, `x.js` is required as `x`), and `.wasm` files become binary modules.
+Milestones and energy flows come from room event logs, so they work for any bot; only the by-role numbers depend on
+`memory.role`.
+
+```
+npm run build && node bench/docker.js --bot-dist ../hivemind/dist --label vs-hivemind
+node bench/docker.js --bot-dist ../screeps/src --ticks 12000 --until-rcl 3 --label rcl3-tooangel
+```
+
+Tested with TooAngel (its `src/` folder as is), Hivemind, Overmind and The International (each built with its own
+`rollup -c`; Overmind places no construction sites in this world). Bots that count every creep that appears as
+"spawned" but reuse names can show `spent on spawn` above 100%.
 
 ## Reading results
 

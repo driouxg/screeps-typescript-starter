@@ -10,6 +10,8 @@
  */
 const MAX_OPEN_SITES = 5
 const PLACE_INTERVAL = 5
+/** Nothing but a spawn gets built before this RCL (see build). */
+const MIN_BUILD_RCL = 2
 
 /**
  * Build priority, lower first. Each structure only becomes buildable at the RCL the game allows it, so this one
@@ -94,6 +96,9 @@ export default function build(room: Room) {
   pending.sort((a, b) => a.priority - b.priority || a.index - b.index)
 
   for (const { step, priority } of pending) {
+    // At RCL 1 every bit of energy should go into the controller (RCL 2 needs only 200): the only things buildable
+    // then are containers (5000 energy each) and roads, which would push RCL 2 back by hundreds of ticks.
+    if (room.controller.level < MIN_BUILD_RCL && step.structureType !== STRUCTURE_SPAWN) continue
     const allowed = CONTROLLER_STRUCTURES[step.structureType]?.[room.controller.level] ?? 0
     if (allowed <= (counts[step.structureType] || 0)) continue
     if (!isPlaceable(step, terrain)) continue

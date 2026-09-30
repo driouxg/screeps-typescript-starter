@@ -4,7 +4,11 @@ import SpawnConfig from "./SpawnConfig"
 import { creepsOf, workerBudget, workerSpend } from "./utils/economy"
 import { defencesBelow, isDefence, RAMPART_MIN_HITS } from "structures/rampartPolicy"
 
-const MAX_BUILDERS = 4
+/**
+ * Before the first extensions a builder has only 1 WORK part, so it takes this many to spend what two sources yield;
+ * with 4, energy piled up and decayed while the RCL 2 extensions took ~1000 ticks longer (measured with the bench).
+ */
+const MAX_BUILDERS = 8
 /** Share of the worker budget builders get while there's something to build; upgraders get the rest. */
 const BUILD_SHARE = 0.6
 /** RCL 2 needs only 200 upgrade progress; building before then (containers, roads) just delays extensions. */
@@ -15,6 +19,11 @@ const MIN_RCL = 2
  */
 const BUILDER_UNIT: BodyPartConstant[] = [WORK, CARRY, CARRY, MOVE, MOVE]
 const MAX_BUILDER_PARTS = 20
+/**
+ * Builders the "first" step keeps from the start, ahead of extra haulers: with nothing to build they upgrade (see
+ * BuilderHandler.work), and they're already there when RCL 2 unlocks the extensions.
+ */
+const FIRST_BUILDERS = 2
 
 /**
  * Goal: Enough builders to spend BUILD_SHARE of the spare energy on construction, and one to repair when there's
@@ -23,12 +32,22 @@ const MAX_BUILDER_PARTS = 20
 export default class BuilderSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.BUILDER
 
+  /** "first": FIRST_BUILDERS once a miner and a hauler work, from RCL 1. "budget": more, sized by the energy budget. */
+  public constructor(private mode: "first" | "budget" = "budget") {}
+
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     const { room } = spawn
-    if (!room.controller || room.controller.level < MIN_RCL) return null
+    if (!room.controller?.my) return null
 
     const creeps = creepsOf(room)
     const builders = creeps.filter(c => c.memory.role === this.role)
+    if (this.mode === "first") {
+      const hasRole = (role: string) => creeps.some(c => c.memory.role === role)
+      if (!hasRole(creepRoles.MINER) || !hasRole(creepRoles.HAULER) || FIRST_BUILDERS <= builders.length) return null
+      return new SpawnConfig(builderBody(room.energyAvailable), this.role)
+    }
+
+    if (room.controller.level < MIN_RCL) return null
     if (MAX_BUILDERS <= builders.length) return null
 
     const hasSites = 0 < room.find(FIND_MY_CONSTRUCTION_SITES).length
