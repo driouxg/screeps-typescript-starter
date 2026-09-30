@@ -1,4 +1,5 @@
 import { priorityOf } from "structures/construction/buildOrderConstructor"
+import { defencesBelow, isDefence, RAMPART_MIN_HITS, rampartTarget } from "structures/rampartPolicy"
 import { findPickupPosition } from "./common/creepBehavior"
 import { clearTile, moveOffTile, smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
@@ -11,8 +12,8 @@ const CONTROLLER_RESERVE_RANGE = 3
 type EnergyTarget = Resource<RESOURCE_ENERGY> | StructureContainer | StructureStorage | Tombstone | Ruin
 
 /**
- * Goal: Repair structures below 80%. Otherwise, build construction sites, finishing the most progressed one first.
- * With nothing to build, upgrade the controller.
+ * Goal: Keep ramparts alive and structures repaired, build construction sites (highest priority, then most progressed,
+ * first), and with nothing to build reinforce ramparts or upgrade the controller (see work).
  *
  * Energy comes from the closest pile, container, storage, tombstone or ruin, falling back to harvesting.
  */
@@ -31,19 +32,32 @@ export default class BuilderHandler implements ICreepHandler {
     else this.collectEnergy(creep)
   }
 
+  /**
+   * In order: ramparts/walls about to decay away, other damaged structures, construction, reinforcing ramparts/walls
+   * towards the RCL's target (see rampartPolicy), and upgrading.
+   */
   private work(creep: Creep) {
-    if (this.repair(creep)) return
+    if (this.repair(creep, () => defencesBelow(creep.room, RAMPART_MIN_HITS), RAMPART_MIN_HITS)) return
+    if (this.repair(creep, () => this.getRepairableStructures(creep))) return
     if (this.build(creep)) return
+    const target = rampartTarget(creep.room)
+    if (this.repair(creep, () => defencesBelow(creep.room, target), target)) return
     this.upgrade(creep)
   }
 
-  private repair(creep: Creep): boolean {
+  /**
+   * Repair the remembered target until it reaches `goal` hits (its max if not given), else pick the closest of
+   * `candidates`. Returns whether there was anything to repair.
+   */
+  private repair(creep: Creep, candidates: () => Structure[], goal?: number): boolean {
     const memory = creep.memory as BuilderMemory
     let target = memory.repairTargetId ? Game.getObjectById(memory.repairTargetId) : null
+    const done = (s: Structure) => (memory.repairGoal ?? s.hitsMax) <= s.hits || s.hits === s.hitsMax
 
-    if (!target || this.isFullHealth(target)) {
-      target = creep.pos.findClosestByRange(this.getRepairableStructures(creep))
+    if (!target || done(target)) {
+      target = creep.pos.findClosestByRange(candidates())
       memory.repairTargetId = target?.id
+      memory.repairGoal = goal
     }
     if (!target) return false
 
@@ -155,15 +169,12 @@ export default class BuilderHandler implements ICreepHandler {
 
   private getRepairableStructures = (creep: Creep): AnyStructure[] =>
     creep.room.find(FIND_STRUCTURES, {
-      filter: s => s.structureType !== STRUCTURE_RAMPART && this.isStructureLowHits(s)
+      // Ramparts and walls have their own thresholds (walls' hitsMax is 300M, so "80%" would never be reached).
+      filter: s => !isDefence(s) && this.isStructureLowHits(s)
     })
 
   private isStructureLowHits(s: AnyStructure) {
     return s.hits < s.hitsMax * 0.8
-  }
-
-  private isFullHealth(s: Structure) {
-    return s.hits === s.hitsMax
   }
 }
 
@@ -173,6 +184,8 @@ function energyIn(target: EnergyTarget): number {
 
 export interface BuilderMemory extends CreepMemory {
   repairTargetId?: Id<Structure>
+  /** Hits to repair the target up to (ramparts and walls stop short of their huge hitsMax). */
+  repairGoal?: number
   buildTargetId?: Id<ConstructionSite>
   pickupTargetId?: Id<EnergyTarget>
 }

@@ -87,6 +87,12 @@ export function findOffloadSpot(creep: Creep): RoomPosition | null {
   const spawns = creep.room.find(FIND_MY_SPAWNS).filter(s => !isFullOfEnergy(s.store) && !covered(s.pos))
   if (0 < spawns.length && creepCanReachPosition(creep, spawns[0].pos)) return spawns[0].pos
 
+  // Towers below half: they defend the room and keep its ramparts from decaying, so they come next.
+  const hungryTowers = findTowers(creep.room)
+    .filter(t => t.store.energy < t.store.getCapacity(RESOURCE_ENERGY) / 2)
+    .sort((a, b) => a.store.energy - b.store.energy)
+  if (0 < hungryTowers.length && creepCanReachPosition(creep, hungryTowers[0].pos)) return hungryTowers[0].pos
+
   // The rapid fill's containers (while fillers are there to use them) and the controller container each get a minimum
   // first, so neither spawning nor upgrading stalls; then towers; then the rapid fill up to its working buffer.
   const rapidFillContainers = rapidFillContainersBelow(creep.room)

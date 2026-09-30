@@ -1,67 +1,44 @@
 import { isEdge } from "utils/gridBuilder"
-import { jsonToRoomPosition } from "utils/jsonMapper"
-import { findTowers } from "utils/structureUtils"
+import { defencesBelow, RAMPART_CRITICAL_HITS, RAMPART_MIN_HITS } from "structures/rampartPolicy"
 import IStructureActionHandler from "./IStructureActionHandler"
 
+/** Energy a tower keeps for defence; only the surplus goes into repairs. */
+const DEFENCE_RESERVE = 500
+/** Even a rampart about to decay away isn't worth leaving a tower unable to shoot. */
+const EMERGENCY_RESERVE = 200
+
+/**
+ * Goal: Towers defend first (attack hostiles, healers first), then heal our creeps, then keep ramparts and walls
+ * alive: those about to decay away out of anything above EMERGENCY_RESERVE, the rest below RAMPART_MIN_HITS out of
+ * energy above DEFENCE_RESERVE. Reinforcing beyond that is left to builders, which repair at a tenth of the cost.
+ */
 export default class TowerActionHandler implements IStructureActionHandler {
   public handle(room: Room): void {
-    if (!this.canOperateTowersInThisRoom(room)) return
+    const towers = room.find(FIND_MY_STRUCTURES, {
+      filter: s => s.structureType === STRUCTURE_TOWER
+    }) as StructureTower[]
+    if (towers.length <= 0) return
 
-    for (const tower of findTowers(room)) {
-      const enemies: Creep[] = room.find(FIND_HOSTILE_CREEPS, { filter: c => !isEdge(c.pos.x, c.pos.y) })
-      if (0 < enemies.length) {
-        this.attack(enemies, tower)
-        continue
-      }
-
-      const myHealableCreeps: Creep[] = room.find(FIND_MY_CREEPS, { filter: c => c.hits + 100 < c.hitsMax })
-      if (0 < myHealableCreeps.length) {
-        this.heal(tower, myHealableCreeps)
-        continue
-      }
-
-      if (Game.time % 2 !== 0) return // Towers are using all energy on repairs
-
-      // Repair ramparts
-      const ramparts = room
-        .find(FIND_MY_STRUCTURES, { filter: c => c.structureType === STRUCTURE_RAMPART && c.hits !== c.hitsMax })
-        .sort((a, b) => a.hits - b.hits)
-
-      if (0 < ramparts.length) tower.repair(ramparts[0])
+    const enemies = room.find(FIND_HOSTILE_CREEPS, { filter: c => !isEdge(c.pos.x, c.pos.y) })
+    if (0 < enemies.length) {
+      const healers = enemies.filter(c => 0 < c.getActiveBodyparts(HEAL))
+      const target = healers[0] ?? enemies[0]
+      towers.forEach(t => t.attack(target))
+      return
     }
-  }
 
-  private attack(enemies: Creep[], tower: StructureTower): void {
-    const healerEnemies: Creep[] = enemies.filter(c => 0 < c.getActiveBodyparts(HEAL))
+    const wounded = room.find(FIND_MY_CREEPS, { filter: c => c.hits < c.hitsMax })
+    if (0 < wounded.length) {
+      towers.forEach(t => t.heal(t.pos.findClosestByRange(wounded)!))
+      return
+    }
 
-    if (0 < healerEnemies.length) tower.attack(healerEnemies[0])
-    else tower.attack(enemies[0])
-  }
-
-  private heal(tower: StructureTower, myHealableCreeps: Creep[]): void {
-    tower.heal(myHealableCreeps[0])
-  }
-
-  private getMyTowerPositions(room: Room): RoomPosition[] {
-    if (!room.memory.positions || !room.memory.positions[STRUCTURE_TOWER]) return []
-    return room.memory.positions[STRUCTURE_TOWER].map(p => jsonToRoomPosition(p))
-  }
-
-  private canOperateTowersInThisRoom(room: Room): boolean {
-    const myTowerPositions = this.getMyTowerPositions(room)
-
-    if (!myTowerPositions) return false
-
-    return (
-      room.controller !== undefined &&
-      room.controller.my &&
-      3 <= room.controller.level &&
-      myTowerPositions &&
-      0 < myTowerPositions.length
-    )
-  }
-
-  private dist(pos1: RoomPosition, pos2: RoomPosition): number {
-    return Math.sqrt(Math.pow(pos2.x - pos1.x, 2) + Math.pow(pos2.y - pos1.y, 2))
+    const critical = defencesBelow(room, RAMPART_CRITICAL_HITS)
+    const low = defencesBelow(room, RAMPART_MIN_HITS)
+    for (const tower of towers) {
+      const energy = tower.store.energy
+      const target = (EMERGENCY_RESERVE < energy && critical[0]) || (DEFENCE_RESERVE < energy && low[0]) || undefined
+      if (target) tower.repair(target)
+    }
   }
 }

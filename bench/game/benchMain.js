@@ -75,7 +75,10 @@ function energyThisTick(b) {
       else if (e.event === EVENT_BUILD) {
         flow.build += e.data.energySpent ?? e.data.amount
         byRole(creep, "build", e.data.energySpent ?? e.data.amount)
-      } else if (e.event === EVENT_REPAIR) flow.repair += e.data.energySpent
+      } else if (e.event === EVENT_REPAIR) {
+        flow.repair += e.data.energySpent
+        byRole(creep, "repair", e.data.energySpent)
+      }
     }
   }
 
@@ -213,6 +216,30 @@ function recordDefence(b, rooms) {
   if (0 < d.hostilesSeen && rooms.every(r => r.find(FIND_MY_SPAWNS).length === 0)) mark(b, "lost:spawn")
 }
 
+function rampartStats(rooms, b) {
+  const ramparts = rooms.reduce(
+    (all, r) => all.concat(r.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_RAMPART })),
+    []
+  )
+  const seen = b.rampartIds || (b.rampartIds = {})
+  let lost = b.rampartsLost || 0
+  const now = new Set(ramparts.map(r => r.id))
+  for (const id in seen)
+    if (!now.has(id)) {
+      lost++
+      delete seen[id]
+    }
+  for (const r of ramparts) seen[r.id] = true
+  b.rampartsLost = lost
+  const hits = ramparts.map(r => r.hits)
+  return {
+    count: ramparts.length,
+    minHits: hits.length ? Math.min(...hits) : null,
+    avgHits: hits.length ? Math.round(hits.reduce((x, y) => x + y, 0) / hits.length) : null,
+    lost
+  }
+}
+
 function record(b, cpu) {
   const rooms = ownedRooms()
   const rcl = rooms.reduce((max, r) => Math.max(max, r.controller.level), 0)
@@ -306,6 +333,15 @@ function record(b, cpu) {
       0
     ),
     energyCapacity: rooms.reduce((sum, r) => sum + r.energyCapacityAvailable, 0),
+    // Ramparts: how many, their lowest and average hits, and how many have decayed away so far.
+    ramparts: rampartStats(rooms, b),
+    towerEnergy: rooms.reduce(
+      (all, r) =>
+        all.concat(
+          r.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }).map(t => t.store.energy)
+        ),
+      []
+    ),
     creeps: creepCounts(),
     // Average creeps per tick standing next to a spawn, by role; creeps that haven't moved for 20+ ticks, by role.
     nearSpawn: Object.fromEntries(Object.entries(iv.near || {}).map(([r, n]) => [r, +(n / iv.ticks).toFixed(2)])),

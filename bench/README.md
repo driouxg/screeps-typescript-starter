@@ -37,7 +37,15 @@ npm run bench -- --start-rcl 3 --gcl 2 --ticks 4500    # expansion: claim a seco
 | Option | Default | |
 | --- | --- | --- |
 | `--gcl` | 1 | The player's GCL level (how many rooms it may own) |
-| `--start-rcl` | — | At tick 5, jump the home room to this RCL and build the extensions and towers it allows at the bot's planned positions, full of energy |
+| `--start-rcl` | — | At tick 5, jump the home room to this RCL and build the extensions and towers it allows at the bot's planned positions, full of energy, plus its planned containers |
+| `--start-ramparts` | — | Also build the planned ramparts with this many hits (`1` = just finished by builders) |
+| `--ramparts-at` | with `--start-rcl` | Tick to add those ramparts, e.g. `1000` so they arrive in a running economy |
+
+Samples include `ramparts` (count, lowest and average hits, how many have decayed away) and `towerEnergy`:
+
+```bash
+npm run bench -- --start-rcl 3 --start-ramparts 1 --ramparts-at 1000 --ticks 2500
+```
 
 Milestones `expansion:claiming`, `rooms:2` (claimed) and `spawn:2` (the new room's spawn is built) track an
 expansion.

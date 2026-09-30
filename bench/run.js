@@ -49,7 +49,11 @@ function parseArgs(argv) {
     safeMode: 1,
     // Mid-game start: GCL level for the player, and an RCL to jump the home room to (see fastForwardRcl).
     gcl: 1,
-    startRcl: null
+    startRcl: null,
+    // With --start-rcl: also build the planned ramparts with this many hits (1 = just finished by builders).
+    startRamparts: null,
+    // Tick to add those ramparts (default: with the fast-forward). Later means they arrive in a running economy.
+    rampartsAt: null
   }
   const strings = ["label", "room", "attackBody"]
   for (let i = 0; i < argv.length; i++) {
@@ -120,7 +124,7 @@ const TOWERS_PER_RCL = [0, 0, 0, 1, 1, 2, 2, 3, 6]
  * the positions the bot planned for them, full of energy, plus its planned containers (empty). Lets expansion and later-game logic be tested without
  * playing through the early game first.
  */
-async function fastForwardRcl(server, player, room, rcl) {
+async function fastForwardRcl(server, player, room, rcl, rampartHits) {
   const { db } = server.common.storage
   await db["rooms.objects"].update({ room, type: "controller" }, { $set: { level: rcl, progress: 0 } })
 
@@ -144,7 +148,26 @@ async function fastForwardRcl(server, player, room, rcl) {
     })
     placed[type]++
   }
-  return `${placed.extension} extensions, ${placed.tower} towers, ${placed.container} containers`
+  const ramparts = rampartHits ? await addPlannedRamparts(server, player, room, rcl, rampartHits) : 0
+  return `${placed.extension} extensions, ${placed.tower} towers, ${placed.container} containers, ${ramparts} ramparts`
+}
+
+/** Build the room's planned ramparts with `hits` hits (1 = just finished by builders). */
+async function addPlannedRamparts(server, player, room, rcl, hits) {
+  const memory = JSON.parse((await player.memory) || "{}")
+  const buildOrder = (memory.rooms && memory.rooms[room] && memory.rooms[room].buildOrder) || []
+  let n = 0
+  for (const step of buildOrder.filter(s => s.structureType === "rampart")) {
+    await server.world.addRoomObject(room, "rampart", step.x, step.y, {
+      user: player.id,
+      hits,
+      hitsMax: 1000000 * [0, 0, 0.3, 1, 3, 10, 30, 100, 300][rcl],
+      nextDecayTime: (await server.world.gameTime) + 100,
+      notifyWhenAttacked: true
+    })
+    n++
+  }
+  return n
 }
 
 async function readBench(player) {
@@ -244,8 +267,18 @@ async function main() {
   let bench = null
   for (tick = 1; tick <= opts.ticks; tick++) {
     if (opts.startRcl && tick === FAST_FORWARD_TICK) {
-      const placed = await fastForwardRcl(server, player, opts.room, opts.startRcl)
+      const placed = await fastForwardRcl(
+        server,
+        player,
+        opts.room,
+        opts.startRcl,
+        opts.rampartsAt ? null : opts.startRamparts
+      )
       console.log(`tick ${String(tick).padStart(6)}  fast-forwarded to RCL ${opts.startRcl}: ${placed}`)
+    }
+    if (opts.startRamparts && opts.rampartsAt && tick === opts.rampartsAt) {
+      const n = await addPlannedRamparts(server, player, opts.room, opts.startRcl || 3, opts.startRamparts)
+      console.log(`tick ${String(tick).padStart(6)}  added ${n} ramparts with ${opts.startRamparts} hits`)
     }
     if (raider && tick === opts.attack) {
       const body = opts.attackBody.split(",").map(p => p.trim())

@@ -2,6 +2,7 @@ import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import { creepsOf, workerBudget, workerSpend } from "./utils/economy"
+import { defencesBelow, isDefence, RAMPART_MIN_HITS } from "structures/rampartPolicy"
 
 const MAX_BUILDERS = 4
 /** Share of the worker budget builders get while there's something to build; upgraders get the rest. */
@@ -40,9 +41,8 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
 
   private needsRepair(room: Room): boolean {
     return (
-      0 <
-      room.find(FIND_STRUCTURES, { filter: s => s.structureType !== STRUCTURE_RAMPART && s.hits < s.hitsMax * 0.8 })
-        .length
+      0 < room.find(FIND_STRUCTURES, { filter: s => !isDefence(s) && s.hits < s.hitsMax * 0.8 }).length ||
+      0 < defencesBelow(room, RAMPART_MIN_HITS).length
     )
   }
 }
