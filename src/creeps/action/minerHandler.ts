@@ -10,6 +10,9 @@ import { freeMiningPosition } from "./common/miningPosition"
  * The spawn handler assigns the source and position. A miner whose memory lacks them (spawned by older code, or
  * edited by hand) picks its own instead of failing every tick.
  */
+/** A miner still not at its source after this long (pullers busy, tile unreachable) picks another tile. */
+const STUCK_TICKS = 300
+
 export default class MinerHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const memory = creep.memory as MinerMemory
@@ -44,6 +47,7 @@ export default class MinerHandler implements ICreepHandler {
     }
 
     if (creep.harvest(source) !== ERR_NOT_IN_RANGE) {
+      delete memory.waitingSince
       // Already mining: record where, so the spawn handler knows this tile is taken.
       if (!isRoomPositionJson(memory.targetSourcePos)) {
         // Explicit fields: official servers pack RoomPosition coordinates, so spreading it copies nothing useful.
@@ -53,13 +57,32 @@ export default class MinerHandler implements ICreepHandler {
       return
     }
 
-    if (!isRoomPositionJson(memory.targetSourcePos)) {
-      const pos = freeMiningPosition(creep.room, source, this.otherMiners(creep))
-      if (!pos) return
+    // Not at the source yet. If our tile got built on, or we've waited too long for it, find another; with no tile
+    // left for us we're surplus, and retire rather than queue by the spawn for the rest of our life.
+    memory.waitingSince = memory.waitingSince ?? Game.time
+    const stuck = STUCK_TICKS < Game.time - memory.waitingSince
+    if (!isRoomPositionJson(memory.targetSourcePos) || stuck || this.blocked(memory.targetSourcePos)) {
+      const others = this.otherMiners(creep)
+      const pos = freeMiningPosition(creep.room, source, others)
+      if (!pos) {
+        if (stuck) {
+          console.log(`Miner ${creep.name}: no free tile at source ${source.id}, retiring`)
+          creep.suicide()
+        }
+        return
+      }
       memory.targetSourcePos = { x: pos.x, y: pos.y, roomName: pos.roomName }
+      if (stuck) memory.waitingSince = Game.time
     }
 
     creep.room.memory.events.push(new PullRequestEvent(jsonToRoomPosition(memory.targetSourcePos), creep.name))
+  }
+
+  /** Whether a structure creeps can't stand on has been built on the tile. */
+  private blocked(tile: RoomPositionJson): boolean {
+    return jsonToRoomPosition(tile)
+      .lookFor(LOOK_STRUCTURES)
+      .some(s => (OBSTACLE_OBJECT_TYPES as string[]).includes(s.structureType))
   }
 
   /** A free walkable tile next to `tile` (and not on it), closest to the creep. */
@@ -100,4 +123,6 @@ export interface MinerMemory extends CreepMemory {
   targetSourceId: string
   /** Name of a smaller miner this one replaces on the same tile. */
   replaces?: string
+  /** Tick this miner started waiting to be pulled to its tile. */
+  waitingSince?: number
 }

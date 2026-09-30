@@ -7,6 +7,8 @@ import {
 } from "utils/structureUtils"
 import { applyCreepCosts, smartMove } from "./movement"
 import { buildStagingPos } from "./buildStaging"
+import { rapidFillOf } from "structures/rapidFill"
+import { RAPID_FILLER } from "creeps/roles"
 
 /**
  * Move within `range` of pos. Returns ERR_NO_PATH when the creep is stuck and should pick a new target.
@@ -69,8 +71,11 @@ export function canStoreEnergy(creep: Creep): boolean {
  * Where to deliver energy, or null when nothing needs it.
  */
 export function findOffloadSpot(creep: Creep): RoomPosition | null {
+  // Spawns and extensions a rapid filler covers are its job; bring energy to the rapid fill's containers instead.
+  const covered = coveredByFillers(creep.room)
+
   // offload to extensions
-  const extensions = findExtensions(creep.room).filter(e => !isFullOfEnergy(e.store))
+  const extensions = findExtensions(creep.room).filter(e => !isFullOfEnergy(e.store) && !covered(e.pos))
   if (0 < extensions.length) {
     extensions.sort(
       (e1, e2) => e1.pos.getRangeTo(creep.pos.x, creep.pos.y) - e2.pos.getRangeTo(creep.pos.x, creep.pos.y)
@@ -79,21 +84,38 @@ export function findOffloadSpot(creep: Creep): RoomPosition | null {
   }
 
   // offload to spawns
-  const spawns = creep.room.find(FIND_MY_SPAWNS).filter(s => !isFullOfEnergy(s.store))
+  const spawns = creep.room.find(FIND_MY_SPAWNS).filter(s => !isFullOfEnergy(s.store) && !covered(s.pos))
   if (0 < spawns.length && creepCanReachPosition(creep, spawns[0].pos)) return spawns[0].pos
+
+  // The rapid fill's containers (while fillers are there to use them) and the controller container each get a minimum
+  // first, so neither spawning nor upgrading stalls; then towers; then the rapid fill up to its working buffer.
+  const rapidFillContainers = rapidFillContainersBelow(creep.room)
+  const controllerCntPositions = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER).filter(c =>
+    c.inRangeTo(creep.room.controller!.pos, 2)
+  )
+
+  const urgentRapidFill = rapidFillContainers(RAPID_FILL_MIN_STOCK)
+  if (urgentRapidFill && creepCanReachPosition(creep, urgentRapidFill.pos)) return urgentRapidFill.pos
+
+  if (
+    0 < controllerCntPositions.length &&
+    energyAt(creep.room, controllerCntPositions[0]) < CONTROLLER_MIN_STOCK &&
+    creepCanReachPosition(creep, controllerCntPositions[0])
+  )
+    return controllerCntPositions[0]
 
   // offload to towers
   const towers = findTowers(creep.room).filter(t => !isFullOfEnergy(t.store))
   if (0 < towers.length && creepCanReachPosition(creep, towers[0].pos)) return towers[0].pos
+
+  const rapidFill = rapidFillContainers(rapidFillBuffer(creep.room))
+  if (rapidFill && creepCanReachPosition(creep, rapidFill.pos)) return rapidFill.pos
 
   // drop next to the construction site builders are working on
   const staging = buildStagingPos(creep.room)
   if (staging && creepCanReachPosition(creep, staging)) return staging
 
   // offload to controller container / position
-  const controllerCntPositions = findCachedStructurePositions(creep.room, STRUCTURE_CONTAINER).filter(c =>
-    c.inRangeTo(creep.room.controller!.pos, 2)
-  )
   if (
     0 < controllerCntPositions.length &&
     isOffloadableContainerPosition(creep.room, controllerCntPositions) &&
@@ -181,4 +203,64 @@ export function findPickupPosition(creep: Creep): RoomPosition | null {
 function findContainersNextToSource(creep: Creep): StructureContainer[] {
   const containerPositions = findContainers(creep.room)
   return containerPositions.filter(c => isPositionNextToSource(creep, c.pos))
+}
+
+/**
+ * Energy to keep in each rapid fill container: half of what the stamp's spawns and extensions hold, i.e. one full
+ * refill between the two containers. More would just sit there instead of being upgraded or built with.
+ */
+function rapidFillBuffer(room: Room): number {
+  const rapidFill = rapidFillOf(room)
+  if (!rapidFill) return 0
+  const capacity = rapidFill.center
+    .findInRange(FIND_MY_STRUCTURES, 2, {
+      filter: s => s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION
+    })
+    .reduce((sum, s) => sum + (s as StructureSpawn | StructureExtension).store.getCapacity(RESOURCE_ENERGY), 0)
+  return Math.max(RAPID_FILL_MIN_STOCK, capacity / 2)
+}
+
+function fillersInPlace(room: Room): Creep[] {
+  return room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === RAPID_FILLER && c.memory.stationary === true })
+}
+
+function hasFillers(room: Room): boolean {
+  return 0 < fillersInPlace(room).length
+}
+
+/** Whether a rapid filler standing on its spot is next to `pos` (and so keeps whatever is there full). */
+function coveredByFillers(room: Room): (pos: RoomPosition) => boolean {
+  const fillers = fillersInPlace(room)
+  return pos => fillers.some(f => f.pos.isNearTo(pos))
+}
+
+/** Keep at least this much energy at the controller container for upgraders, even while building. */
+const CONTROLLER_MIN_STOCK = 300
+
+/** Energy on the ground and in a container at `pos`. */
+function energyAt(room: Room, pos: RoomPosition): number {
+  const container = room.lookForAt(LOOK_STRUCTURES, pos).find(s => s.structureType === STRUCTURE_CONTAINER) as
+    | StructureContainer
+    | undefined
+  const piles = room.lookForAt(LOOK_ENERGY, pos).reduce((sum, r) => sum + r.amount, 0)
+  return piles + (container ? container.store.energy : 0)
+}
+
+/** Below this the rapid fill risks running dry, and the spawn with it. */
+const RAPID_FILL_MIN_STOCK = 300
+
+/**
+ * The emptiest rapid fill container holding less than a given amount, or null; only while fillers are in place to
+ * use them.
+ */
+function rapidFillContainersBelow(room: Room): (amount: number) => StructureContainer | null {
+  const rapidFill = rapidFillOf(room)
+  const containers =
+    rapidFill && hasFillers(room)
+      ? rapidFill.containers
+          .map(p => p.lookFor(LOOK_STRUCTURES).find(s => s.structureType === STRUCTURE_CONTAINER) as StructureContainer)
+          .filter(Boolean)
+      : []
+  return amount =>
+    containers.filter(c => c.store.energy < amount).sort((a, b) => a.store.energy - b.store.energy)[0] ?? null
 }

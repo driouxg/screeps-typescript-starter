@@ -117,7 +117,7 @@ const TOWERS_PER_RCL = [0, 0, 0, 1, 1, 2, 2, 3, 6]
 
 /**
  * Jump the home room to `rcl`: set the controller level, and build the extensions and towers that RCL allows at
- * the positions the bot planned for them, full of energy. Lets expansion and later-game logic be tested without
+ * the positions the bot planned for them, full of energy, plus its planned containers (empty). Lets expansion and later-game logic be tested without
  * playing through the early game first.
  */
 async function fastForwardRcl(server, player, room, rcl) {
@@ -126,24 +126,25 @@ async function fastForwardRcl(server, player, room, rcl) {
 
   const memory = JSON.parse((await player.memory) || "{}")
   const buildOrder = (memory.rooms && memory.rooms[room] && memory.rooms[room].buildOrder) || []
-  const want = { extension: EXTENSIONS_PER_RCL[rcl], tower: TOWERS_PER_RCL[rcl] }
-  const placed = { extension: 0, tower: 0 }
+  const want = { extension: EXTENSIONS_PER_RCL[rcl], tower: TOWERS_PER_RCL[rcl], container: 5 }
+  const placed = { extension: 0, tower: 0, container: 0 }
   for (const step of buildOrder) {
     const type = step.structureType
     if (!(type in want) || want[type] <= placed[type]) continue
-    const energy = type === "tower" ? 1000 : EXTENSION_ENERGY_PER_RCL[rcl]
-    const hits = type === "tower" ? 3000 : 1000
+    const energy = type === "tower" ? 1000 : type === "container" ? 0 : EXTENSION_ENERGY_PER_RCL[rcl]
+    const hits = type === "tower" ? 3000 : type === "container" ? 250000 : 1000
+    const capacity = type === "container" ? 2000 : energy
     await server.world.addRoomObject(room, type, step.x, step.y, {
       user: player.id,
       store: { energy },
-      storeCapacityResource: { energy },
+      ...(type === "container" ? { storeCapacity: capacity } : { storeCapacityResource: { energy: capacity } }),
       hits,
       hitsMax: hits,
       notifyWhenAttacked: true
     })
     placed[type]++
   }
-  return `${placed.extension} extensions, ${placed.tower} towers`
+  return `${placed.extension} extensions, ${placed.tower} towers, ${placed.container} containers`
 }
 
 async function readBench(player) {

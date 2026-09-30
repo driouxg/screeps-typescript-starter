@@ -33,6 +33,8 @@ declare global {
     tow?: { key: string; tick: number; stuck: number }
     /** Tick this creep was moved aside for a tow; its own move that tick is skipped so it doesn't step back. */
     shovedTick?: number
+    /** Works from a fixed spot (e.g. a rapid filler): treated as an obstacle, never shoved or parked. */
+    stationary?: boolean
   }
 }
 
@@ -226,7 +228,7 @@ export function clearTile(pos: RoomPosition): void {
 }
 
 function canBeShoved(creep: Creep): boolean {
-  return creep.my && !creep.spawning && 0 < creep.getActiveBodyparts(MOVE)
+  return creep.my && !creep.spawning && !creep.memory.stationary && 0 < creep.getActiveBodyparts(MOVE)
 }
 
 function updateStuckCount(creep: Creep): number {

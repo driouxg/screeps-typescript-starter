@@ -41,6 +41,11 @@ const PRIORITY: Partial<Record<BuildableStructureConstant, number>> = {
   [STRUCTURE_RAMPART]: 10,
   [STRUCTURE_WALL]: 11
 }
+/**
+ * Roads on wall tiles (tunnels) cost CONSTRUCTION_COST_ROAD_WALL_RATIO (150) times a normal road, 45000 energy, so
+ * they're built after everything else.
+ */
+const TUNNEL_PRIORITY = 12
 /** Containers next to sources and the controller feed miners and upgraders, so they come right after extensions. */
 const RESOURCE_CONTAINER_PRIORITY = 3
 /**
@@ -117,6 +122,8 @@ export default function build(room: Room) {
  * same order they're placed.
  */
 export function priorityOf(room: Room, pos: RoomPosition, structureType: StructureConstant): number {
+  if (structureType === STRUCTURE_ROAD && room.getTerrain().get(pos.x, pos.y) === TERRAIN_MASK_WALL)
+    return TUNNEL_PRIORITY
   if (structureType === STRUCTURE_CONTAINER && feedsMinersOrUpgraders(room, pos)) return RESOURCE_CONTAINER_PRIORITY
   return PRIORITY[structureType as BuildableStructureConstant] ?? PRIORITY[STRUCTURE_ROAD]! + 0.5
 }

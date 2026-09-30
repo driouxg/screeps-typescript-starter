@@ -31,10 +31,8 @@ export default class SpawnComposer {
           continue
         }
 
-        console.log("Spawning", spawnConfig.getRole(), spawn.room.name)
-
         const directions = spawnConfig.getDirections()
-        spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
+        const code = spawn.spawnCreep(spawnConfig.getBody(), generateGuid(), {
           memory: {
             role: spawnConfig.getRole(),
             working: false,
@@ -43,6 +41,7 @@ export default class SpawnComposer {
           },
           ...(directions ? { directions } : {})
         })
+        console.log(`Spawning ${spawnConfig.getRole()} ${spawn.room.name}${code === OK ? "" : ` failed (${code})`}`)
         return
       }
     }
@@ -58,6 +57,8 @@ export default class SpawnComposer {
       new MinerSpawnHandler(),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
+      // Cheap, and once in place they take over filling the rapid fill's spawns and extensions.
+      new RapidFillerSpawnHandler(),
       // Expansion (see ExpansionPlanner) is a one-off investment that saves up ahead of the workers.
       new ClaimerSpawnHandler(),
       new ExpanderSpawnHandler(),
@@ -68,8 +69,7 @@ export default class SpawnComposer {
       new ScoutSpawnHandler(),
       new WatcherSpawnHandler(),
       new RemoteDropMinerSpawnHandler(),
-      new RemoteHaulerSpawnHandler(),
-      new RapidFillerSpawnHandler()
+      new RemoteHaulerSpawnHandler()
     ]
   }
 }

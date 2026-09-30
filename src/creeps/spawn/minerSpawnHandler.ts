@@ -52,6 +52,10 @@ export default class MinerSpawnHandler implements ISpawnHandler {
       const assigned = healthy.filter(onSource)
       const work = assigned.reduce((sum, m) => sum + workOf(m), 0)
       if (WORK_PER_SOURCE <= work) continue
+      // Hard cap, dying miners and replacements included, whatever else goes wrong.
+      if (MAX_MINERS_PER_SOURCE + 1 <= miners.filter(onSource).length) continue
+      // Don't queue another miner while one is still on its way: pulling is one at a time, so it would just wait.
+      if (assigned.some(m => m.spawning || !m.pos.isNearTo(source))) continue
 
       // Nobody mining at all: take what we can get now.
       if (!miners.some(onSource)) {

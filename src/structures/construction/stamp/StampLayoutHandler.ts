@@ -83,11 +83,14 @@ export default class StampLayoutHandler implements ILayoutHandler {
     const existingSpawn = room.find(FIND_MY_SPAWNS)[0]
     if (existingSpawn) cm.set(existingSpawn.pos.x, existingSpawn.pos.y, TERRAIN_MASK_WALL)
     const fitted = existingSpawn ? fitRapidFillAroundSpawn(existingSpawn.pos, cm) : null
-    if (fitted) place(fitted.center, fitted.stamp)
-    else {
+    if (fitted) {
+      place(fitted.center, fitted.stamp)
+      room.memory.rapidFill = fitted.center
+    } else {
       // In a cramped room the rapid fill may not fit; its spawns and extensions then go on single tiles.
       const center = findCenter(STAMPS.rapidFill.radius + 1)
       if (center) place(center, STAMPS.rapidFill)
+      room.memory.rapidFill = center ?? null
     }
 
     // Likewise the anchor; without it the controller is the hub everything is placed around and connected to.
