@@ -3,6 +3,7 @@ import PullRequestEvent from "room/pullRequestEvent"
 import { isRoomPositionJson, jsonToRoomPosition } from "utils/jsonMapper"
 import * as creepRoles from "../roles"
 import { containerSpot, freeMiningPosition, minerAt } from "./common/miningPosition"
+import { smartMove } from "./common/movement"
 
 /**
  * Goal: If not next to source create Pull Event to get puller to move miner there. Then just mine.
@@ -79,7 +80,10 @@ export default class MinerHandler implements ICreepHandler {
       if (stuck) memory.waitingSince = Game.time
     }
 
-    creep.room.memory.events.push(new PullRequestEvent(jsonToRoomPosition(memory.targetSourcePos), creep.name))
+    const tile = jsonToRoomPosition(memory.targetSourcePos)
+    // A miner with MOVE parts (the room's first) walks; the rest wait for a puller.
+    if (0 < creep.getActiveBodyparts(MOVE)) smartMove(creep, tile, 0)
+    else creep.room.memory.events.push(new PullRequestEvent(tile, creep.name))
   }
 
   /** Whether a structure creeps can't stand on has been built on the tile. */

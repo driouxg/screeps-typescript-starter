@@ -15,6 +15,12 @@ const MAX_UPGRADERS = 4
 export default class UpgraderSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.UPGRADER
 
+  /**
+   * "first": one upgrader as soon as a miner and a hauler are working, ahead of more miners and haulers, so the
+   * controller progresses from the start (RCL 2 needs only 200 energy). "budget": more, sized by the energy budget.
+   */
+  public constructor(private mode: "first" | "budget" = "budget") {}
+
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
     const { room } = spawn
     if (!room.memory.buildOrder || !room.controller?.my) return null
@@ -24,6 +30,7 @@ export default class UpgraderSpawnHandler implements ISpawnHandler {
     if (!hasRole(creepRoles.MINER) || !hasRole(creepRoles.HAULER)) return null
 
     const upgraders = creeps.filter(c => c.memory.role === this.role)
+    if (this.mode === "first" && 0 < upgraders.length) return null
     // No more upgraders than there are spots to work from; the rest would wait by the spawn (they can't move alone).
     const spots = upgraderSpots(room, room.controller).length
     if (Math.min(MAX_UPGRADERS, spots) <= upgraders.length) return null

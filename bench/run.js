@@ -110,8 +110,14 @@ function loadModules(sampleInterval) {
       .replaceAll("__SAMPLE_INTERVAL__", String(sampleInterval)),
     bot: fs.readFileSync(main, "utf8")
   }
-  const sourceMap = path.join(DIST, "main.js.map.js")
-  if (fs.existsSync(sourceMap)) modules["main.js.map"] = fs.readFileSync(sourceMap, "utf8")
+  // Every other file is a module too, so other bots (flat multi-module ones like TooAngel, or ones with a .wasm
+  // module) run the same way. `x.js` is required as `x`; a source map `main.js.map.js` as `main.js.map`.
+  for (const file of fs.readdirSync(DIST)) {
+    if (file === "main.js") continue
+    if (file.endsWith(".wasm"))
+      modules[file.slice(0, -5)] = { binary: fs.readFileSync(path.join(DIST, file)).toString("base64") }
+    else if (file.endsWith(".js")) modules[file.slice(0, -3)] = fs.readFileSync(path.join(DIST, file), "utf8")
+  }
   return modules
 }
 

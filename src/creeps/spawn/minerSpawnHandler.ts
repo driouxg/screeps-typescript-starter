@@ -58,10 +58,12 @@ export default class MinerSpawnHandler implements ISpawnHandler {
       // Don't queue another miner while one is still on its way: pulling is one at a time, so it would just wait.
       if (assigned.some(m => m.spawning || !m.pos.isNearTo(source))) continue
 
-      // Nobody mining at all: take what we can get now.
+      // Nobody mining at all: take what we can get now. The room's very first miner gets a MOVE part and walks: a
+      // puller would cost the spawn another 150 energy (150 ticks of regeneration) before any energy flows.
       if (!miners.some(onSource)) {
         const pos = freeMiningPosition(room, source, miners)
-        if (pos) return this.config(buildCappedBodyParts([WORK], room, WORK_PER_SOURCE), source, pos)
+        const walker = miners.length === 0 ? [MOVE] : undefined
+        if (pos) return this.config(buildCappedBodyParts([WORK], room, WORK_PER_SOURCE + 1, walker), source, pos)
         continue
       }
 
@@ -94,7 +96,10 @@ export default class MinerSpawnHandler implements ISpawnHandler {
         )
 
       const weakest = assigned.filter(m => !m.spawning).sort((a, b) => workOf(a) - workOf(b))[0]
-      if (weakest && !replaced(weakest) && affordableWork === WORK_PER_SOURCE && workOf(weakest) < WORK_PER_SOURCE)
+      // The room's first miner (the small one that walked, see above) is replaced as soon as a larger one is affordable.
+      const bootstrap = weakest && 0 < weakest.getActiveBodyparts(MOVE)
+      const upgrade = affordableWork === WORK_PER_SOURCE || bootstrap
+      if (weakest && !replaced(weakest) && upgrade && workOf(weakest) < affordableWork)
         return this.config(workBody(affordableWork), source, tileOf(weakest), true, weakest.name)
     }
 

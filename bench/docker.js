@@ -68,6 +68,9 @@ if (process.argv[2] === "--layout-test") {
 const commit = git("rev-parse --short HEAD")
 const dirty = git("status --porcelain -- src") !== ""
 const args = process.argv.slice(2)
+// `--bot-dist <dir>`: run another bot's built code (a folder with main.js and any other modules) instead of dist/.
+const botDistAt = args.indexOf("--bot-dist")
+const dist = botDistAt < 0 ? path.join(ROOT, "dist") : path.resolve(args.splice(botDistAt, 2)[1])
 const env = [`BENCH_COMMIT=${commit}`, `BENCH_DIRTY=${dirty ? 1 : 0}`]
 if (!args.includes("--label")) {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")
@@ -80,7 +83,7 @@ run("docker", [
   "run",
   "--rm",
   "-v",
-  `${path.join(ROOT, "dist")}:/bench/dist:ro`,
+  `${dist}:/bench/dist:ro`,
   "-v",
   `${RESULTS}:/bench/results`,
   ...env.flatMap(e => ["-e", e]),

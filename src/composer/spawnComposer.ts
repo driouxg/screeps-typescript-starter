@@ -53,6 +53,8 @@ export default class SpawnComposer {
       new PullerSpawnHandler(),
       // Miners and one hauler each come first, alternating, so energy is flowing before anything else spawns.
       new HaulerSpawnHandler("minimum"),
+      // One upgrader right away: the controller is the only thing to spend on at RCL 1.
+      new UpgraderSpawnHandler("first"),
       new MinerSpawnHandler(),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
@@ -66,7 +68,7 @@ export default class SpawnComposer {
       // Workers are sized by the energy budget (see utils/economy.ts). Builders get first claim while
       // construction sites exist.
       new BuilderSpawnHandler(),
-      new UpgraderSpawnHandler(),
+      new UpgraderSpawnHandler("budget"),
       new ScoutSpawnHandler(),
       new WatcherSpawnHandler()
     ]
