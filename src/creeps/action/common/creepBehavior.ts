@@ -64,7 +64,10 @@ export function canStoreEnergy(creep: Creep): boolean {
   return creep.store.getCapacity() !== 0 && creep.store.getCapacity() !== null
 }
 
-export function findOffloadSpot(creep: Creep): RoomPosition {
+/**
+ * Where to deliver energy, or null when nothing needs it.
+ */
+export function findOffloadSpot(creep: Creep): RoomPosition | null {
   // offload to extensions
   const extensions = findExtensions(creep.room).filter(e => !isFullOfEnergy(e.store))
   if (0 < extensions.length) {
@@ -109,7 +112,7 @@ export function findOffloadSpot(creep: Creep): RoomPosition {
   const storage = findStorage(creep.room).filter(s => 0 < s.store.getFreeCapacity(RESOURCE_ENERGY))
   if (0 < storage.length && creepCanReachPosition(creep, storage[0].pos)) return storage[0].pos
 
-  return creep.pos
+  return null
 }
 
 function isOffloadableContainerPosition(room: Room, containerPos: RoomPosition[]) {
@@ -137,7 +140,10 @@ function isFullOfEnergy(store: Store<"energy", false>) {
   return store.getFreeCapacity(RESOURCE_ENERGY) <= 0
 }
 
-export function findPickupPosition(creep: Creep): RoomPosition {
+/**
+ * Where to collect energy, or null when there is none worth a trip.
+ */
+export function findPickupPosition(creep: Creep): RoomPosition | null {
   // energy piles next to sources (every miner drops its own), largest first so haulers spread across sources
   // instead of all draining the first one
   const minAmount = creep.store.getFreeCapacity() / 2
@@ -164,7 +170,7 @@ export function findPickupPosition(creep: Creep): RoomPosition {
   const storage = findStorage(creep.room).filter(s => 0 < s.store.getUsedCapacity(RESOURCE_ENERGY))
   if (0 < storage.length && creepCanReachPosition(creep, storage[0].pos)) return storage[0].pos
 
-  return creep.pos
+  return null
 }
 
 function findContainersNextToSource(creep: Creep): StructureContainer[] {

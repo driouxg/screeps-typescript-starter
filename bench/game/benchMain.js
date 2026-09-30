@@ -106,6 +106,59 @@ function creepCounts() {
   return counts
 }
 
+// Where each creep last moved, to spot creeps that sit still. Kept in the global, not Memory, to keep Memory small.
+const lastMoved = {}
+
+/**
+ * Creeps crowding the spawns: how many stand next to one, and whether a spawn has no free tile left (it can still
+ * spawn, but the new creep can't get out and everything around it jams).
+ */
+function crowding(rooms) {
+  const near = {}
+  let boxed = 0
+  for (const room of rooms) {
+    const terrain = room.getTerrain()
+    for (const spawn of room.find(FIND_MY_SPAWNS)) {
+      let free = 0
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const x = spawn.pos.x + dx
+          const y = spawn.pos.y + dy
+          if ((dx === 0 && dy === 0) || terrain.get(x, y) === TERRAIN_MASK_WALL) continue
+          const blocked = room
+            .lookForAt(LOOK_STRUCTURES, x, y)
+            .some(st => OBSTACLE_OBJECT_TYPES.includes(st.structureType))
+          if (blocked) continue
+          const creep = room.lookForAt(LOOK_CREEPS, x, y)[0]
+          if (!creep) free++
+          else if (creep.my) {
+            const role = (creep.memory && creep.memory.role) || "unknown"
+            near[role] = (near[role] || 0) + 1
+          }
+        }
+      if (free === 0) boxed++
+    }
+  }
+  return { near, boxed }
+}
+
+/** Creeps (by role) that haven't moved for 20+ ticks. Miners and upgraders standing at their spot count too. */
+function idleCreeps() {
+  const idle = {}
+  for (const name in Game.creeps) {
+    const c = Game.creeps[name]
+    const key = c.pos.x + "," + c.pos.y + "," + c.pos.roomName
+    const last = lastMoved[name]
+    if (!last || last.key !== key) lastMoved[name] = { key, since: Game.time }
+    else if (20 <= Game.time - last.since) {
+      const role = (c.memory && c.memory.role) || "unknown"
+      idle[role] = (idle[role] || 0) + 1
+    }
+  }
+  for (const name in lastMoved) if (!Game.creeps[name]) delete lastMoved[name]
+  return idle
+}
+
 function record(b, cpu) {
   const rooms = ownedRooms()
   const rcl = rooms.reduce((max, r) => Math.max(max, r.controller.level), 0)
@@ -129,7 +182,16 @@ function record(b, cpu) {
   const creepTotal = Object.keys(Game.creeps).length
   for (const step of CREEP_STEPS) if (creepTotal >= step) mark(b, `creeps:${step}`)
 
+  const crowd = crowding(rooms)
+  const totals = b.crowd || (b.crowd = { nearSpawn: 0, boxedTicks: 0, ticks: 0 })
+  totals.ticks++
+  if (crowd.boxed) totals.boxedTicks++
+  for (const role in crowd.near) totals.nearSpawn += crowd.near[role]
+  const idle = idleCreeps()
+
   const iv = b.interval
+  iv.near = iv.near || {}
+  for (const role in crowd.near) iv.near[role] = (iv.near[role] || 0) + crowd.near[role]
   iv.cpuSum += cpu
   iv.cpuMax = Math.max(iv.cpuMax, cpu)
   iv.ticks++
@@ -182,6 +244,9 @@ function record(b, cpu) {
     ),
     energyCapacity: rooms.reduce((sum, r) => sum + r.energyCapacityAvailable, 0),
     creeps: creepCounts(),
+    // Average creeps per tick standing next to a spawn, by role; creeps that haven't moved for 20+ ticks, by role.
+    nearSpawn: Object.fromEntries(Object.entries(iv.near || {}).map(([r, n]) => [r, +(n / iv.ticks).toFixed(2)])),
+    idle,
     structures
   })
   b.interval = { cpuSum: 0, cpuMax: 0, ticks: 0, harvested: 0 }

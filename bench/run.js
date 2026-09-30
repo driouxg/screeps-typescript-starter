@@ -106,10 +106,17 @@ function printSummary(result) {
   for (const [key, tick] of Object.entries(milestones)) console.log(`  ${key.padEnd(22)} ${String(tick).padStart(7)}`)
   console.log(`  harvested total        ${result.harvested}`)
   for (const [activity, amount] of Object.entries(result.spent))
-    console.log(`  spent on ${activity.padEnd(13)} ${amount}  (${((amount / (result.harvested || 1)) * 100).toFixed(0)}%)`)
+    console.log(
+      `  spent on ${activity.padEnd(13)} ${amount}  (${((amount / (result.harvested || 1)) * 100).toFixed(0)}%)`
+    )
+  if (result.crowding.nearSpawnPerTick !== undefined)
+    console.log(
+      `  next to spawn          ${result.crowding.nearSpawnPerTick} creeps/tick  (spawn boxed in ${result.crowding.spawnBoxedTicks} ticks)`
+    )
   console.log(`  errors logged          ${result.errors.logged}  (uncaught: ${result.errors.uncaught})`)
   if (result.errors.first) console.log(`  first error: ${result.errors.first.split("\n")[0]}`)
-  if (result.errors.last) console.log(`  last error @${result.errors.last.tick}: ${result.errors.last.message.split("\n")[0]}`)
+  if (result.errors.last)
+    console.log(`  last error @${result.errors.last.tick}: ${result.errors.last.message.split("\n")[0]}`)
 }
 
 async function main() {
@@ -148,7 +155,11 @@ async function main() {
   })
 
   await server.start()
-  console.log(`Running ${opts.ticks} ticks in ${opts.room}, spawn at ${opts.x},${opts.y}${opts.untilRcl ? `, stopping at RCL ${opts.untilRcl}` : ""}`)
+  console.log(
+    `Running ${opts.ticks} ticks in ${opts.room}, spawn at ${opts.x},${opts.y}${
+      opts.untilRcl ? `, stopping at RCL ${opts.untilRcl}` : ""
+    }`
+  )
 
   const started = Date.now()
   let tick = 0
@@ -192,6 +203,12 @@ async function main() {
     milestones: Object.fromEntries(Object.entries(bench.milestones).sort((a, b) => a[1] - b[1])),
     harvested: bench.harvested,
     spent: bench.spent || {},
+    crowding: bench.crowd
+      ? {
+          nearSpawnPerTick: +(bench.crowd.nearSpawn / bench.crowd.ticks).toFixed(2),
+          spawnBoxedTicks: bench.crowd.boxedTicks
+        }
+      : {},
     errors: { logged: loggedErrors, uncaught: bench.errors, first: firstError, last: bench.lastError },
     samples: bench.samples
   }

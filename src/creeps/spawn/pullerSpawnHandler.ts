@@ -4,6 +4,8 @@ import * as creepRoles from "../roles"
 import PullRequestEvent from "room/pullRequestEvent"
 import { buildDynamicBodyParts } from "./utils/dynamicBodyParts"
 
+const MAX_PULLERS = 2
+
 export default class PullerSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.PULLER
 
@@ -14,7 +16,12 @@ export default class PullerSpawnHandler implements ISpawnHandler {
 
     const pullers = spawn.room.find(FIND_MY_CREEPS, { filter: c => c.memory.role === creepRoles.PULLER })
 
-    if (1 <= pullers.length) return null
+    // One puller per waiting creep, up to MAX_PULLERS: creeps without MOVE parts (miners, upgraders) wait next to
+    // the spawn until pulled, so a queue of them blocks it.
+    const waiting = new Set(
+      spawn.room.memory.events.filter(e => e.type === "PULL_REQUEST").map(e => (e as PullRequestEvent).creepId)
+    )
+    if (Math.min(MAX_PULLERS, waiting.size) <= pullers.length) return null
 
     return new SpawnConfig(this.createAppropriateBlueprint(pullRequestEvent, spawn.room), this.role)
   }

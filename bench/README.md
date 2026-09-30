@@ -56,11 +56,13 @@ versions of your bot, not a prediction of live-server timings.
 npm run test-movement
 ```
 
-Compiles [movement.ts](../src/creeps/action/common/movement.ts) on its own and runs it against scripted scenarios
+Compiles [movement.ts](../src/creeps/action/common/movement.ts) and `parking.ts` on their own and runs them against scripted scenarios
 on the real engine:
 - 1-wide corridors with friendly or hostile blockers
 - two creeps meeting head-on
 - creeps boxed in on all 8 sides by idle friendly creeps, immovable (no MOVE) friendly creeps, or hostile creeps
+- a spawn boxed in by 8 idle creeps, which the loiter rule in [parking.ts](../src/creeps/action/common/parking.ts)
+  must clear
 
 Each creep must either reach its target or, when there's no way out, report `ERR_NO_PATH` so its role picks a new
 target. Scenarios are defined in `movement-scenarios.js`.

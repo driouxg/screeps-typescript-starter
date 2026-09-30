@@ -66,4 +66,6 @@ console.log("harvested total".padEnd(22) + runs.map(r => cell(r.harvested)).join
 for (const activity of ["spawn", "upgrade", "build", "repair"])
   console.log(`spent on ${activity}`.padEnd(22) + runs.map(r => cell(r.spent?.[activity] ?? "—")).join(""))
 console.log("avg cpu/tick".padEnd(22) + runs.map(r => cell(avgCpu(r).toFixed(2))).join(""))
+console.log("next to spawn/tick".padEnd(22) + runs.map(r => cell(r.crowding?.nearSpawnPerTick ?? "—")).join(""))
+console.log("spawn boxed ticks".padEnd(22) + runs.map(r => cell(r.crowding?.spawnBoxedTicks ?? "—")).join(""))
 console.log("errors logged".padEnd(22) + runs.map(r => cell(r.errors.logged)).join(""))

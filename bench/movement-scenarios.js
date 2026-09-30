@@ -24,6 +24,7 @@ class Server extends ScreepsServer {
 }
 
 const ROOM = "W0N1"
+const SPAWN = [45, 45]
 // mover name -> [start, target, description, expectation]
 const MOVERS = {
   M1: [[8, 5], [22, 5], "1-wide corridor, idle friendly creep inside", "arrive"],
@@ -49,6 +50,7 @@ const around = (x, y) =>
 
 const botMain = `
 const { smartMove } = require("movement")
+const { clearLoiterersFromSpawns } = require("parking")
 const MOVERS = ${JSON.stringify(Object.fromEntries(Object.entries(MOVERS).map(([k, v]) => [k, v[1]])))}
 module.exports.loop = function () {
   const s = Memory.s || (Memory.s = {})
@@ -63,6 +65,7 @@ module.exports.loop = function () {
     if (c.pos.x === x && c.pos.y === y && st.arrived === null) st.arrived = Game.time
     st.pos = c.pos.x + "," + c.pos.y
   }
+  clearLoiterersFromSpawns()
 }`
 
 ;(async () => {
@@ -83,9 +86,16 @@ module.exports.loop = function () {
   const me = await s.world.addBot({
     username: "me",
     room: ROOM,
-    x: 45,
-    y: 45,
-    modules: { main: botMain, movement: fs.readFileSync(path.join(__dirname, "build", "movement.js"), "utf8") }
+    x: SPAWN[0],
+    y: SPAWN[1],
+    modules: {
+      main: botMain,
+      movement: fs.readFileSync(path.join(__dirname, "build", "movement.js"), "utf8"),
+      // Screeps modules are flat, so point parking at the "movement" module by name.
+      parking: fs
+        .readFileSync(path.join(__dirname, "build", "parking.js"), "utf8")
+        .replace(`require("./movement")`, `require("movement")`)
+    }
   })
   const foe = await s.world.addBot({
     username: "foe",
@@ -118,6 +128,9 @@ module.exports.loop = function () {
   await creep("hostile-corridor", 15, 22, foe.id, ["move"]) // M4
   for (const [x, y] of around(30, 25)) if (!(x === 29 && y === 25)) await creep(`w${n++}`, x, y, me.id, ["work"]) // M5
   for (const [x, y] of around(30, 35)) await creep(`w${n++}`, x, y, me.id, ["work"]) // M6
+  // Spawn boxed in on all 8 sides by idle creeps: the loiter rule must park them away from it.
+  const loiterers = around(SPAWN[0], SPAWN[1]).map(([x, y], i) => ({ name: `L${i}`, x, y }))
+  for (const l of loiterers) await creep(l.name, l.x, l.y, me.id, ["move"])
 
   await s.start()
   for (let i = 0; i < TICKS; i++) await s.tick()
@@ -134,6 +147,20 @@ module.exports.loop = function () {
       } pos ${st?.pos} noPath=${st?.noPath}${st?.exc ? " EXC " + st.exc : ""}`
     )
   }
+  const objects = await s.world.roomObjects(ROOM)
+  const parked = loiterers.map(l => objects.find(o => o.type === "creep" && o.name === l.name))
+  const range = o => Math.max(Math.abs(o.x - SPAWN[0]), Math.abs(o.y - SPAWN[1]))
+  // Parked creeps can later be nudged a tile by other traffic; what matters is that none stays next to the spawn.
+  const cleared = parked.every(o => o && 2 <= range(o))
+  pass = pass && cleared
+  if (!cleared)
+    for (const o of parked.filter(o => o && range(o) < 2))
+      console.log(`      ${o.name} at ${o.x},${o.y} fatigue ${o.fatigue} memory ${JSON.stringify(mem.creeps[o.name])}`)
+  console.log(
+    `${cleared ? "PASS" : "FAIL"}  L    ${"spawn boxed in by 8 idle creeps: none left next to it".padEnd(
+      62
+    )} ranges ${parked.map(o => (o ? range(o) : "missing")).join(",")}`
+  )
   console.log(pass ? "ALL PASS" : "SOME FAILED")
   s.stop()
   process.exit(pass ? 0 : 1)

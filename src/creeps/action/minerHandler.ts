@@ -1,6 +1,6 @@
 import ICreepHandler from "./ICreepHandler"
 import PullRequestEvent from "room/pullRequestEvent"
-import { jsonToRoomPosition } from "utils/jsonMapper"
+import { isRoomPositionJson, jsonToRoomPosition } from "utils/jsonMapper"
 import * as creepRoles from "../roles"
 import { freeMiningPosition } from "./common/miningPosition"
 
@@ -51,11 +51,6 @@ export default class MinerHandler implements ICreepHandler {
     const sources = creep.room.find(FIND_SOURCES).sort((a, b) => minersOn(a) - minersOn(b))
     return sources[0] ?? null
   }
-}
-
-function isRoomPositionJson(pos: unknown): pos is RoomPositionJson {
-  const p = pos as RoomPositionJson | undefined
-  return !!p && typeof p.x === "number" && typeof p.y === "number" && typeof p.roomName === "string"
 }
 
 export interface MinerMemory extends CreepMemory {

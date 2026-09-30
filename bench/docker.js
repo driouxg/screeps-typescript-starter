@@ -14,7 +14,9 @@ const IMAGE = "screeps-bench"
 
 function git(args) {
   try {
-    return execSync(`git ${args}`, { cwd: ROOT, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+    return execSync(`git ${args}`, { cwd: ROOT, stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim()
   } catch {
     return ""
   }

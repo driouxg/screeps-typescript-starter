@@ -8,6 +8,7 @@ import ICreepHandler from "creeps/action/ICreepHandler"
 import IStructureActionHandler from "structures/action/IStructureActionHandler"
 import SpawnComposer from "composer/spawnComposer"
 import StructureActionComposer from "composer/structureActionComposer"
+import { clearLoiterersFromSpawns } from "creeps/action/common/parking"
 
 declare global {
   /*
@@ -108,6 +109,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   deleteMissingCreepMemory()
 
   manageCreepActions(new CreepComposer().creepHandlerDict())
+  clearLoiterersFromSpawns()
   creepCpu = Game.cpu.getUsed()
   new SpawnComposer().compose()
   spawnCpu = Game.cpu.getUsed()

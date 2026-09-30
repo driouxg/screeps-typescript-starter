@@ -142,7 +142,7 @@ export default class BuilderHandler implements ICreepHandler {
 
     // Fall back to the source-side piles haulers use, even if they're small.
     const pickupPos = findPickupPosition(creep)
-    if (pickupPos.isEqualTo(creep.pos)) return null
+    if (!pickupPos) return null
     const pile = pickupPos.lookFor(LOOK_ENERGY)[0]
     return pile ?? null
   }
