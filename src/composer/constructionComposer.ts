@@ -12,6 +12,32 @@ import NoOpLayoutHandler from "structures/NoOpLayoutHandler"
 import build from "structures/construction/buildOrderConstructor"
 
 /**
+ * The base layout for a room: the first layout that fits, or none. Also run on its own by the layout test
+ * (bench/layout-test.js) against every room of the default map.
+ */
+export function planLayout(room: Room): BuildOrderStep[] {
+  const layout = layoutHandlers().find(l => l.isRoomForLayout(room)) ?? new NoOpLayoutHandler()
+  return layout.handle(room)
+}
+
+function layoutHandlers(): ILayoutHandler[] {
+  return [
+    // new BunkerLayoutHandler(commonConstructionHandlers()),
+    new StampLayoutHandler(commonConstructionHandlers())
+  ]
+}
+
+function commonConstructionHandlers(): IConstructionHandler[] {
+  return [
+    new EnergySourceContainerConstructionHandler(),
+    new ControllerContainerConstructionHandler(),
+    new SourceLinkConstructionHandler(),
+    new ControllerLinkConstructionHandler(),
+    new ExtractorConstructionHandler()
+  ]
+}
+
+/**
  * Goal: Generate base layouts and cache the results for rooms that I own the controller.
  *
  * https://www.youtube.com/watch?v=YcruUDbqa7E
@@ -31,37 +57,11 @@ export default class ConstructionComposer {
       if (room.memory.buildOrder) continue
       room.memory.buildOrder = []
       this.cleanupRoom(room)
-      const layout = this.firstValidLayout(room)
 
-      room.memory.buildOrder = layout.handle(room)
+      room.memory.buildOrder = planLayout(room)
 
       this.positionsMemoryUpdater.update(room)
     }
-  }
-
-  private firstValidLayout(room: Room): ILayoutHandler {
-    for (const layout of this.layoutHandlers()) {
-      if (layout.isRoomForLayout(room)) return layout
-    }
-
-    return new NoOpLayoutHandler()
-  }
-
-  private layoutHandlers(): ILayoutHandler[] {
-    return [
-      // new BunkerLayoutHandler(this.commonConstructionHandlers()),
-      new StampLayoutHandler(this.commonConstructionHandlers())
-    ]
-  }
-
-  private commonConstructionHandlers(): IConstructionHandler[] {
-    return [
-      new EnergySourceContainerConstructionHandler(),
-      new ControllerContainerConstructionHandler(),
-      new SourceLinkConstructionHandler(),
-      new ControllerLinkConstructionHandler(),
-      new ExtractorConstructionHandler()
-    ]
   }
 
   private cleanupRoom(room: Room): void {

@@ -83,6 +83,26 @@ milestones on every run. Any difference between two runs comes from your change.
 The stub world's terrain is fixed and isn't a typical room. Treat the numbers as a relative benchmark between
 versions of your bot, not a prediction of live-server timings.
 
+## Layout test
+
+```bash
+npm run test-layout                                   # planner places everything (a room we expand into)
+node bench/docker.js --layout-test --mode spawn       # a spawn is placed by hand first, as in a first room
+node bench/docker.js --layout-test --rooms W7N1 --render   # draw the plan for one room as text
+```
+
+Bundles the base planner ([planLayout](../src/composer/constructionComposer.ts)) on its own and runs it in the
+engine against all 72 rooms with a controller on the default server map. [layout-check.js](layout-check.js)
+checks every plan for:
+
+- placements the game refuses (room edge, next to an exit, on a wall, extractor off the mineral)
+- duplicate steps, two structures on one tile, roads under buildings
+- counts over, or short of, the RCL 8 limits (e.g. 60 extensions, 6 towers, 10 labs, 3 spawns)
+- sources or the controller boxed in, and structures, sources, the controller or exits unreachable from the spawn
+- core structures an attacker can reach from an exit without breaking a rampart
+
+and reports CPU per plan. Results go to `results/layout-<mode>.json`.
+
 ## Movement scenarios
 
 ```bash

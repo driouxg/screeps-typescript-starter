@@ -46,6 +46,25 @@ if (process.argv[2] === "--movement-test") {
   process.exit(0)
 }
 
+// `--layout-test [args]`: run layout-test.js against bench/build/planner.js (see `npm run test-layout`).
+if (process.argv[2] === "--layout-test") {
+  fs.mkdirSync(RESULTS, { recursive: true })
+  run("docker", [
+    "run",
+    "--rm",
+    "-v",
+    `${path.join(__dirname, "build")}:/bench/build:ro`,
+    "-v",
+    `${RESULTS}:/bench/results`,
+    "--entrypoint",
+    "node",
+    IMAGE,
+    "layout-test.js",
+    ...process.argv.slice(3)
+  ])
+  process.exit(0)
+}
+
 const commit = git("rev-parse --short HEAD")
 const dirty = git("status --porcelain -- src") !== ""
 const args = process.argv.slice(2)

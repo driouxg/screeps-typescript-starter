@@ -16,6 +16,7 @@
     "test": "npm run test-unit",
     "test-unit": "mocha test/unit/**/*.ts",
     "test-movement": "tsc src/creeps/action/common/movement.ts src/creeps/action/common/parking.ts --outDir bench/build --module commonjs --target es2018 --types screeps --skipLibCheck && node bench/docker.js --movement-test",
+    "test-layout": "rollup -c bench/planner/rollup.config.js && node bench/docker.js --layout-test",
     "test-integration": "echo 'See docs/in-depth/testing.md for instructions on enabling integration tests'",
     "watch-main": "rollup -cw --environment DEST:main",
     "watch-pserver": "rollup -cw --environment DEST:pserver",

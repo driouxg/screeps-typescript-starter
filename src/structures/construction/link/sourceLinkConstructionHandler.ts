@@ -2,39 +2,31 @@ import { dirs } from "utils/directions"
 import IConstructionHandler from "../IConstructionHandler"
 import convert from "../util/buildOrderToDesiredState"
 
+/**
+ * Goal: A link next to each source's container, so the miner there can feed it without a hauler.
+ *
+ * The link goes on a free, buildable tile next to the container, preferring tiles not next to the source: those are
+ * where miners stand.
+ */
 export default class SourceLinkConstructionHandler implements IConstructionHandler {
   handle(room: Room, buildOrder: BuildOrderStep[]): BuildOrderStep[] {
-    const containerPositions = this.containerPositions(room, convert(buildOrder))
+    const terrain = room.getTerrain()
 
-    const sources: Source[] = room.find(FIND_SOURCES)
+    for (const source of room.find(FIND_SOURCES)) {
+      const desiredState = convert(buildOrder)
+      const container = buildOrder.find(s => s.structureType === STRUCTURE_CONTAINER && source.pos.isNearTo(s.x, s.y))
+      if (!container) continue
 
-    for (const source of sources) {
-      for (const containerPos of containerPositions) {
-        if (!containerPos.isNearTo(source.pos.x, source.pos.y)) continue
+      const free = dirs()
+        .map(([dx, dy]) => ({ x: container.x + dx, y: container.y + dy }))
+        .filter(p => 1 < p.x && p.x < 48 && 1 < p.y && p.y < 48)
+        .filter(p => terrain.get(p.x, p.y) !== TERRAIN_MASK_WALL && desiredState[p.y][p.x] === "")
+        .filter(p => !(p.x === source.pos.x && p.y === source.pos.y))
+      free.sort((a, b) => Number(source.pos.isNearTo(a.x, a.y)) - Number(source.pos.isNearTo(b.x, b.y)))
 
-        for (const dir of dirs()) {
-          const pos = new RoomPosition(containerPos.x + dir[0], containerPos.y + dir[1], room.name)
-
-          if (pos.isEqualTo(source.pos.x, source.pos.y) || room.getTerrain().get(pos.x, pos.y) === TERRAIN_MASK_WALL)
-            continue
-          buildOrder = buildOrder.concat({ x: pos.x, y: pos.y, structureType: STRUCTURE_LINK })
-          break
-        }
-      }
+      if (0 < free.length) buildOrder = buildOrder.concat({ ...free[0], structureType: STRUCTURE_LINK })
     }
 
     return buildOrder
-  }
-
-  private containerPositions(room: Room, desiredState: string[][]): RoomPosition[] {
-    let positions = []
-
-    for (let y = 0; y < 50; y++) {
-      for (let x = 0; x < 50; x++) {
-        if (desiredState[y][x] === STRUCTURE_CONTAINER) positions.push(new RoomPosition(x, y, room.name))
-      }
-    }
-
-    return positions
   }
 }

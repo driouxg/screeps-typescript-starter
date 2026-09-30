@@ -5,7 +5,7 @@ WORKDIR /bench
 COPY package.json ./
 RUN npm install --no-audit --no-fund
 
-COPY run.js attack.js nodelay.js movement-scenarios.js ./
+COPY run.js attack.js nodelay.js movement-scenarios.js layout-test.js layout-check.js ./
 COPY game ./game
 
 ENTRYPOINT ["node", "run.js"]
