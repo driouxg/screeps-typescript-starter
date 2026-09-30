@@ -2,14 +2,13 @@ import { isHostilePlayer } from "config/relations"
 
 /**
  * Rooms our creeps must not path through: owned by a hostile player (see config/relations; their towers shoot on
- * sight), or source keeper rooms (keepers attack anything near their sources). Allies' and neutral players' rooms are
- * fine to cross. Judged from intel, so it works without vision;
+ * sight). Allies' and neutral players' rooms are fine to cross, and so are source keeper rooms: paths there keep out
+ * of the keepers' reach (see keeperZones). Judged from intel, so it works without vision;
  * rooms we know nothing about are assumed passable.
  */
 export function isHostileRoom(roomName: string): boolean {
   const intel = Memory.rooms?.[roomName]?.intel
   if (!intel) return false
-  if (0 < (intel.keeperLairs ?? 0)) return true
   return isHostilePlayer(intel.controller?.owner)
 }
 

@@ -1,3 +1,4 @@
+import { applyKeeperCosts } from "utils/keeperZones"
 import { blockedMatrix, isHostileRoom } from "utils/roomSafety"
 /**
  * Goal: Move creeps without letting them get stuck.
@@ -200,6 +201,9 @@ function tileKey(pos: RoomPosition): string {
  * structures (a creep standing on one stops it from being built).
  */
 export function applyCreepCosts(roomName: string, matrix: CostMatrix): CostMatrix {
+  // Source keepers: stay out of their reach (works without vision, from intel).
+  applyKeeperCosts(roomName, matrix)
+
   const room = Game.rooms[roomName]
   if (!room) return matrix
 

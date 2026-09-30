@@ -1,3 +1,4 @@
+import { keeperPosts } from "utils/keeperZones"
 import { isHostile } from "config/relations"
 /**
  * Goal: Remember what we've seen of each room, so expansion can pick a target without vision of every candidate.
@@ -22,6 +23,8 @@ export interface RoomIntel {
   sourcePositions?: { id: string; x: number; y: number }[]
   /** Source keeper lairs: keepers guard the sources and attack anything nearby. */
   keeperLairs?: number
+  /** Keeper lairs and the resources they guard, so paths can keep out of keepers' reach without vision. */
+  keeperPosts?: { x: number; y: number }[]
 }
 
 declare global {
@@ -67,6 +70,7 @@ export function recordIntel(room: Room, force = false): void {
     hostileStructures,
     sourcePositions: sources.map(s => ({ id: s.id as string, x: s.pos.x, y: s.pos.y })),
     keeperLairs: room.find(FIND_HOSTILE_STRUCTURES, { filter: s => s.structureType === STRUCTURE_KEEPER_LAIR }).length,
+    keeperPosts: keeperPosts(room),
     hostileFighters,
     ...terrainRatios(room.name)
   }

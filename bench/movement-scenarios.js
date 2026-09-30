@@ -34,7 +34,9 @@ const MOVERS = {
   M5: [[30, 25], [40, 25], "7 immovable own creeps (no MOVE) around, one gap on far side", "arrive"],
   M6: [[30, 35], [40, 35], "8 immovable own creeps (no MOVE) around, no gap", "give-up"],
   M7a: [[9, 40], [21, 40], "head-on in 1-wide corridor (east-bound)", "arrive"],
-  M7b: [[21, 40], [9, 40], "head-on in 1-wide corridor (west-bound)", "arrive"]
+  M7b: [[21, 40], [9, 40], "head-on in 1-wide corridor (west-bound)", "arrive"],
+  // The straight line passes 3 tiles from a source keeper (in its range); the creep must go around, unharmed.
+  K1: [[8, 27], [8, 35], "sneak past a source keeper without taking damage", "arrive-unharmed"]
 }
 // puller name -> [puller start, pulled creep start, destination, description]. The pulled creep has no MOVE parts.
 const PULLS = {
@@ -71,6 +73,7 @@ module.exports.loop = function () {
     try { r = smartMove(c, new RoomPosition(x, y, c.room.name), 0) } catch (e) { st.exc = String(e.stack || e); continue }
     if (r === ERR_NO_PATH) st.noPath++
     if (c.pos.x === x && c.pos.y === y && st.arrived === null) st.arrived = Game.time
+    st.damaged = st.damaged || c.hits < c.hitsMax
     st.pos = c.pos.x + "," + c.pos.y
   }
   for (const name in PULLS) {
@@ -152,6 +155,11 @@ module.exports.loop = function () {
   await creep("c-idle", 15, 12, me.id, ["move"]) // P1
   for (let y = 27; y <= 33; y++) for (let x = 38; x <= 42; x++) await creep(`crowd${x},${y}`, x, y, me.id, ["move"]) // P2
   await creep("dest-idle", 40, 20, me.id, ["move"]) // P3
+  // K1: a source with its keeper next to it. User "3" is the game's Source Keeper player; the engine runs its AI.
+  await s.world.addRoomObject(ROOM, "source", 5, 32, { energy: 3000, energyCapacity: 3000, ticksToRegeneration: 300 })
+  await creep("keeper", 5, 31, "3", ["move", "attack", "attack", "ranged_attack", "ranged_attack", "ranged_attack"])
+  // addBot starts the room in safe mode, in which hostiles (the keeper too) can't attack.
+  await s.common.storage.db["rooms.objects"].update({ room: ROOM, type: "controller" }, { $set: { safeMode: null } })
   // Spawn boxed in on all 8 sides by idle creeps: the loiter rule must park them away from it.
   const loiterers = around(SPAWN[0], SPAWN[1]).map(([x, y], i) => ({ name: `L${i}`, x, y }))
   for (const l of loiterers) await creep(l.name, l.x, l.y, me.id, ["move"])
@@ -163,12 +171,19 @@ module.exports.loop = function () {
   for (const [name, [, target, desc, expect]] of Object.entries(MOVERS)) {
     const st = mem.s[name]
     const ok =
-      st && !st.exc && !st.missing && (expect === "arrive" ? st.arrived !== null : st.noPath > 0 && st.arrived === null)
+      st &&
+      !st.exc &&
+      !st.missing &&
+      (expect === "arrive"
+        ? st.arrived !== null
+        : expect === "arrive-unharmed"
+        ? st.arrived !== null && !st.damaged
+        : st.noPath > 0 && st.arrived === null)
     pass = pass && ok
     console.log(
       `${ok ? "PASS" : "FAIL"}  ${name.padEnd(4)} ${desc.padEnd(62)} expect ${expect.padEnd(8)} arrived@${
         st?.arrived ?? "-"
-      } pos ${st?.pos} noPath=${st?.noPath}${st?.exc ? " EXC " + st.exc : ""}`
+      } pos ${st?.pos} noPath=${st?.noPath}${st?.damaged ? " DAMAGED" : ""}${st?.exc ? " EXC " + st.exc : ""}`
     )
   }
   for (const [name, [, , , desc]] of Object.entries(PULLS)) {

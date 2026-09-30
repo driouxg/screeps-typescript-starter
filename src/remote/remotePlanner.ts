@@ -1,3 +1,4 @@
+import { applyKeeperCosts } from "utils/keeperZones"
 import * as creepRoles from "creeps/roles"
 import { isHostile } from "config/relations"
 import { myUsername } from "utils/username"
@@ -224,7 +225,8 @@ function pathLength(from: RoomPosition, to: RoomPosition): number | null {
       swampCost: 5,
       maxOps: 20000,
       maxRooms: 2 * MAX_ROUTE + 1,
-      roomCallback: roomName => (isHostileRoom(roomName) ? blockedMatrix() : new PathFinder.CostMatrix())
+      roomCallback: roomName =>
+        isHostileRoom(roomName) ? blockedMatrix() : applyKeeperCosts(roomName, new PathFinder.CostMatrix())
     }
   )
   return result.incomplete ? null : result.path.length
