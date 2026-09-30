@@ -2,7 +2,7 @@ import ICreepHandler from "./ICreepHandler"
 import PullRequestEvent from "room/pullRequestEvent"
 import { isRoomPositionJson, jsonToRoomPosition } from "utils/jsonMapper"
 import * as creepRoles from "../roles"
-import { freeMiningPosition } from "./common/miningPosition"
+import { containerSpot, freeMiningPosition, minerAt } from "./common/miningPosition"
 
 /**
  * Goal: If not next to source create Pull Event to get puller to move miner there. Then just mine.
@@ -12,6 +12,8 @@ import { freeMiningPosition } from "./common/miningPosition"
  */
 /** A miner still not at its source after this long (pullers busy, tile unreachable) picks another tile. */
 const STUCK_TICKS = 300
+/** WORK parts that drain a source on their own: 10 energy/tick, 2 per WORK. */
+const WORK_PER_SOURCE = SOURCE_ENERGY_CAPACITY / ENERGY_REGEN_TIME / HARVEST_POWER
 
 export default class MinerHandler implements ICreepHandler {
   handle(creep: Creep): void {
@@ -45,6 +47,8 @@ export default class MinerHandler implements ICreepHandler {
       memory.targetSourceId = source.id
       delete (memory as Partial<MinerMemory>).targetSourcePos
     }
+
+    if (this.settleOnContainer(creep, source)) return
 
     if (creep.harvest(source) !== ERR_NOT_IN_RANGE) {
       delete memory.waitingSince
@@ -83,6 +87,37 @@ export default class MinerHandler implements ICreepHandler {
     return jsonToRoomPosition(tile)
       .lookFor(LOOK_STRUCTURES)
       .some(s => (OBSTACLE_OBJECT_TYPES as string[]).includes(s.structureType))
+  }
+
+  /**
+   * A full-size miner (enough WORK to drain the source alone) belongs on the source's container spot: if it isn't
+   * headed there, take the spot over from whichever smaller miner holds it. A smaller miner whose source already has a
+   * full-size miner at work is surplus and retires. Returns true if the creep retired.
+   */
+  private settleOnContainer(creep: Creep, source: Source): boolean {
+    const memory = creep.memory as MinerMemory
+    const others = this.otherMiners(creep).filter(m => (m.memory as MinerMemory).targetSourceId === source.id)
+    const isFull = (c: Creep) => WORK_PER_SOURCE <= c.getActiveBodyparts(WORK)
+
+    if (!isFull(creep)) {
+      if (others.some(m => isFull(m) && m.pos.isNearTo(source))) {
+        console.log(`Miner ${creep.name}: a full-size miner works source ${source.id}, retiring`)
+        creep.suicide()
+        return true
+      }
+      return false
+    }
+
+    const spot = containerSpot(creep.room, source)
+    const target = memory.targetSourcePos
+    if (!spot || memory.replaces || (target && target.x === spot.x && target.y === spot.y)) return false
+
+    const holder = minerAt(spot, others)
+    const takenOver = holder && this.otherMiners(creep).some(m => (m.memory as MinerMemory).replaces === holder.name)
+    if (holder && (isFull(holder) || takenOver)) return false
+    memory.targetSourcePos = { x: spot.x, y: spot.y, roomName: spot.roomName }
+    if (holder) memory.replaces = holder.name
+    return false
   }
 
   /** A free walkable tile next to `tile` (and not on it), closest to the creep. */

@@ -1,4 +1,21 @@
 /**
+ * The planned container spot next to `source`, if any: where a full-size miner belongs, so what it harvests drops
+ * straight into the container.
+ */
+export function containerSpot(room: Room, source: Source): RoomPosition | null {
+  const spot = (room.memory.minerPositions || []).find(p => p.sourceId === source.id)
+  return spot ? new RoomPosition(spot.pos.x, spot.pos.y, room.name) : null
+}
+
+/** The miner (of `miners`) that has claimed or is standing on `pos`, if any. */
+export function minerAt(pos: RoomPosition, miners: Creep[]): Creep | undefined {
+  return miners.find(m => {
+    const p = (m.memory as { targetSourcePos?: RoomPositionJson }).targetSourcePos
+    return (p && p.x === pos.x && p.y === pos.y) || m.pos.isEqualTo(pos)
+  })
+}
+
+/**
  * Pick a tile for a miner next to `source`: the planned container spot first (energy dropped there lands in the
  * container once it's built), then any other open tile next to the source that none of `miners` (alive or dying)
  * has claimed or is standing on, and nothing is planned to be built on.

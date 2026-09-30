@@ -4,7 +4,7 @@ import * as creepRoles from "../roles"
 import { buildCappedBodyParts } from "./utils/dynamicBodyParts"
 import { MinerMemory } from "creeps/action/minerHandler"
 import { findCachedStructurePositions } from "utils/structureUtils"
-import { freeMiningPosition } from "creeps/action/common/miningPosition"
+import { containerSpot, freeMiningPosition, minerAt } from "creeps/action/common/miningPosition"
 
 /** A miner this close to dying doesn't count, so its replacement is in place before the source goes idle. */
 const MINER_REPLACEMENT_LEAD = 100
@@ -32,6 +32,7 @@ function tileOf(miner: Creep): RoomPosition {
  * - A source with no free tile left but too little WORK gets its weakest miner replaced by a larger one once the room
  *   can afford it; the old miner retires when its replacement has spawned (see MinerHandler).
  * - A dying miner's replacement takes over its tile.
+ * - Once a full-size miner is affordable it always goes on the container spot (see below).
  */
 export default class MinerSpawnHandler implements ISpawnHandler {
   private role: string = creepRoles.MINER
@@ -64,6 +65,16 @@ export default class MinerSpawnHandler implements ISpawnHandler {
         continue
       }
 
+      // Once a full-size miner is affordable, it goes on the container spot, taking over from whichever miner holds
+      // it (the handover is in MinerHandler); smaller miners elsewhere at the source then retire.
+      const replaced = (m: Creep) => miners.some(r => (r.memory as MinerMemory).replaces === m.name)
+      const spot = containerSpot(room, source)
+      if (affordableWork === WORK_PER_SOURCE && spot) {
+        const holder = minerAt(spot, miners.filter(onSource))
+        if (holder && replaced(holder)) continue
+        return this.config(workBody(WORK_PER_SOURCE), source, spot, true, holder?.name)
+      }
+
       const pos = freeMiningPosition(room, source, miners)
       if (pos && assigned.length < MAX_MINERS_PER_SOURCE)
         return this.config(workBody(Math.min(WORK_PER_SOURCE - work, affordableWork)), source, pos, true)
@@ -71,9 +82,16 @@ export default class MinerSpawnHandler implements ISpawnHandler {
 
       // No free tile. Replace a dying miner on its tile, or (once, straight to full size, since every swap idles the
       // source briefly) upgrade the weakest one. Either way the replacement takes over at the tile (MinerHandler).
-      const replaced = (m: Creep) => miners.some(r => (r.memory as MinerMemory).replaces === m.name)
       const dying = miners.find(m => onSource(m) && !healthy.includes(m) && !replaced(m))
-      if (dying) return this.config(workBody(affordableWork), source, tileOf(dying), true, dying.name)
+      // Only what the source is missing: other healthy miners already cover `work`.
+      if (dying)
+        return this.config(
+          workBody(Math.min(affordableWork, WORK_PER_SOURCE - work)),
+          source,
+          tileOf(dying),
+          true,
+          dying.name
+        )
 
       const weakest = assigned.filter(m => !m.spawning).sort((a, b) => workOf(a) - workOf(b))[0]
       if (weakest && !replaced(weakest) && affordableWork === WORK_PER_SOURCE && workOf(weakest) < WORK_PER_SOURCE)
