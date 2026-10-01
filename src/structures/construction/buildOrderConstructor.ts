@@ -2,7 +2,8 @@
  * Goal: Build structures in a defined order for efficiency.
  *
  * Keeps up to MAX_OPEN_SITES construction sites open so builders always have work, placing the highest priority
- * steps first (buildOrder index breaks ties). Steps that can't be placed (blocked tile, not allowed at this RCL)
+ * steps first, and among steps of equal priority the ones closest to the spawn (see spawnAnchor), so the base grows
+ * outwards from it and builders don't walk to its edge first. buildOrder index breaks remaining ties. Steps that can't be placed (blocked tile, not allowed at this RCL)
  * are skipped rather than waited on, so one bad step can't stall the whole order.
  *
  * room.memory.buildCursor is the index of the first step not yet built, so it reaches buildOrder.length once
@@ -80,14 +81,16 @@ export default function build(room: Room) {
     counts[s.structureType] = (counts[s.structureType] || 0) + 1
   for (const s of sites) counts[s.structureType] = (counts[s.structureType] || 0) + 1
 
-  const pending: { step: BuildOrderStep; index: number; priority: number }[] = []
+  const pending: { step: BuildOrderStep; index: number; priority: number; distance: number }[] = []
+  const anchor = spawnAnchor(room, buildOrder)
   let firstUnbuilt = buildOrder.length
   buildOrder.forEach((step, index) => {
     if (built.has(key(step.x, step.y, step.structureType))) return
     firstUnbuilt = Math.min(firstUnbuilt, index)
     if (hasSite.has(key(step.x, step.y, step.structureType))) return
     const pos = new RoomPosition(step.x, step.y, room.name)
-    pending.push({ step, index, priority: priorityOf(room, pos, step.structureType) })
+    const distance = anchor ? anchor.getRangeTo(pos) : 0
+    pending.push({ step, index, priority: priorityOf(room, pos, step.structureType), distance })
   })
   room.memory.buildCursor = firstUnbuilt
 
@@ -100,7 +103,7 @@ export default function build(room: Room) {
 
   const terrain = room.getTerrain()
   const hasTower = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType === STRUCTURE_TOWER }).length > 0
-  pending.sort((a, b) => a.priority - b.priority || a.index - b.index)
+  pending.sort((a, b) => a.priority - b.priority || a.distance - b.distance || a.index - b.index)
 
   for (const { step, priority } of pending) {
     // At RCL 1 every bit of energy should go into the controller (RCL 2 needs only 200): the only things buildable
@@ -139,6 +142,14 @@ export function priorityOf(room: Room, pos: RoomPosition, structureType: Structu
   if (isTunnel(room, pos, structureType)) return TUNNEL_PRIORITY
   if (structureType === STRUCTURE_CONTAINER && feedsMinersOrUpgraders(room, pos)) return RESOURCE_CONTAINER_PRIORITY
   return PRIORITY[structureType as BuildableStructureConstant] ?? PRIORITY[STRUCTURE_ROAD]! + 0.5
+}
+
+/** The room's first spawn, or where the build order plans one (a newly claimed room has none yet). */
+function spawnAnchor(room: Room, buildOrder: BuildOrderStep[]): RoomPosition | null {
+  const spawn = room.find(FIND_MY_SPAWNS)[0]
+  if (spawn) return spawn.pos
+  const planned = buildOrder.find(s => s.structureType === STRUCTURE_SPAWN)
+  return planned ? new RoomPosition(planned.x, planned.y, room.name) : null
 }
 
 /** A road on a wall tile: 150 times the cost of a normal road. */
