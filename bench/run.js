@@ -438,6 +438,18 @@ async function main() {
       )
       return {
         remotes: m.remotes,
+        // Each home's highway: per room, tiles, roads missing / damaged, lowest hits share, open sites.
+        highways: Object.fromEntries(
+          Object.entries(m.highways || {}).map(([home, h]) => [
+            home,
+            Object.fromEntries(
+              Object.entries(h.rooms).map(([room, r]) => [
+                room,
+                `${r.tiles.length} tiles, ${r.missing} missing, ${r.damaged} damaged, lowest ${(r.lowest * 100).toFixed(0)}%, ${r.sites} sites`
+              ])
+            )
+          ])
+        ),
         remoteReport: m.remoteReport,
         remotePaused: m.remotePaused,
         allies: m.allies,

@@ -160,7 +160,10 @@ export function findOffloadSpot(creep: Creep): RoomPosition | null {
 
 function isOffloadableContainerPosition(room: Room, containerPos: RoomPosition[]) {
   const pos = new RoomPosition(containerPos[0].x, containerPos[0].y, room.name)
-  const containers = room.lookForAt(LOOK_STRUCTURES, pos) as StructureContainer[]
+  // Only the container: a road or rampart on the same tile has no store.
+  const containers = room
+    .lookForAt(LOOK_STRUCTURES, pos)
+    .filter(s => s.structureType === STRUCTURE_CONTAINER) as StructureContainer[]
   const energyPiles = room.lookForAt(LOOK_ENERGY, pos)
 
   return (
