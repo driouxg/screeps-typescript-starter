@@ -260,6 +260,14 @@ async function main() {
       "avgExtensionDistance"
     )}, exposed core ${avg("exposed")}/${avg("core")}`
   )
+  console.log(
+    `Spawn to: storage ${avg("storageDistance")}, controller ${avg("controllerDistance")}, sources ${avg(
+      "sourceDistance"
+    )}. Rapid fill in ${metrics.filter(m => m.rapidFill).length}/${metrics.length} rooms. ` +
+      `Weakest tower cover on the ramparts ${avg("towerMinDamage")} (min ${Math.min(
+        ...metrics.map(m => m.towerMinDamage ?? Infinity)
+      )})`
+  )
   console.log("\nIssue                  rooms  total  example")
   for (const [type, t] of Object.entries(byType).sort((a, b) => b[1].rooms.size - a[1].rooms.size))
     console.log(

@@ -53,8 +53,15 @@ export default class RapidFillerSpawnHandler implements ISpawnHandler {
 
     return new SpawnConfig(body, creepRoles.RAPID_FILLER, {
       memory: { spot: { x: spot.x, y: spot.y } } as RapidFillerMemory,
-      // Straight onto the spot when this spawn is next to it.
-      directions: spawn.pos.isNearTo(spot) ? [spawn.pos.getDirectionTo(spot)] : undefined
+      // Straight onto the spot when this spawn is next to it, else any free side: with the spot as the only exit, a
+      // creep standing on it kept the new filler in the spawn and blocked all spawning.
+      directions: spawn.pos.isNearTo(spot) ? exitsTowards(spawn.pos.getDirectionTo(spot)) : undefined
     })
   }
+}
+
+/** Every direction, `first` first. */
+function exitsTowards(first: DirectionConstant): DirectionConstant[] {
+  const all = [TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT, LEFT, TOP_LEFT] as DirectionConstant[]
+  return [first, ...all.filter(d => d !== first)]
 }

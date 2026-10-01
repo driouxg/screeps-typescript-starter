@@ -11,7 +11,7 @@ import ScoutHandler from "creeps/action/scoutHandler"
 import ClaimerHandler from "creeps/action/claimerHandler"
 import WatcherHandler from "creeps/action/watcherHandler"
 import ExpanderHandler from "creeps/action/expanderHandler"
-import RemoteMinerHandler from "creeps/action/remoteDropMinerHandler"
+import RemoteMinerHandler from "creeps/action/remoteMinerHandler"
 import HighwayMaintainerHandler from "creeps/action/highwayMaintainerHandler"
 import RemoteHaulerHandler from "creeps/action/remoteHaulerHandler"
 import RapidFillerHandler from "creeps/action/rapidFillerHandler"
@@ -31,7 +31,7 @@ export default class CreepComposer {
     dictionary[creepRoles.CLAIMER] = new ClaimerHandler()
     dictionary[creepRoles.WATCHER] = new WatcherHandler()
     dictionary[creepRoles.EXPANDER] = new ExpanderHandler()
-    dictionary[creepRoles.REMOTE_DROP_MINER] = new RemoteMinerHandler()
+    dictionary[creepRoles.REMOTE_MINER] = new RemoteMinerHandler()
     dictionary[creepRoles.HIGHWAY_MAINTAINER] = new HighwayMaintainerHandler()
     dictionary[creepRoles.REMOTE_HAULER] = new RemoteHaulerHandler()
     dictionary[creepRoles.RAPID_FILLER] = new RapidFillerHandler()

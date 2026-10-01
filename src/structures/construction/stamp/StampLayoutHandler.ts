@@ -1,5 +1,3 @@
-import distanceTransform from "utils/distanceTransform"
-import { floodFill } from "utils/floodFill"
 import IConstructionHandler from "../IConstructionHandler"
 import ILayoutHandler from "../ILayoutHandler"
 import minCut from "../../../utils/minCut"
@@ -15,21 +13,30 @@ const SOURCE_BUFFER = 1
 const CONTROLLER_BUFFER = 2
 
 /**
- * Goal: Plan a room's base out of fixed stamps, as close to the controller as open space allows, then protect it with
- * ramparts along the minimum cut between the base and the exits.
+ * Goal: Plan a compact base out of fixed stamps, placed where it saves the most walking, then protect it with ramparts
+ * along the minimum cut between the base and the exits.
  *
- * Stamps (all fit in a square around their centre, see STAMPS):
- * - rapid fill: 16 extensions, 2 spawns, 2 containers and a link around 4 filler spots (radius 3, required)
- * - anchor: storage, terminal, factory, power spawn, nuker, observer and a link around one manager spot (required)
- * - labs: 10 labs, all within range 2 of the two central ones
+ * Stamps (see STAMPS):
+ * - rapid fill: 16 extensions, 2 spawns, 2 containers and a link around 4 filler spots (the core)
+ * - anchor: storage, terminal, factory, power spawn, nuker, observer and a link around one manager spot
  * - towers: 6 towers around one refill spot
+ * - labs: 10 labs, all within range 2 of the two central ones
  * - extension plus: 5 extensions, repeated until there are 60
- * Whatever doesn't fit as a stamp is placed on single free tiles next to planned roads. Roads then connect the anchor
- * to every stamp, the source and controller containers and the mineral.
  *
- * Each stamp reserves its whole square, stamps stay off the room edge and out of tiles next to exits (the game won't
- * build there), and away from sources, the mineral and the controller. A spawn that already exists is fitted into one
- * of the rapid fill's spawn slots if the terrain allows.
+ * Placement:
+ * - The core is the rapid fill. Around the first spawn if there is one (and it fits); otherwise where the walk to the
+ *   controller plus the walk to each source is shortest, as energy flows from the sources to the base and from the
+ *   base to the controller.
+ * - Every other stamp goes as close to the core as it fits (by walking distance), in order of how often creeps go
+ *   there: anchor, towers (central, to cover the whole rampart line), extensions, labs (once there are
+ *   LABS_AFTER_EXTENSIONS extensions: labs matter from RCL 6), then the remaining extensions.
+ * - Stamps share their road rings and empty corners with each other instead of each reserving a whole square, so the
+ *   base packs tightly. A stamp's filler/manager spots ('.') stay walkable.
+ * - Whatever doesn't fit as a stamp is placed on single free tiles next to planned roads; roads then connect the
+ *   anchor to every stamp, the source and controller containers and the mineral.
+ *
+ * Stamps stay off the room edge and out of tiles next to exits (the game won't build there), and away from sources,
+ * the mineral and the controller.
  */
 export default class StampLayoutHandler implements ILayoutHandler {
   private constructionHandlers: IConstructionHandler[]
@@ -61,16 +68,14 @@ export default class StampLayoutHandler implements ILayoutHandler {
     const terrain = room.getTerrain()
     const cm = getTerrainCostMatrix(terrain, [])
     reserveForbiddenTiles(room, cm)
-    // Distances to the controller over the bare terrain: the planning matrix marks reserved tiles as walls, which
-    // would stop the flood right at the controller.
-    const distance = floodFill([controllerPos], getTerrainCostMatrix(terrain, []), false)
-    const findCenter = (area: number) => findCenterPos(cm, distance, room, area)
+    const grid = new Grid(terrain, cm)
+    grid.keepWalkableAround(room, cm)
 
     let steps: BuildOrderStep[] = []
     const protectedAreas: Rect[] = []
     const place = (center: Pos, stamp: Stamp) => {
       steps = steps.concat(stamp.build(center))
-      markCm(center, stamp.radius, cm)
+      grid.mark(center, stamp, cm)
       protectedAreas.push({
         x1: center.x - stamp.radius,
         y1: center.y - stamp.radius,
@@ -79,35 +84,33 @@ export default class StampLayoutHandler implements ILayoutHandler {
       })
     }
 
-    // Rapid fill, around an existing spawn if there is one and it fits.
+    // The core: the rapid fill, around an existing spawn if it fits, else where the walking is shortest.
     const existingSpawn = room.find(FIND_MY_SPAWNS)[0]
-    if (existingSpawn) cm.set(existingSpawn.pos.x, existingSpawn.pos.y, TERRAIN_MASK_WALL)
-    const fitted = existingSpawn ? fitRapidFillAroundSpawn(existingSpawn.pos, cm) : null
-    if (fitted) {
-      place(fitted.center, fitted.stamp)
-      room.memory.rapidFill = fitted.center
-    } else {
-      // In a cramped room the rapid fill may not fit; its spawns and extensions then go on single tiles.
-      const center = findCenter(STAMPS.rapidFill.radius + 1)
-      if (center) place(center, STAMPS.rapidFill)
-      room.memory.rapidFill = center ?? null
-    }
+    const fitted = existingSpawn ? grid.fitAroundSpawn(existingSpawn.pos) : null
+    if (existingSpawn) grid.block(existingSpawn.pos, cm)
+    // An existing spawn the rapid fill can't wrap around: the rapid fill goes as close to it as it fits instead.
+    const core = fitted ?? (existingSpawn ? grid.nearestCore(existingSpawn.pos) : grid.bestCore(room, controllerPos))
+    if (core) place(core.center, core.stamp)
+    room.memory.rapidFill = core ? core.center : null
+    const hub: Pos = core?.center ?? existingSpawn?.pos ?? controllerPos
 
-    // Likewise the anchor; without it the controller is the hub everything is placed around and connected to.
-    const anchorCenter = findCenter(STAMPS.anchor.radius + 1)
-    if (anchorCenter) place(anchorCenter, STAMPS.anchor)
-    const anchor: Pos = anchorCenter ?? controllerPos
-
-    for (const stamp of [STAMPS.labs, STAMPS.towers]) {
-      const center = findCenter(stamp.radius + 1)
+    // Everything else as close to the core as it fits.
+    const order = grid.byDistanceFrom(hub)
+    const placeNear = (stamp: Stamp) => {
+      const center = grid.firstFit(stamp, order)
       if (center) place(center, stamp)
+      return center
     }
-
-    while (count(steps, STRUCTURE_EXTENSION) + STAMPS.extensionPlus.extensions <= EXTENSIONS_WANTED) {
-      const center = findCenter(STAMPS.extensionPlus.radius + 1)
-      if (!center) break
-      place(center, STAMPS.extensionPlus)
+    const anchorCenter = placeNear(STAMPS.anchor)
+    const anchor: Pos = anchorCenter ?? hub
+    placeNear(STAMPS.towers)
+    const addExtensions = (upTo: number) => {
+      while (count(steps, STRUCTURE_EXTENSION) + STAMPS.extensionPlus.extensions <= upTo)
+        if (!placeNear(STAMPS.extensionPlus)) break
     }
+    addExtensions(LABS_AFTER_EXTENSIONS)
+    placeNear(STAMPS.labs)
+    addExtensions(EXTENSIONS_WANTED)
 
     // A spawn that didn't fit the rapid fill stays where it is, and needs the ramparts' protection too.
     if (existingSpawn && !fitted) {
@@ -148,25 +151,43 @@ export default class StampLayoutHandler implements ILayoutHandler {
   }
 }
 
+/** Labs matter from RCL 6: the extensions every RCL needs (up to this many) get the closer tiles. */
+const LABS_AFTER_EXTENSIONS = 40
+
+function count(steps: BuildOrderStep[], type: BuildableStructureConstant): number {
+  return new Set(steps.filter(s => s.structureType === type).map(s => `${s.x},${s.y}`)).size
+}
+
+type Cell = { dx: number; dy: number; kind: "structure" | "road" | "keep"; type?: BuildableStructureConstant }
+
 interface Stamp {
   radius: number
   extensions: number
+  cells: Cell[]
   build: (center: Pos) => BuildOrderStep[]
 }
 
-/** Builds a stamp from rows of characters centred on the middle character. */
+/**
+ * Builds a stamp from rows of characters centred on the middle character: a LEGEND letter is that structure, "." a
+ * tile that must stay walkable (a filler or manager spot), "_" a tile the stamp doesn't care about (another stamp may
+ * use it).
+ */
 function stampFrom(rows: string[], legend: { [c: string]: BuildableStructureConstant }): Stamp {
   const radius = (rows.length - 1) / 2
-  const cells: { dx: number; dy: number; type: BuildableStructureConstant }[] = []
+  const cells: Cell[] = []
   rows.forEach((row, y) =>
     row.split("").forEach((c, x) => {
-      if (legend[c]) cells.push({ dx: x - radius, dy: y - radius, type: legend[c] })
+      const at = { dx: x - radius, dy: y - radius }
+      if (legend[c]) cells.push({ ...at, kind: legend[c] === STRUCTURE_ROAD ? "road" : "structure", type: legend[c] })
+      else if (c === ".") cells.push({ ...at, kind: "keep" })
     })
   )
   return {
     radius,
     extensions: cells.filter(c => c.type === STRUCTURE_EXTENSION).length,
-    build: center => cells.map(c => ({ x: center.x + c.dx, y: center.y + c.dy, structureType: c.type }))
+    cells,
+    build: center =>
+      cells.filter(c => c.type).map(c => ({ x: center.x + c.dx, y: center.y + c.dy, structureType: c.type! }))
   }
 }
 
@@ -186,7 +207,6 @@ const LEGEND: { [c: string]: BuildableStructureConstant } = {
   V: STRUCTURE_OBSERVER
 }
 
-// "." is a free tile a creep stands on (filler / manager spots, lab access).
 const RAPID_FILL = ["rrrrrrr", "rEESEEr", "rE.E.Er", "rCELECr", "rE.E.Er", "rEESEEr", "rrrrrrr"]
 // The same rotated 90 degrees, so an existing spawn can sit in a side slot too.
 const RAPID_FILL_ROTATED = RAPID_FILL.map((_, i) => RAPID_FILL.map(row => row[i]).join(""))
@@ -194,37 +214,161 @@ const RAPID_FILL_ROTATED = RAPID_FILL.map((_, i) => RAPID_FILL.map(row => row[i]
 const STAMPS = {
   rapidFill: stampFrom(RAPID_FILL, LEGEND),
   rapidFillRotated: stampFrom(RAPID_FILL_ROTATED, LEGEND),
-  anchor: stampFrom([".rrr.", "rFNPr", "rOrLr", "rMVrr", ".rr.."], LEGEND),
+  anchor: stampFrom(["_rrr_", "rFNPr", "rOrLr", "rMVrr", "_rr__"], LEGEND),
   // 10 labs in a 4x4 block, all within range 2 of the two centre labs; the diagonal road reaches every lab.
-  labs: stampFrom(["rBBr.", "BBrB.", "BrBB.", "rBB..", "....."], LEGEND),
-  towers: stampFrom([".rrr.", "rTTTr", "rTrTr", ".rTr.", "....."], LEGEND),
-  extensionPlus: stampFrom(["..r..", ".rEr.", "rEEEr", ".rEr.", "..r.."], LEGEND)
+  labs: stampFrom(["rBBr_", "BBrB_", "BrBB_", "rBB__", "_____"], LEGEND),
+  towers: stampFrom(["_rrr_", "rTTTr", "rTrTr", "_rTr_", "_____"], LEGEND),
+  extensionPlus: stampFrom(["__r__", "_rEr_", "rEEEr", "_rEr_", "__r__"], LEGEND)
 }
 
+const FREE = 0
+const ROAD = 1
+const KEEP = 2
+const BLOCKED = 3
+
 /**
- * Centre the rapid fill so the existing spawn sits in one of its spawn slots, trying both orientations; null if the
- * terrain doesn't allow any of them.
+ * What the stamps have used of each tile so far: free, a planned road or a spot to keep walkable (both of which other
+ * stamps' roads and spots may share), or blocked (a structure, a wall, or reserved: see reserveForbiddenTiles).
  */
-function fitRapidFillAroundSpawn(spawn: RoomPosition, cm: CostMatrix): { center: Pos; stamp: Stamp } | null {
-  const r = STAMPS.rapidFill.radius - 1 // spawn slots are 2 from the centre
-  const options = [
-    { center: { x: spawn.x, y: spawn.y + r }, stamp: STAMPS.rapidFill },
-    { center: { x: spawn.x, y: spawn.y - r }, stamp: STAMPS.rapidFill },
-    { center: { x: spawn.x + r, y: spawn.y }, stamp: STAMPS.rapidFillRotated },
-    { center: { x: spawn.x - r, y: spawn.y }, stamp: STAMPS.rapidFillRotated }
-  ]
-  return (
-    options.find(({ center, stamp }) => {
-      for (let dy = -stamp.radius; dy <= stamp.radius; dy++)
-        for (let dx = -stamp.radius; dx <= stamp.radius; dx++) {
-          const x = center.x + dx
-          const y = center.y + dy
-          if (x === spawn.x && y === spawn.y) continue
-          if (x < 0 || 49 < x || y < 0 || 49 < y || cm.get(x, y) === TERRAIN_MASK_WALL) return false
+class Grid {
+  private tiles = new Uint8Array(2500)
+
+  public constructor(private terrain: RoomTerrain, cm: CostMatrix) {
+    for (let y = 0; y < 50; y++)
+      for (let x = 0; x < 50; x++) if (cm.get(x, y) === TERRAIN_MASK_WALL) this.tiles[y * 50 + x] = BLOCKED
+  }
+
+  private at(x: number, y: number): number {
+    return x < 0 || 49 < x || y < 0 || 49 < y ? BLOCKED : this.tiles[y * 50 + x]
+  }
+
+  /** Whether the stamp fits centred here. `spawn`: an existing spawn, which only the stamp's spawn slot may cover. */
+  public fits(center: Pos, stamp: Stamp, spawn?: Pos): boolean {
+    for (const c of stamp.cells) {
+      const x = center.x + c.dx
+      const y = center.y + c.dy
+      if (spawn && x === spawn.x && y === spawn.y) {
+        if (c.type !== STRUCTURE_SPAWN) return false
+        continue
+      }
+      const tile = this.at(x, y)
+      if (c.kind === "structure" ? tile !== FREE : tile === BLOCKED) return false
+      if (c.kind !== "structure" && this.terrain.get(x, y) === TERRAIN_MASK_WALL) return false
+    }
+    return true
+  }
+
+  /** Record a placed stamp, and mirror it into `cm` (TERRAIN_MASK_WALL: taken) for the single-tile placement. */
+  public mark(center: Pos, stamp: Stamp, cm: CostMatrix): void {
+    for (const c of stamp.cells) {
+      const x = center.x + c.dx
+      const y = center.y + c.dy
+      const i = y * 50 + x
+      if (c.kind === "structure") this.tiles[i] = BLOCKED
+      else if (this.tiles[i] === FREE) this.tiles[i] = c.kind === "road" ? ROAD : KEEP
+      cm.set(x, y, TERRAIN_MASK_WALL)
+    }
+  }
+
+  public block(pos: Pos, cm: CostMatrix): void {
+    this.tiles[pos.y * 50 + pos.x] = BLOCKED
+    cm.set(pos.x, pos.y, TERRAIN_MASK_WALL)
+  }
+
+  /**
+   * Tiles 2 from a source or the mineral may get roads but no structures, so the ring around the miners and their
+   * container stays walkable (structures 1 from them are already ruled out, see reserveForbiddenTiles).
+   */
+  public keepWalkableAround(room: Room, cm: CostMatrix): void {
+    for (const o of [...room.find(FIND_SOURCES), ...room.find(FIND_MINERALS)])
+      for (let dy = -2; dy <= 2; dy++)
+        for (let dx = -2; dx <= 2; dx++) {
+          const x = o.pos.x + dx
+          const y = o.pos.y + dy
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== 2 || this.at(x, y) !== FREE) continue
+          this.tiles[y * 50 + x] = KEEP
+          cm.set(x, y, TERRAIN_MASK_WALL)
         }
-      return true
-    }) ?? null
-  )
+  }
+
+  /** The rapid fill as close (by walking distance) to `pos` as it fits, either orientation. */
+  public nearestCore(pos: Pos): { center: Pos; stamp: Stamp } | null {
+    for (const center of this.byDistanceFrom(pos)) {
+      const stamp = [STAMPS.rapidFill, STAMPS.rapidFillRotated].find(s => this.fits(center, s))
+      if (stamp) return { center, stamp }
+    }
+    return null
+  }
+
+  /** The rapid fill placed so the existing spawn sits in one of its spawn slots (either orientation), if it fits. */
+  public fitAroundSpawn(spawn: Pos): { center: Pos; stamp: Stamp } | null {
+    const r = STAMPS.rapidFill.radius - 1 // spawn slots are 2 from the centre
+    const options = [
+      { center: { x: spawn.x, y: spawn.y + r }, stamp: STAMPS.rapidFill },
+      { center: { x: spawn.x, y: spawn.y - r }, stamp: STAMPS.rapidFill },
+      { center: { x: spawn.x + r, y: spawn.y }, stamp: STAMPS.rapidFillRotated },
+      { center: { x: spawn.x - r, y: spawn.y }, stamp: STAMPS.rapidFillRotated }
+    ]
+    return options.find(o => this.fits(o.center, o.stamp, spawn)) ?? null
+  }
+
+  /**
+   * Where the rapid fill (the core) goes in an empty room: of the tiles it fits on, the one with the shortest walk to
+   * the controller plus to each source.
+   */
+  public bestCore(room: Room, controller: RoomPosition): { center: Pos; stamp: Stamp } | null {
+    const maps = [controller, ...room.find(FIND_SOURCES).map(s => s.pos)].map(p => this.walkingDistances(p))
+    let best: { center: Pos; stamp: Stamp } | null = null
+    let bestCost = Infinity
+    for (let y = 2; y < 48; y++)
+      for (let x = 2; x < 48; x++) {
+        const d = maps.map(m => m[y * 50 + x])
+        if (d.some(v => v < 0)) continue
+        const cost = d.reduce((a, b) => a + b, 0)
+        if (bestCost <= cost) continue
+        const center = { x, y }
+        const stamp = [STAMPS.rapidFill, STAMPS.rapidFillRotated].find(s => this.fits(center, s))
+        if (!stamp) continue
+        best = { center, stamp }
+        bestCost = cost
+      }
+    return best
+  }
+
+  /** Tiles in order of walking distance from `from` (over the terrain), nearest first. */
+  public byDistanceFrom(from: Pos): Pos[] {
+    const d = this.walkingDistances(from)
+    const tiles: Pos[] = []
+    for (let i = 0; i < 2500; i++) if (0 <= d[i]) tiles.push({ x: i % 50, y: Math.floor(i / 50) })
+    return tiles.sort((a, b) => d[a.y * 50 + a.x] - d[b.y * 50 + b.x])
+  }
+
+  /** The first centre in `order` the stamp fits on. */
+  public firstFit(stamp: Stamp, order: Pos[]): Pos | null {
+    return order.find(center => this.fits(center, stamp)) ?? null
+  }
+
+  /** Walking distance from `from` to every tile over the terrain (walls block), -1 where it can't be reached. */
+  private walkingDistances(from: Pos): Int16Array {
+    const d = new Int16Array(2500).fill(-1)
+    d[from.y * 50 + from.x] = 0
+    const queue = [from.y * 50 + from.x]
+    for (let i = 0; i < queue.length; i++) {
+      const cur = queue[i]
+      const cx = cur % 50
+      const cy = Math.floor(cur / 50)
+      for (const [dx, dy] of RING) {
+        const x = cx + dx
+        const y = cy + dy
+        if (x < 0 || 49 < x || y < 0 || 49 < y) continue
+        const j = y * 50 + x
+        if (d[j] !== -1 || this.terrain.get(x, y) === TERRAIN_MASK_WALL) continue
+        d[j] = d[cur] + 1
+        queue.push(j)
+      }
+    }
+    return d
+  }
 }
 
 /**
@@ -256,37 +400,6 @@ function reserveForbiddenTiles(room: Room, cm: CostMatrix) {
   room.find(FIND_SOURCES).forEach(s => keepClear(s.pos, SOURCE_BUFFER))
   room.find(FIND_MINERALS).forEach(m => keepClear(m.pos, SOURCE_BUFFER))
   if (room.controller) keepClear(room.controller.pos, CONTROLLER_BUFFER)
-}
-
-/**
- * The open tile whose surroundings (Chebyshev `area - 1`) are all free, closest by path to the controller.
- * `distance` is a flood fill from the controller; 0 means the flood never reached the tile.
- */
-function findCenterPos(cm: CostMatrix, distance: CostMatrix, room: Room, area: number): Pos | null {
-  const dt = distanceTransform(cm, room, false)
-  let best: Pos | null = null
-  let min = Number.MAX_SAFE_INTEGER
-  for (let y = 0; y < 50; y++)
-    for (let x = 0; x < 50; x++) {
-      if (dt.get(x, y) < area) continue
-      const d = distance.get(x, y)
-      if (0 < d && d < min) {
-        min = d
-        best = { x, y }
-      }
-    }
-  return best
-}
-
-/** Reserve the whole square a stamp covers, inclusive. */
-function markCm(center: Pos, radius: number, cm: CostMatrix) {
-  for (let y = center.y - radius; y <= center.y + radius; y++)
-    for (let x = center.x - radius; x <= center.x + radius; x++)
-      if (0 <= x && x <= 49 && 0 <= y && y <= 49) cm.set(x, y, TERRAIN_MASK_WALL)
-}
-
-function count(steps: BuildOrderStep[], type: BuildableStructureConstant): number {
-  return new Set(steps.filter(s => s.structureType === type).map(s => `${s.x},${s.y}`)).size
 }
 
 /**

@@ -47,7 +47,7 @@ export function income(room: Room): number {
   }
 
   // Remote sources being mined: what the miner harvests, discounted for what's lost carrying it home.
-  for (const miner of creeps.filter(c => c.memory.role === creepRoles.REMOTE_DROP_MINER)) {
+  for (const miner of creeps.filter(c => c.memory.role === creepRoles.REMOTE_MINER)) {
     const remote = Memory.remotes?.[(miner.memory as { targetSourceId?: string }).targetSourceId ?? ""]
     if (!remote) continue
     const regen = (remote.reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME

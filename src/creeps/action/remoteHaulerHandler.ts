@@ -1,16 +1,16 @@
-import { remoteOf, sendHome } from "remote/remoteCreeps"
+import { containerBuilt, remoteOf, sendHome } from "remote/remoteCreeps"
 import { smartMove } from "./common/movement"
 import { offloadEnergy } from "./haulerHandler"
 import ICreepHandler from "./ICreepHandler"
 
-/** Energy within this range of the miner's spot is the source's (the container, and piles before it's built). */
+/** Energy within this range of the miner's spot is the source's: the container, and piles next to it. */
 const PILE_RANGE = 1
 
 /**
  * Goal: Carry a remote source's energy home, on its own: nothing but CARRY and MOVE (2 CARRY per MOVE once the
  * highway is built), so all its parts are logistics.
  *
- * Walks to the source's container, takes what's in it (and in piles next to it, before the container is built), and
+ * Only goes out while the container is built (waits at home otherwise). Takes what's in it and in piles next to it, and
  * drives home once full, or once there's nothing left to take and it carries at least half a load. At home it
  * delivers like a home hauler (see deliver). Brings what it carries home while the room is paused.
  */
@@ -26,6 +26,8 @@ export default class RemoteHaulerHandler implements ICreepHandler {
       if (0 < creep.store.energy) memory.working = true
       else return sendHome(creep)
     }
+    // The container is gone (destroyed, or its room lost from view along with the miner): wait at home for it.
+    if (!memory.working && !containerBuilt(remote!)) return sendHome(creep)
 
     if (memory.working) return this.deliver(creep)
 

@@ -1,5 +1,4 @@
 import { remoteOf, sendHome } from "remote/remoteCreeps"
-import { CONTAINER_MIN_RCL } from "remote/remotePlanner"
 import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
 
@@ -7,8 +6,8 @@ import ICreepHandler from "./ICreepHandler"
  * Goal: Mine a remote source (see RemotePlanner) from on top of its container, and keep that bit of infrastructure
  * up on the spot, so haulers stay pure haulers and the highway maintainer is rarely needed.
  *
- * - Walks to its spot (next to the source, where the planner put the container). Before CONTAINER_MIN_RCL it just
- *   drop-mines there; from it, it places the container's construction site if there's none.
+ * - Walks to its spot (next to the source, where the planner put the container) and places the container's
+ *   construction site if there's none. Haulers only come once the container is built (see containerBuilt).
  * - Container not built yet: harvests, and builds it whenever its CARRY is full.
  * - Then harvests: its CARRY fills first, after that energy spills into the container under it.
  * - Container below full hits: repairs it, taking energy out of the container to do so.
@@ -35,13 +34,7 @@ export default class RemoteMinerHandler implements ICreepHandler {
     const container = spot.lookFor(LOOK_STRUCTURES).find(s => s.structureType === STRUCTURE_CONTAINER) as
       | StructureContainer
       | undefined
-    if (!container) {
-      // Drop-mine until the home room is far enough along for a container to pay off (see CONTAINER_MIN_RCL).
-      const level = Game.rooms[creep.memory.room]?.controller?.level ?? 0
-      if (level < CONTAINER_MIN_RCL) creep.harvest(source)
-      else this.buildContainer(creep, spot, source)
-      return
-    }
+    if (!container) return this.buildContainer(creep, spot, source)
 
     if (container.hits < container.hitsMax) return this.repair(creep, container, container)
     if (source.energy <= 0) {

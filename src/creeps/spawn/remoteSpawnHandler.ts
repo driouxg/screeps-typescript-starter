@@ -1,4 +1,4 @@
-import { isRemoteRoomActive } from "remote/remoteCreeps"
+import { containerBuilt, isRemoteRoomActive } from "remote/remoteCreeps"
 import { needsMaintainer } from "remote/highway"
 import { haulerBody, maintainerBody, minerBody } from "remote/remoteBodies"
 import * as creepRoles from "../roles"
@@ -12,7 +12,8 @@ const MINER_TICKS_PER_TILE = 2.5
 
 /**
  * Goal: Staff the remote sources RemotePlanner chose for this spawn's room, best first: a miner (replaced before the
- * old one dies, allowing for its walk), haulers until they have the CARRY parts the source needs, and a reserver for
+ * old one dies, allowing for its walk), haulers (once the miner has built the container) until they have the CARRY
+ * parts the source needs, and a reserver for
  * rooms worth reserving whose reservation is running low. Then the home's highway maintainer, when its roads need one
  * (see remote/highway). Bodies come from remoteBodies, the same the planner priced.
  */
@@ -33,9 +34,11 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
       const income = (r.reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
       const miner = minerBody(capacity, income)
       const minerLead = r.distance * MINER_TICKS_PER_TILE + miner.length * CREEP_SPAWN_TIME
-      if (!serving(creepRoles.REMOTE_DROP_MINER, "targetSourceId", r.id).some(m => aliveFor(m, minerLead)))
-        return this.config(miner, creepRoles.REMOTE_DROP_MINER, { targetSourceId: r.id })
+      if (!serving(creepRoles.REMOTE_MINER, "targetSourceId", r.id).some(m => aliveFor(m, minerLead)))
+        return this.config(miner, creepRoles.REMOTE_MINER, { targetSourceId: r.id })
 
+      // No haulers until the miner has built the source's container: until then there's nothing for them to collect.
+      if (!containerBuilt(r)) continue
       const carry = serving(creepRoles.REMOTE_HAULER, "targetSourceId", r.id)
         .filter(h => aliveFor(h, 2 * r.travel))
         .reduce((sum, h) => sum + h.getActiveBodyparts(CARRY), 0)

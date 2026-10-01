@@ -240,8 +240,34 @@ function check({ terrain, sources, controller, mineral, spawn, steps }) {
     .filter(s => s[2] === "extension")
     .map(([x, y]) => Math.min(...DIRS.map(([dx, dy]) => reach.get(key(x + dx, y + dy)) ?? Infinity)))
     .filter(Number.isFinite)
+  // Walking distance from the spawn to next to a tile (Infinity if unreachable).
+  const distTo = (x, y) => Math.min(...DIRS.map(([dx, dy]) => reach.get(key(x + dx, y + dy)) ?? Infinity))
+  const finite = v => (Number.isFinite(v) ? v : null)
+  const avgOf = list => (list.length ? +(list.reduce((a, b) => a + b, 0) / list.length).toFixed(1) : null)
+  // Rapid fill: a link with a container 2 tiles either side of it, in a row or a column.
+  const has = (x, y, t) => (tiles.get(key(x, y)) || []).includes(t)
+  const rapidFill = steps.some(
+    ([x, y, t]) =>
+      t === "link" &&
+      ((has(x - 2, y, "container") && has(x + 2, y, "container")) ||
+        (has(x, y - 2, "container") && has(x, y + 2, "container")))
+  )
+  // Weakest tower cover on the rampart line: summed tower damage at the rampart tile the towers hit hardest least.
+  const towers = steps.filter(s => s[2] === "tower")
+  const towerDamage = (x, y) =>
+    towers.reduce((sum, [tx, ty]) => {
+      const range = Math.max(Math.abs(tx - x), Math.abs(ty - y))
+      return sum + (range <= 5 ? 600 : range >= 20 ? 150 : 600 - ((range - 5) * 450) / 15)
+    }, 0)
+  const rampartTiles = steps.filter(s => s[2] === "rampart")
+  const storage = steps.find(s => s[2] === "storage")
   const metrics = {
     steps: steps.length,
+    rapidFill: rapidFill ? 1 : 0,
+    storageDistance: storage ? finite(distTo(storage[0], storage[1])) : null,
+    controllerDistance: controller ? finite(distTo(controller.x, controller.y)) : null,
+    sourceDistance: avgOf(sources.map(s => distTo(s.x, s.y)).filter(Number.isFinite)),
+    towerMinDamage: rampartTiles.length && towers.length ? Math.round(Math.min(...rampartTiles.map(([x, y]) => towerDamage(x, y)))) : null,
     roads: count.road || 0,
     ramparts: count.rampart || 0,
     avgExtensionDistance: extensionDistances.length

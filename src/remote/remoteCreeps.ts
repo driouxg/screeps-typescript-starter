@@ -9,6 +9,18 @@ export function remoteOf(creep: Creep): RemoteSource | null {
   return remote && isRemoteRoomActive(remote.room) ? remote : null
 }
 
+/**
+ * Whether the remote source's container (on the miner's spot) is built. Its room is visible whenever its miner is
+ * there; without vision there's no miner, so no container being built either.
+ */
+export function containerBuilt(remote: RemoteSource): boolean {
+  const room = Game.rooms[remote.room]
+  if (!room || !remote.spot) return false
+  return room
+    .lookForAt(LOOK_STRUCTURES, remote.spot.x, remote.spot.y)
+    .some(s => s.structureType === STRUCTURE_CONTAINER)
+}
+
 export function isRemoteRoomActive(roomName: string): boolean {
   const mined = Object.values(Memory.remotes ?? {}).some(r => r.room === roomName)
   return mined && !Memory.remotePaused?.[roomName]

@@ -28,8 +28,8 @@ import { bodyCost, haulerCostPerCarry, maintainerBody, minerBody } from "./remot
  *   miner      its body every 1500 ticks
  *   haulers    CARRY to move `income` over a round trip, with the MOVE they need: half as many once the highway's
  *              roads are built, which also makes the trip shorter (no swamp slowdown)
- *   container  from CONTAINER_MIN_RCL: built once (amortized over AMORTIZE_TICKS) and repaired, as containers outside
- *              our rooms decay fast; before it the miner drop-mines and its pile decays
+ *   container  built once by the miner (amortized over AMORTIZE_TICKS) and repaired, as containers outside our rooms
+ *              decay fast; no haulers go before it's built (see RemoteSpawnHandler)
  *   roads      from ROAD_MIN_RCL: built once (amortized) and kept up, plus the highway maintainer's body now and then;
  *              only the road a source adds counts, as routes share roads (see remote/highway)
  *   reserver   2 CLAIM + 2 MOVE every 600 ticks, shared by the room's sources
@@ -75,14 +75,6 @@ const RESERVER_BODY: BodyPartConstant[] = [CLAIM, CLAIM, MOVE, MOVE]
 const RESERVER_COST = bodyCost(RESERVER_BODY)
 /** A container outside our rooms loses CONTAINER_DECAY hits every CONTAINER_DECAY_TIME ticks. */
 const CONTAINER_UPKEEP = (CONTAINER_DECAY * REPAIR_COST) / CONTAINER_DECAY_TIME
-/**
- * Remote miners build their container from this RCL (see RemoteMinerHandler). It saves the miner's pile from decaying
- * (DROP_DECAY) for CONTAINER_UPKEEP, about 0.5 energy/tick, so its 5000 energy takes ~10000 ticks to pay back: more than
- * a room usually spends at RCL 3, where it cost a fifth of the upgrading in the bench. Before it, miners drop-mine.
- */
-export const CONTAINER_MIN_RCL = 4
-/** A pile on the ground loses at least 1 energy per tick (ENERGY_DECAY: 1 per 1000 or part of it). */
-const DROP_DECAY = 1
 
 export interface RemoteSource {
   id: string
@@ -347,13 +339,11 @@ function score(
   roadsBuilt: boolean,
   newRoad: number
 ): RemoteSource {
-  const level = Game.rooms[home]?.controller?.level ?? 0
   const income = (reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
   const miner = minerBody(capacity, income)
   const carryFor = (withRoads: boolean) =>
     Math.ceil((income * (roundTrip(c.route, withRoads) + TRIP_OVERHEAD) * HAULER_MARGIN) / CARRY_CAPACITY)
-  const container =
-    CONTAINER_MIN_RCL <= level ? CONTAINER_UPKEEP + CONSTRUCTION_COST[STRUCTURE_CONTAINER] / AMORTIZE_TICKS : DROP_DECAY
+  const container = CONTAINER_UPKEEP + CONSTRUCTION_COST[STRUCTURE_CONTAINER] / AMORTIZE_TICKS
 
   const option = (withRoad: boolean) => {
     const carry = carryFor(withRoad)
@@ -398,7 +388,7 @@ function score(
 function spawnBudget(home: Room): number {
   const spawns = home.find(FIND_MY_SPAWNS).length
   const remoteRoles = [
-    creepRoles.REMOTE_DROP_MINER,
+    creepRoles.REMOTE_MINER,
     creepRoles.REMOTE_HAULER,
     creepRoles.RESERVER,
     creepRoles.HIGHWAY_MAINTAINER

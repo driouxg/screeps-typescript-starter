@@ -8,7 +8,9 @@ export const HAULER = "HAULER"
 export const SCOUT = "SCOUT"
 export const CLAIMER = "CLAIMER"
 export const WATCHER = "WATCHER" // https://github.com/TooAngel/screeps/blob/master/src/role_watcher.js
-export const REMOTE_DROP_MINER = "REMOTE_DROP_MINER"
+export const REMOTE_MINER = "REMOTE_MINER"
+/** REMOTE_MINER's old name, still in the memory of creeps spawned before the rename (see main.ts). */
+export const LEGACY_REMOTE_MINER = "REMOTE_DROP_MINER"
 export const REMOTE_HAULER = "REMOTE_HAULER"
 export const EXPANDER = "EXPANDER"
 export const RAPID_FILLER = "RAPID_FILLER"
