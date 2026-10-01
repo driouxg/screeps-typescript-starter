@@ -24,7 +24,7 @@ const MIN_BUILD_RCL = 2
  * - RCL 4: storage right after extensions, to bank surplus. RCL 5: links. RCL 6+: terminal, extractor, labs, ...
  *
  * Roads come after everything else: they cost upkeep and matter less than capacity and defence. Ramparts and walls
- * wait for a tower (see NEEDS_TOWER).
+ * wait for a tower (see NEEDS_TOWER) and RCL 5 (see DEFENCE_MIN_RCL).
  */
 const PRIORITY: Partial<Record<BuildableStructureConstant, number>> = {
   [STRUCTURE_SPAWN]: 0,
@@ -58,6 +58,11 @@ const RESOURCE_CONTAINER_PRIORITY = 3
  * ticks unless something keeps repairing it.
  */
 const NEEDS_TOWER: StructureConstant[] = [STRUCTURE_RAMPART, STRUCTURE_WALL]
+/**
+ * Ramparts and walls wait for this RCL too: before it, every bit of energy goes into growing the room, and safe mode
+ * covers us if we're attacked (see SafeModeHandler).
+ */
+export const DEFENCE_MIN_RCL = 5
 
 export default function build(room: Room) {
   const buildOrder = room.memory.buildOrder
@@ -67,11 +72,13 @@ export default function build(room: Room) {
   const key = (x: number, y: number, type: string) => `${x},${y},${type}`
   const built = new Set(room.find(FIND_STRUCTURES).map(s => key(s.pos.x, s.pos.y, s.structureType)))
   let sites = room.find(FIND_MY_CONSTRUCTION_SITES)
-  // Tunnel sites placed before TUNNEL_MIN_RCL (by older code) would hold a slot nobody builds: drop the unstarted ones.
-  if (!tunnelsAllowed(room)) {
-    for (const s of sites) if (s.progress === 0 && isTunnel(room, s.pos, s.structureType)) s.remove()
-    sites = sites.filter(s => s.progress !== 0 || !isTunnel(room, s.pos, s.structureType))
-  }
+  // Sites placed before their RCL (tunnels before TUNNEL_MIN_RCL, defences before DEFENCE_MIN_RCL; by older code)
+  // would hold a slot and pull builders away from the economy: drop the unstarted ones.
+  const tooEarly = (site: ConstructionSite) =>
+    (!tunnelsAllowed(room) && isTunnel(room, site.pos, site.structureType)) ||
+    !defencesAllowed(room, site.structureType)
+  for (const s of sites) if (s.progress === 0 && tooEarly(s)) s.remove()
+  sites = sites.filter(s => s.progress !== 0 || !tooEarly(s))
   const hasSite = new Set(sites.map(s => key(s.pos.x, s.pos.y, s.structureType)))
 
   // Structures of each type we have or are building, to skip steps the RCL doesn't allow yet.
@@ -115,6 +122,7 @@ export default function build(room: Room) {
     if (allowed <= (counts[step.structureType] || 0)) continue
     if (!isPlaceable(step, terrain)) continue
     if (!hasTower && NEEDS_TOWER.includes(step.structureType)) continue
+    if (!defencesAllowed(room, step.structureType)) continue
 
     if (MAX_OPEN_SITES <= open) {
       const victim = evictable[0]
@@ -155,6 +163,12 @@ function spawnAnchor(room: Room, buildOrder: BuildOrderStep[]): RoomPosition | n
 /** A road on a wall tile: 150 times the cost of a normal road. */
 export function isTunnel(room: Room, pos: RoomPosition, structureType: StructureConstant): boolean {
   return structureType === STRUCTURE_ROAD && room.getTerrain().get(pos.x, pos.y) === TERRAIN_MASK_WALL
+}
+
+/** False for ramparts and walls before DEFENCE_MIN_RCL. */
+function defencesAllowed(room: Room, structureType: StructureConstant): boolean {
+  if (structureType !== STRUCTURE_RAMPART && structureType !== STRUCTURE_WALL) return true
+  return DEFENCE_MIN_RCL <= (room.controller?.level ?? 0)
 }
 
 /** Whether the room is far enough along to build tunnels (see TUNNEL_MIN_RCL). */

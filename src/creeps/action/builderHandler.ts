@@ -1,8 +1,15 @@
-import { isTunnel, priorityOf, tunnelsAllowed } from "structures/construction/buildOrderConstructor"
-import { defencesBelow, isDefence, RAMPART_MIN_HITS, rampartTarget } from "structures/rampartPolicy"
+import { DEFENCE_MIN_RCL, isTunnel, priorityOf, tunnelsAllowed } from "structures/construction/buildOrderConstructor"
+import {
+  defencesBelow,
+  isDefence,
+  RAMPART_CRITICAL_HITS,
+  RAMPART_MIN_HITS,
+  rampartTarget
+} from "structures/rampartPolicy"
 import { findPickupPosition } from "./common/creepBehavior"
 import { clearTile, moveOffTile, smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
+import { isUnderAttack } from "defence/threat"
 
 /** Don't walk to a pile or container for less than this share of our free capacity. */
 const MIN_PICKUP_SHARE = 0.5
@@ -14,6 +21,8 @@ const CONTROLLER_RESERVE_RANGE = 3
  */
 const FALLBACK_RECHECK_TICKS = 20
 const FALLBACK_TASKS: BuilderTask["type"][] = ["upgrade", "harvest"]
+/** From this RCL the room has a tower to repair from range, so builders build first (see chooseWork). */
+const BUILD_FIRST_RCL = 3
 
 type EnergyTarget = Resource<RESOURCE_ENERGY> | StructureContainer | StructureStorage | Tombstone | Ruin
 
@@ -37,6 +46,8 @@ export interface BuilderTask {
   goal?: number
   /** Tick the task was chosen. */
   since: number
+  /** Whether the room was under attack when it was chosen; the task is reconsidered when that changes. */
+  alert?: boolean
 }
 
 /**
@@ -61,6 +72,8 @@ export default class BuilderHandler implements ICreepHandler {
     const task = memory.task
     if (task && FALLBACK_TASKS.includes(task.type) && FALLBACK_RECHECK_TICKS <= Game.time - task.since)
       memory.task = undefined
+    // An attack starting (or ending) changes what matters most: repairs come first while it lasts.
+    else if (task && memory.working && !!task.alert !== isUnderAttack(creep.room)) memory.task = undefined
 
     for (let attempt = 0; attempt < 2; attempt++) {
       if (!memory.task) memory.task = memory.working ? this.chooseWork(creep) : this.chooseCollect(creep)
@@ -96,27 +109,61 @@ export default class BuilderHandler implements ICreepHandler {
   // --- Choosing (runs once per objective) ---
 
   /**
-   * In order: ramparts/walls about to decay away, other damaged structures, construction, reinforcing ramparts/walls
-   * towards the RCL's target (see rampartPolicy), and upgrading.
+   * Repairs come first under attack: ramparts/walls about to decay away, reinforcing them towards the RCL's target
+   * (see rampartPolicy), then other damaged structures, then construction.
+   *
+   * Otherwise, from BUILD_FIRST_RCL (when the room has a tower to repair from range, see TowerActionHandler),
+   * construction comes first and repairs only when there's nothing to build. Below it, as before: defences about to
+   * decay away, damaged structures, construction, reinforcing defences.
+   *
+   * Ramparts and walls: before DEFENCE_MIN_RCL they aren't repaired at all unless we're under attack (they're rebuilt
+   * then; see DEFENCE_MIN_RCL). From it, one about to decay away (a new one has 1 hit and vanishes at its first decay)
+   * is saved even before construction: towers can't be counted on, as haulers fill extensions before them.
+   *
+   * With nothing else to do, upgrade.
    */
   private chooseWork(creep: Creep): BuilderTask | undefined {
     const room = creep.room
+    const alert = isUnderAttack(room)
+    const level = room.controller?.level ?? 0
+    const buildFirst = !alert && BUILD_FIRST_RCL <= level
+    const keepDefences = alert || DEFENCE_MIN_RCL <= level
     const closest = (structures: Structure[]) => creep.pos.findClosestByRange(structures)
+    const task = (t: Omit<BuilderTask, "since" | "alert">): BuilderTask => ({ ...t, since: Game.time, alert })
+    const defences = (hits: number) => (keepDefences ? defencesBelow(room, hits) : [])
 
-    const decaying = closest(defencesBelow(room, RAMPART_MIN_HITS))
-    if (decaying) return { type: "repair", id: decaying.id, goal: RAMPART_MIN_HITS, since: Game.time }
+    const build = () => {
+      const site = this.findConstructionSite(creep)
+      return site ? task({ type: "build", id: site.id }) : undefined
+    }
+    const reinforce = () => {
+      const target = rampartTarget(room)
+      const weak = closest(defences(target))
+      return weak ? task({ type: "repair", id: weak.id, goal: target }) : undefined
+    }
+
+    if (buildFirst) {
+      const vanishing = closest(defences(RAMPART_CRITICAL_HITS))
+      if (vanishing) return task({ type: "repair", id: vanishing.id, goal: RAMPART_MIN_HITS })
+      const site = build()
+      if (site) return site
+    }
+
+    const decaying = closest(defences(RAMPART_MIN_HITS))
+    if (decaying) return task({ type: "repair", id: decaying.id, goal: RAMPART_MIN_HITS })
+
+    if (alert) {
+      const weak = reinforce()
+      if (weak) return weak
+    }
 
     const damaged = closest(room.find(FIND_STRUCTURES, { filter: s => !isDefence(s) && s.hits < s.hitsMax * 0.8 }))
-    if (damaged) return { type: "repair", id: damaged.id, since: Game.time }
+    if (damaged) return task({ type: "repair", id: damaged.id })
 
-    const site = this.findConstructionSite(creep)
-    if (site) return { type: "build", id: site.id, since: Game.time }
+    const next = (buildFirst ? undefined : build()) ?? (alert ? undefined : reinforce())
+    if (next) return next
 
-    const target = rampartTarget(room)
-    const weak = closest(defencesBelow(room, target))
-    if (weak) return { type: "repair", id: weak.id, goal: target, since: Game.time }
-
-    if (room.controller?.my) return { type: "upgrade", since: Game.time }
+    if (room.controller?.my) return task({ type: "upgrade" })
     return undefined
   }
 

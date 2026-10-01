@@ -38,6 +38,15 @@ export function assessThreat(room: Room): Threat {
   }
 }
 
+/**
+ * Whether hostile fighters (or their healers) are in the room and able to act: not while our safe mode is on, since
+ * they can't do anything then. Builders switch to repairs while this holds (see BuilderHandler).
+ */
+export function isUnderAttack(room: Room): boolean {
+  if (room.controller?.my && room.controller.safeMode) return false
+  return 0 < assessThreat(room).hostiles.length
+}
+
 /** Damage per tick our towers (with energy to fire) and combat creeps in the room can deal. */
 export function defensiveDamage(room: Room): number {
   const towers = room.find(FIND_MY_STRUCTURES, {

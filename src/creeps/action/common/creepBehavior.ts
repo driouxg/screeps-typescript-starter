@@ -9,6 +9,8 @@ import { applyCreepCosts, smartMove } from "./movement"
 import { buildStagingPos } from "./buildStaging"
 import { rapidFillOf } from "structures/rapidFill"
 import { RAPID_FILLER } from "creeps/roles"
+import { TOWER_MIN_STOCK } from "structures/action/towerActionHandler"
+import { isUnderAttack } from "defence/threat"
 
 /**
  * Move within `range` of pos. Returns ERR_NO_PATH when the creep is stuck and should pick a new target.
@@ -73,6 +75,14 @@ export function canStoreEnergy(creep: Creep): boolean {
 export function findOffloadSpot(creep: Creep): RoomPosition | null {
   // Spawns and extensions a rapid filler covers are its job; bring energy to the rapid fill's containers instead.
   const covered = coveredByFillers(creep.room)
+
+  // Towers first while they're below their minimum stock, or not full while we're under attack: a tower that can't
+  // fire (or repair) is worth less than a few more creep parts. Emptiest first.
+  const towerFloor = isUnderAttack(creep.room) ? undefined : TOWER_MIN_STOCK
+  const lowTowers = findTowers(creep.room)
+    .filter(t => t.store.energy < (towerFloor ?? t.store.getCapacity(RESOURCE_ENERGY)))
+    .sort((a, b) => a.store.energy - b.store.energy)
+  if (0 < lowTowers.length && creepCanReachPosition(creep, lowTowers[0].pos)) return lowTowers[0].pos
 
   // offload to extensions
   const extensions = findExtensions(creep.room).filter(e => !isFullOfEnergy(e.store) && !covered(e.pos))

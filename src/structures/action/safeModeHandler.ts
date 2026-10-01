@@ -9,6 +9,11 @@ const DANGER_RANGE = 8
 const SPAWN_HITS_FLOOR = 0.7
 /** Creeps we're willing to lose to a raid before using a charge. */
 const ACCEPTABLE_LOSSES = 1
+/**
+ * Below this RCL the room has no ramparts (see DEFENCE_MIN_RCL) and little to defend with, and the fastest way to
+ * grow is to not divert energy into fighting: any real attack gets safe mode straight away.
+ */
+const EARLY_SAFE_MODE_RCL = 5
 
 declare global {
   interface RoomMemory {
@@ -22,6 +27,7 @@ declare global {
  * the room at all, which lets defenders kill them for free. But charges are scarce (one to start, one per RCL
  * reached), so it's only used when:
  *
+ * - we're below EARLY_SAFE_MODE_RCL and hostile fighters come near a spawn or hit anything; or
  * - the raid is hopeless: the hostiles out-damage everything we could field (towers, current defenders, and a full
  *   set of defenders at our energy capacity), and they're near a spawn or attacking; or
  * - the fight is going badly: a spawn has lost 30% of its hits, or the raid has killed more than
@@ -46,13 +52,20 @@ export default class SafeModeHandler implements IStructureActionHandler {
       this.underAttack(room, threat.hostiles)
     if (!threatened) return
 
+    const early = controller.level < EARLY_SAFE_MODE_RCL
     const hopeless = this.potentialDamage(room) < threat.damage + threat.healing
     const spawnFailing = spawns.some(s => s.hits < s.hitsMax * SPAWN_HITS_FLOOR)
     const losingCreeps = ACCEPTABLE_LOSSES < creepsKilledSince(room, room.memory.raidStart)
-    if (!hopeless && !spawnFailing && !losingCreeps) return
+    if (!early && !hopeless && !spawnFailing && !losingCreeps) return
 
     const code = controller.activateSafeMode()
-    const why = hopeless ? "raid is hopeless" : spawnFailing ? "spawn is failing" : "losing creeps"
+    const why = early
+      ? `attacked before RCL ${EARLY_SAFE_MODE_RCL}`
+      : hopeless
+      ? "raid is hopeless"
+      : spawnFailing
+      ? "spawn is failing"
+      : "losing creeps"
     console.log(`Safe mode in ${room.name} (${why}): ${code === OK ? "activated" : `failed (${code})`}`)
   }
 

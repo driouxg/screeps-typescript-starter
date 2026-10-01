@@ -3,6 +3,8 @@ import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import { creepsOf, workerBudget, workerSpend } from "./utils/economy"
 import { defencesBelow, isDefence, RAMPART_MIN_HITS } from "structures/rampartPolicy"
+import { DEFENCE_MIN_RCL } from "structures/construction/buildOrderConstructor"
+import { isUnderAttack } from "defence/threat"
 
 /**
  * Before the first extensions a builder has only 1 WORK part, so it takes this many to spend what two sources yield;
@@ -58,10 +60,12 @@ export default class BuilderSpawnHandler implements ISpawnHandler {
     return new SpawnConfig(builderBody(room.energyAvailable), this.role)
   }
 
+  /** Damaged structures, or (from DEFENCE_MIN_RCL, or under attack) ramparts and walls running low. */
   private needsRepair(room: Room): boolean {
+    const keepDefences = isUnderAttack(room) || DEFENCE_MIN_RCL <= (room.controller?.level ?? 0)
     return (
       0 < room.find(FIND_STRUCTURES, { filter: s => !isDefence(s) && s.hits < s.hitsMax * 0.8 }).length ||
-      0 < defencesBelow(room, RAMPART_MIN_HITS).length
+      (keepDefences && 0 < defencesBelow(room, RAMPART_MIN_HITS).length)
     )
   }
 }
