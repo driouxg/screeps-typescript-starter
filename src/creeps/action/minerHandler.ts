@@ -43,6 +43,9 @@ export default class MinerHandler implements ICreepHandler {
       } else {
         const waitAt = this.tileNextTo(tile, creep)
         if (waitAt) {
+          // Mine while waiting, if the tow happened to leave us next to the source.
+          const source = Game.getObjectById(memory.targetSourceId as Id<Source>)
+          if (source && creep.pos.isNearTo(source)) creep.harvest(source)
           creep.room.memory.events.push(new PullRequestEvent(waitAt, creep.name))
           return
         }
@@ -62,7 +65,8 @@ export default class MinerHandler implements ICreepHandler {
 
     if (this.settleOnContainer(creep, source)) return
 
-    if (creep.harvest(source) !== ERR_NOT_IN_RANGE) {
+    const code = creep.harvest(source)
+    if (code !== ERR_NOT_IN_RANGE) {
       delete memory.waitingSince
       // Already mining: record where, so the spawn handler knows this tile is taken.
       if (!isRoomPositionJson(memory.targetSourcePos)) {
@@ -70,9 +74,22 @@ export default class MinerHandler implements ICreepHandler {
         const { x, y, roomName } = creep.pos
         memory.targetSourcePos = { x, y, roomName }
       }
-      const { x, y } = memory.targetSourcePos
-      if (!memory.replaces && creep.pos.x === x && creep.pos.y === y) memory.settledAt = Game.time
+      const tile = jsonToRoomPosition(memory.targetSourcePos)
+      if (creep.pos.isEqualTo(tile)) {
+        if (!memory.replaces) memory.settledAt = Game.time
+      }
+      // Mining from next to our tile (e.g. beside the container a full-size miner belongs on, where a handover left
+      // it): keep mining, and ask to be pulled onto the tile. A miner with MOVE parts walks there itself.
+      else if (0 < creep.getActiveBodyparts(MOVE)) smartMove(creep, tile, 0)
+      else creep.room.memory.events.push(new PullRequestEvent(tile, creep.name))
       return
+    }
+
+    // On our tile but out of reach of our source: the tile was picked for another source (or by older code). It can
+    // never work, and pull requests to where we already stand do nothing, so pick a tile next to our source instead.
+    if (isRoomPositionJson(memory.targetSourcePos) && creep.pos.isEqualTo(jsonToRoomPosition(memory.targetSourcePos))) {
+      console.log(`Miner ${creep.name}: tile ${creep.pos} isn't next to source ${source.id}, picking another`)
+      delete (memory as Partial<MinerMemory>).targetSourcePos
     }
 
     // Not at the source yet. If our tile got built on, or we've waited too long for it, find another; with no tile

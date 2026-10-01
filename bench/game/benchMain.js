@@ -348,6 +348,33 @@ function record(b, cpu) {
       .slice(0, 5)
       .map(p => `${p.pos.x},${p.pos.y}:${p.amount}`),
     // Containers and their energy, and which creep role stands on each.
+    // Each miner: tile, WORK parts, on a container (C), next to its source (S), harvested this tick (H), memory target.
+    miners: rooms.reduce((all, r) => {
+      const harvested = new Set(r.getEventLog().filter(e => e.event === EVENT_HARVEST).map(e => e.objectId))
+      return all.concat(
+        r.find(FIND_MY_CREEPS, { filter: c => c.memory.role === "MINER" }).map(c => {
+          const source = Game.getObjectById(c.memory.targetSourceId)
+          const onContainer = c.pos.lookFor(LOOK_STRUCTURES).some(s => s.structureType === STRUCTURE_CONTAINER)
+          const t = c.memory.targetSourcePos
+          return (
+            `${c.pos.x},${c.pos.y} W${c.getActiveBodyparts(WORK)}` +
+            `${onContainer ? " C" : ""}${source && c.pos.isNearTo(source) ? " S" : ""}${harvested.has(c.id) ? " H" : ""}` +
+            ` ->${t ? t.x + "," + t.y : "?"}${c.memory.settledAt !== undefined ? " settled" : ""}${c.memory.replaces ? " replacing" : ""}`
+          )
+        })
+      )
+    }, []),
+    // Each puller: tile, distance to the nearest spawn, and whether it's towing.
+    pullers: rooms.reduce(
+      (all, r) =>
+        all.concat(
+          r.find(FIND_MY_CREEPS, { filter: c => c.memory.role === "PULLER" }).map(c => {
+            const spawn = c.pos.findClosestByRange(FIND_MY_SPAWNS)
+            return `${c.pos.x},${c.pos.y} spawn+${spawn ? c.pos.getRangeTo(spawn) : "?"}${c.memory.pullTarget ? " towing" : ""}${c.memory.parkPos ? " parked" : ""}`
+          })
+        ),
+      []
+    ),
     containers: rooms.reduce(
       (all, r) =>
         all.concat(
