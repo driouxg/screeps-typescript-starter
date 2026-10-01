@@ -45,9 +45,11 @@ const PRIORITY: Partial<Record<BuildableStructureConstant, number>> = {
 }
 /**
  * Roads on wall tiles (tunnels) cost CONSTRUCTION_COST_ROAD_WALL_RATIO (150) times a normal road, 45000 energy, so
- * they're built after everything else.
+ * they're built after everything else, and not before TUNNEL_MIN_RCL.
  */
 const TUNNEL_PRIORITY = 12
+/** Before this RCL tunnels aren't built at all: the energy is worth far more in the economy. */
+export const TUNNEL_MIN_RCL = 7
 /** Containers next to sources and the controller feed miners and upgraders, so they come right after extensions. */
 const RESOURCE_CONTAINER_PRIORITY = 3
 /**
@@ -63,7 +65,12 @@ export default function build(room: Room) {
 
   const key = (x: number, y: number, type: string) => `${x},${y},${type}`
   const built = new Set(room.find(FIND_STRUCTURES).map(s => key(s.pos.x, s.pos.y, s.structureType)))
-  const sites = room.find(FIND_MY_CONSTRUCTION_SITES)
+  let sites = room.find(FIND_MY_CONSTRUCTION_SITES)
+  // Tunnel sites placed before TUNNEL_MIN_RCL (by older code) would hold a slot nobody builds: drop the unstarted ones.
+  if (!tunnelsAllowed(room)) {
+    for (const s of sites) if (s.progress === 0 && isTunnel(room, s.pos, s.structureType)) s.remove()
+    sites = sites.filter(s => s.progress !== 0 || !isTunnel(room, s.pos, s.structureType))
+  }
   const hasSite = new Set(sites.map(s => key(s.pos.x, s.pos.y, s.structureType)))
 
   // Structures of each type we have or are building, to skip steps the RCL doesn't allow yet.
@@ -99,6 +106,8 @@ export default function build(room: Room) {
     // At RCL 1 every bit of energy should go into the controller (RCL 2 needs only 200): the only things buildable
     // then are containers (5000 energy each) and roads, which would push RCL 2 back by hundreds of ticks.
     if (room.controller.level < MIN_BUILD_RCL && step.structureType !== STRUCTURE_SPAWN) continue
+    if (!tunnelsAllowed(room) && isTunnel(room, new RoomPosition(step.x, step.y, room.name), step.structureType))
+      continue
     const allowed = CONTROLLER_STRUCTURES[step.structureType]?.[room.controller.level] ?? 0
     if (allowed <= (counts[step.structureType] || 0)) continue
     if (!isPlaceable(step, terrain)) continue
@@ -127,10 +136,19 @@ export default function build(room: Room) {
  * same order they're placed.
  */
 export function priorityOf(room: Room, pos: RoomPosition, structureType: StructureConstant): number {
-  if (structureType === STRUCTURE_ROAD && room.getTerrain().get(pos.x, pos.y) === TERRAIN_MASK_WALL)
-    return TUNNEL_PRIORITY
+  if (isTunnel(room, pos, structureType)) return TUNNEL_PRIORITY
   if (structureType === STRUCTURE_CONTAINER && feedsMinersOrUpgraders(room, pos)) return RESOURCE_CONTAINER_PRIORITY
   return PRIORITY[structureType as BuildableStructureConstant] ?? PRIORITY[STRUCTURE_ROAD]! + 0.5
+}
+
+/** A road on a wall tile: 150 times the cost of a normal road. */
+export function isTunnel(room: Room, pos: RoomPosition, structureType: StructureConstant): boolean {
+  return structureType === STRUCTURE_ROAD && room.getTerrain().get(pos.x, pos.y) === TERRAIN_MASK_WALL
+}
+
+/** Whether the room is far enough along to build tunnels (see TUNNEL_MIN_RCL). */
+export function tunnelsAllowed(room: Room): boolean {
+  return TUNNEL_MIN_RCL <= (room.controller?.level ?? 0)
 }
 
 function feedsMinersOrUpgraders(room: Room, pos: RoomPosition): boolean {

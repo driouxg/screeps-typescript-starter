@@ -106,6 +106,11 @@ parked, working or collecting (from `memory.parkPos` / `memory.working`), averag
 splits it into piles next to a source, near the controller, and elsewhere. A drop miner's pile never quite empties,
 so it costs at least 1 energy per tick for as long as there's no container under the miner.
 
+`cpu <key>` lines are our bot's own profile (see `profile` in `src/main.ts`): total CPU, and CPU per call, per creep
+role (`creep:BUILDER`: per builder per tick) and per main loop phase. The bench turns it on by creating
+`Memory.cpuProfile`; on a live server, `Memory.cpuProfile = {}` in the console does the same, and `delete
+Memory.cpuProfile` turns it off. The engine's CPU here is wall-clock time, so compare runs on the same machine.
+
 ## Comparing other bots
 
 `--bot-dist <folder>` runs any bot's built code instead of `dist/`: every `.js` file in the folder becomes a module

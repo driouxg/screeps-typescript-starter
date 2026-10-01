@@ -27,6 +27,8 @@ declare global {
   interface Memory {
     uuid: number
     log: any
+    /** CPU per creep role and main loop phase, while it exists (see profile). */
+    cpuProfile?: { [key: string]: { cpu: number; calls: number } }
   }
 
   interface ISettings {
@@ -118,12 +120,17 @@ export const loop = ErrorMapper.wrapLoop(() => {
   creepCpu = Game.cpu.getUsed()
   new ExpansionPlanner().run()
   new RemotePlanner().run()
+  profile("planners", Game.cpu.getUsed() - creepCpu)
+  const planCpu = Game.cpu.getUsed()
   new SpawnComposer().compose()
   spawnCpu = Game.cpu.getUsed()
+  profile("spawning", spawnCpu - planCpu)
   manageStructureActions(new StructureActionComposer().structureActionHandlers())
   structureCpu = Game.cpu.getUsed()
+  profile("structures", structureCpu - spawnCpu)
   new ConstructionComposer().compose()
   conCpu = Game.cpu.getUsed()
+  profile("construction", conCpu - structureCpu)
 
   if (Game.time % 10000 === 0)
     console.log(
@@ -135,6 +142,19 @@ export const loop = ErrorMapper.wrapLoop(() => {
   deleteRoomEvents()
 })
 
+/**
+ * CPU profiling, off unless `Memory.cpuProfile` exists (set it to {} from the console, or the bench does): adds up
+ * CPU and calls per key (creep role or main loop phase), e.g. Memory.cpuProfile["creep:BUILDER"] = { cpu, calls }.
+ * Divide cpu by calls for the average per creep per tick.
+ */
+function profile(key: string, cpu: number): void {
+  const p = Memory.cpuProfile
+  if (!p) return
+  const e = p[key] || (p[key] = { cpu: 0, calls: 0 })
+  e.cpu += cpu
+  e.calls++
+}
+
 function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName]
@@ -142,11 +162,14 @@ function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandl
     if (!handler) continue
 
     // One creep failing shouldn't stop the rest of the tick (other creeps, spawning, construction).
+    const before = Game.cpu.getUsed()
     try {
       if (fleeIfThreatened(creep)) continue
       handler.handle(creep)
     } catch (e) {
       console.log(`Error in ${creep.memory.role} ${creep.name}: ${e instanceof Error ? e.stack : e}`)
+    } finally {
+      profile(`creep:${creep.memory.role}`, Game.cpu.getUsed() - before)
     }
   }
 }

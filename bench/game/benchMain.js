@@ -398,6 +398,8 @@ function record(b, cpu) {
 module.exports.loop = function () {
   rngState = Math.imul(Game.time, 2654435761) | 0
   let error = null
+  // Our bot adds up CPU per creep role and loop phase here while it exists (see profile in main.ts).
+  if (!Memory.cpuProfile) Memory.cpuProfile = {}
   try {
     bot.loop()
   } catch (e) {

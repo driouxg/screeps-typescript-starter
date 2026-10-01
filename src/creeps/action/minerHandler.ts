@@ -13,12 +13,23 @@ import { smartMove } from "./common/movement"
  */
 /** A miner still not at its source after this long (pullers busy, tile unreachable) picks another tile. */
 const STUCK_TICKS = 300
+/** A settled miner (working on its tile) only harvests, and redoes the full checks below this often. */
+const SETTLED_RECHECK_TICKS = 50
 /** WORK parts that drain a source on their own: 10 energy/tick, 2 per WORK. */
 const WORK_PER_SOURCE = SOURCE_ENERGY_CAPACITY / ENERGY_REGEN_TIME / HARVEST_POWER
 
 export default class MinerHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const memory = creep.memory as MinerMemory
+
+    // Settled: on its tile and harvesting, so just keep harvesting. The checks below (replacements, container spot,
+    // surplus miners) run again every SETTLED_RECHECK_TICKS, or as soon as harvesting fails.
+    if (memory.settledAt !== undefined && Game.time - memory.settledAt < SETTLED_RECHECK_TICKS) {
+      const source = Game.getObjectById(memory.targetSourceId as Id<Source>)
+      const code = source ? creep.harvest(source) : ERR_INVALID_TARGET
+      if (code === OK || code === ERR_NOT_ENOUGH_RESOURCES) return
+    }
+    delete memory.settledAt
 
     // Spawned to take over a tile another miner (smaller, or dying) still holds: get pulled next to the tile first,
     // then retire the old miner and step in, so the source is only idle for a tick or two.
@@ -59,6 +70,8 @@ export default class MinerHandler implements ICreepHandler {
         const { x, y, roomName } = creep.pos
         memory.targetSourcePos = { x, y, roomName }
       }
+      const { x, y } = memory.targetSourcePos
+      if (!memory.replaces && creep.pos.x === x && creep.pos.y === y) memory.settledAt = Game.time
       return
     }
 
@@ -164,4 +177,6 @@ export interface MinerMemory extends CreepMemory {
   replaces?: string
   /** Tick this miner started waiting to be pulled to its tile. */
   waitingSince?: number
+  /** Tick this miner was last found working on its own tile; see SETTLED_RECHECK_TICKS. */
+  settledAt?: number
 }

@@ -4,6 +4,9 @@ import { isStandable } from "utils/standable"
 import ICreepHandler from "./ICreepHandler"
 import * as creepRoles from "../roles"
 
+/** A settled upgrader (on its spot) only collects and upgrades, and redoes the spot checks below this often. */
+const SETTLED_RECHECK_TICKS = 50
+
 /**
  * Goal: Stand next to the controller container (within upgrade range of the controller), take energy from it and
  * upgrade. Upgraders have no MOVE parts, so a puller brings them to their spot.
@@ -17,6 +20,14 @@ export default class UpgraderHandler implements ICreepHandler {
     if (!controller) return
 
     const memory = creep.memory as UpgraderMemory
+    // Settled: on its spot, so just collect and upgrade. The spot is checked again every SETTLED_RECHECK_TICKS.
+    if (memory.settledAt !== undefined && Game.time - memory.settledAt < SETTLED_RECHECK_TICKS) {
+      this.collectEnergy(creep)
+      creep.upgradeController(controller)
+      return
+    }
+    delete memory.settledAt
+
     const current = isRoomPositionJson(memory.targetPos) ? jsonToRoomPosition(memory.targetPos) : null
     if (!current || !this.isGoodSpot(creep, current)) {
       const spot = this.findSpot(creep, controller)
@@ -33,6 +44,12 @@ export default class UpgraderHandler implements ICreepHandler {
       creep.room.memory.events.push(new PullRequestEvent(targetPos, creep.name))
       return
     }
+    memory.settledAt = Game.time
+    // The container next to the spot (or where it will be built), found once per settling.
+    const containerPos = controllerContainers(creep.room, controller).find(p => creep.pos.isNearTo(p))
+    memory.containerPos = containerPos
+      ? { x: containerPos.x, y: containerPos.y, roomName: containerPos.roomName }
+      : undefined
     this.collectEnergy(creep)
     creep.upgradeController(controller)
   }
@@ -65,8 +82,9 @@ export default class UpgraderHandler implements ICreepHandler {
   }
 
   private collectEnergy(creep: Creep): void {
-    const containerPos = controllerContainers(creep.room, creep.room.controller!).find(p => creep.pos.isNearTo(p))
-    if (!containerPos) return
+    const memory = creep.memory as UpgraderMemory
+    if (!isRoomPositionJson(memory.containerPos)) return
+    const containerPos = jsonToRoomPosition(memory.containerPos)
 
     const pile = creep.room.lookForAt(LOOK_ENERGY, containerPos)[0]
     if (pile) {
@@ -105,4 +123,8 @@ export function upgraderSpots(room: Room, controller: StructureController): Room
 
 export interface UpgraderMemory extends CreepMemory {
   targetPos?: { x: number; y: number; roomName: string }
+  /** Tick this upgrader was last found on its spot; see SETTLED_RECHECK_TICKS. */
+  settledAt?: number
+  /** Controller container next to its spot, remembered when it settled. */
+  containerPos?: { x: number; y: number; roomName: string }
 }

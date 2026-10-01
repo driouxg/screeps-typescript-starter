@@ -267,6 +267,8 @@ function printSummary(result) {
         d.safeModeTick ? `, safe mode at ${d.safeModeTick}` : ""
       }`
     )
+  for (const [key, v] of Object.entries(result.cpuProfile || {}))
+    console.log(`  cpu ${key.padEnd(19)} ${String(v.cpu).padStart(7)} total  ${v.perCall.toFixed(3)} per call  (${v.calls} calls)`)
   console.log(`  errors logged          ${result.errors.logged}  (uncaught: ${result.errors.uncaught})`)
   if (result.errors.first) console.log(`  first error: ${result.errors.first.split("\n")[0]}`)
   if (result.errors.last)
@@ -409,6 +411,15 @@ async function main() {
     defence: bench.defence || null,
     roomsVisited: bench.roomsVisited || {},
     // The bot's own view at the end: remote mining plan, allies, and what it knows about each room.
+    // CPU per creep role and loop phase, from our bot's profiler (see profile in main.ts): total, and per call.
+    cpuProfile: await (async () => {
+      const p = JSON.parse((await player.memory) || "{}").cpuProfile || {}
+      return Object.fromEntries(
+        Object.entries(p)
+          .sort((a, b) => b[1].cpu - a[1].cpu)
+          .map(([k, v]) => [k, { cpu: Math.round(v.cpu), calls: v.calls, perCall: +(v.cpu / v.calls).toFixed(3) }])
+      )
+    })(),
     botState: await (async () => {
       const m = JSON.parse((await player.memory) || "{}")
       const intel = Object.fromEntries(
