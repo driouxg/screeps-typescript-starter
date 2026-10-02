@@ -27,7 +27,8 @@ declare global {
 /**
  * Goal: Pioneer for a newly claimed room. Walk there, harvest its sources (spread across them, picking up dropped
  * energy first), upgrade the controller to SAFE_MODE_LEVEL and top up its downgrade timer, then build the first spawn.
- * Once the spawn exists, stay on as one of the room's builders.
+ * Once the spawn exists, keep harvesting: fill the spawn and extensions first, and build the room's construction sites
+ * with the surplus (upgrading when there's nothing to build).
  */
 export default class ExpanderHandler implements ICreepHandler {
   public handle(creep: Creep): void {
@@ -40,12 +41,8 @@ export default class ExpanderHandler implements ICreepHandler {
       return
     }
 
-    if (0 < creep.room.find(FIND_MY_SPAWNS).length) {
-      // Job done: the new room's own spawn and economy take over; help it as a builder.
-      creep.memory.role = creepRoles.BUILDER
-      creep.memory.room = target
-      return
-    }
+    // Once the spawn is up the pioneers belong to the new room.
+    if (creep.memory.room !== target && 0 < creep.room.find(FIND_MY_SPAWNS).length) creep.memory.room = target
 
     if (memory.working && creep.store.energy <= 0) memory.working = false
     if (!memory.working && creep.store.getFreeCapacity() <= 0) memory.working = true
@@ -56,12 +53,28 @@ export default class ExpanderHandler implements ICreepHandler {
 
   private work(creep: Creep) {
     const controller = creep.room.controller
-    const site = creep.pos.findClosestByRange(FIND_MY_CONSTRUCTION_SITES, {
-      filter: s => s.structureType === STRUCTURE_SPAWN
-    })
     const mustUpgrade = controller?.my === true && this.mustUpgrade(controller)
+    const spawnBuilt = 0 < creep.room.find(FIND_MY_SPAWNS).length
 
-    if (site && !mustUpgrade) {
+    if (!mustUpgrade && spawnBuilt) {
+      // The spawn first, so the room can make its own creeps; the surplus goes into its construction sites.
+      const sink = creep.pos.findClosestByRange(FIND_MY_STRUCTURES, {
+        filter: s =>
+          (s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION) &&
+          0 < s.store.getFreeCapacity(RESOURCE_ENERGY)
+      })
+      if (sink) {
+        if (creep.transfer(sink, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) smartMove(creep, sink, 1)
+        return
+      }
+    }
+
+    const site = mustUpgrade
+      ? null
+      : creep.pos.findClosestByRange(FIND_MY_CONSTRUCTION_SITES, {
+          filter: s => spawnBuilt || s.structureType === STRUCTURE_SPAWN
+        })
+    if (site) {
       if (creep.build(site) === ERR_NOT_IN_RANGE) smartMove(creep, site, 3)
     } else if (controller?.my) {
       if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) smartMove(creep, controller, 3)
