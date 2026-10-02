@@ -11,6 +11,7 @@ import RapidFillerSpawnHandler from "creeps/spawn/rapidFillerSpawnHandler"
 import RemoteSpawnHandler from "creeps/spawn/remoteSpawnHandler"
 import RemoteDefenderSpawnHandler from "creeps/spawn/remoteDefenderSpawnHandler"
 import RetaliationSpawnHandler from "creeps/spawn/retaliationSpawnHandler"
+import ContestSpawnHandler from "creeps/spawn/contestSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
@@ -72,6 +73,9 @@ export default class SpawnComposer {
       // Expansion (see ExpansionPlanner) is a one-off investment that saves up ahead of the workers.
       new ClaimerSpawnHandler(),
       new ExpanderSpawnHandler(),
+      // Taking a remote from a weaker player (see remote/contest): a few creeps for a lot more income. Ahead of the
+      // remotes we mine, whose haulers would otherwise take every turn and leave the contest without its reserver.
+      new ContestSpawnHandler(),
       // Remote mining is income (see RemotePlanner), so it's staffed before the workers that spend it.
       new RemoteSpawnHandler(),
       // Remotes and expansion targets have to be found first: a 50 energy scout while there's anything left to find.

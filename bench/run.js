@@ -72,9 +72,17 @@ function parseArgs(argv) {
     // extensions (one under a rampart), a container, a worker and an armed defender that fights back (see addOutpost).
     hostileOutpost: 0,
     // Tick to cancel the expansion underway, as the dashboard's Cancel does (see src/expansion/expansionPlanner.ts).
-    cancelExpansion: null
+    cancelExpansion: null,
+    // A player "rival" owning these rooms (a base in the first), who reserves --rival-remote and keeps a reserver and a
+    // miner there (see addRivalRemote), to check contesting a remote (src/remote/contest.ts).
+    rivalRooms: null,
+    rivalRemote: null,
+    // Our Memory.controls.aggression at the start (passive, defensive, aggressive).
+    aggression: null
   }
-  const strings = ["label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms"]
+  const strings = [
+    "label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms", "rivalRooms", "rivalRemote", "aggression"
+  ]
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase())
     if (!(key in opts)) throw new Error(`Unknown option ${argv[i]}`)
@@ -302,6 +310,49 @@ async function addOutpost(server, enemy, room) {
   }
 }
 
+/** The rival's code: its reserver keeps reserving its remote, its miner harvests there. */
+const RIVAL_MAIN = `module.exports.loop = function () {
+  for (const c of Object.values(Game.creeps)) {
+    if (c.getActiveBodyparts(CLAIM)) {
+      const ctrl = c.room.controller
+      if (ctrl && c.reserveController(ctrl) === ERR_NOT_IN_RANGE) c.moveTo(ctrl)
+    } else if (c.getActiveBodyparts(WORK)) {
+      const source = c.pos.findClosestByRange(FIND_SOURCES)
+      if (source && c.harvest(source) === ERR_NOT_IN_RANGE) c.moveTo(source)
+    }
+  }
+}`
+
+/** The rival reserves `room` (4000 ticks) and keeps a reserver and a miner there that live through the run. */
+async function addRivalRemote(server, rival, room) {
+  const { db } = server.common.storage
+  const time = await server.world.gameTime
+  await db["rooms.objects"].update({ room, type: "controller" }, { $set: { reservation: { user: rival.id, endTime: time + 4000 } } })
+  const bodies = { "rival-reserver": ["claim", "claim", "move", "move"], "rival-miner": ["work", "work", "carry", "move"] }
+  let x = 20
+  for (const [name, body] of Object.entries(bodies)) {
+    const parts = body.map(type => ({ type, hits: 100 }))
+    await server.world.addRoomObject(room, "creep", x, 25, {
+      name, user: rival.id, body: parts, hits: parts.length * 100, hitsMax: parts.length * 100, spawning: false,
+      fatigue: 0, store: {}, storeCapacity: 50, ageTime: time + 100000, notifyWhenAttacked: false, actionLog: {}
+    })
+    x += 4
+  }
+}
+
+/** Who holds the rival's remote at the end, and the rival's creeps left there. */
+async function rivalState(server, rival, playerId, room) {
+  const objects = await server.world.roomObjects(room)
+  const controller = objects.find(o => o.type === "controller")
+  const holder = controller && controller.reservation ? controller.reservation.user : null
+  return {
+    room,
+    reservedBy: holder === rival.id ? "rival" : holder === playerId ? "us" : holder ? "someone else" : "nobody",
+    reservationLeft: controller && controller.reservation ? controller.reservation.endTime - (await server.world.gameTime) : 0,
+    rivalCreeps: objects.filter(o => o.type === "creep" && o.user === rival.id).length
+  }
+}
+
 /** What's left of the enemy in the outpost room: structures by type and creeps (see addOutpost). */
 async function outpostState(server, enemyId, room) {
   const objects = await server.world.roomObjects(room)
@@ -369,6 +420,10 @@ function printSummary(result) {
     )
   for (const [key, v] of Object.entries(result.cpuProfile || {}))
     console.log(`  cpu ${key.padEnd(19)} ${String(v.cpu).padStart(7)} total  ${v.perCall.toFixed(3)} per call  (${v.calls} calls)`)
+  if (result.rival) {
+    const r = result.rival
+    console.log(`  rival remote ${r.room.padEnd(9)} reserved by ${r.reservedBy} (${r.reservationLeft} left), ${r.rivalCreeps} rival creeps there`)
+  }
   if (result.outpost) {
     const o = result.outpost
     const list = c => Object.entries(c).map(([t, n]) => `${n} ${t}`).join(", ") || "nothing"
@@ -404,6 +459,8 @@ async function main() {
     ? await addNeighbour(server, "enemy", enemyRooms, outpostRoom ? OUTPOST_DEFENDER : undefined, false)
     : null
   if (outpostRoom) await addOutpost(server, enemy, outpostRoom)
+  const rival = opts.rivalRooms ? await addNeighbour(server, "rival", opts.rivalRooms.split(","), RIVAL_MAIN, false) : null
+  if (rival && opts.rivalRemote) await addRivalRemote(server, rival, opts.rivalRemote)
   const outpostBefore = outpostRoom ? await outpostState(server, enemy.id, outpostRoom) : null
   if (opts.neutralRooms)
     await addNeighbour(server, "neutral", opts.neutralRooms.split(","), opts.neutralTowers ? TOWER_SHOOTER : undefined)
@@ -439,6 +496,7 @@ async function main() {
   if (ally) await player.console(`Memory.allies = ["ally"]`)
   // The "enemy" player is one we've declared hostile, as a player would in config/relations or Memory.enemies.
   if (opts.hostileRooms) await player.console(`Memory.enemies = ["enemy"]`)
+  if (opts.aggression) await player.console(`Memory.controls = { aggression: "${opts.aggression}" }`)
   console.log(
     `Running ${opts.ticks} ticks in ${opts.room}, spawn at ${opts.x},${opts.y}${
       opts.untilRcl ? `, stopping at RCL ${opts.untilRcl}` : ""
@@ -535,6 +593,7 @@ async function main() {
         }
       : {},
     defence: bench.defence || null,
+    rival: rival && opts.rivalRemote ? await rivalState(server, rival, player.id, opts.rivalRemote) : null,
     outpost: outpostRoom
       ? { room: outpostRoom, before: outpostBefore, after: await outpostState(server, enemy.id, outpostRoom) }
       : null,

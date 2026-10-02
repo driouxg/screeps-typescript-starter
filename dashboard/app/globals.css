@@ -72,17 +72,36 @@ header.top h1 {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px 16px;
   min-width: 0;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 4%);
 }
 
 .panel h2 {
   font-size: 15px;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* The emoji at the start of a card's heading (see Icon). */
+.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-size: 16px;
+  line-height: 1;
+  flex: none;
+}
+
+.alert .icon {
+  background: color-mix(in srgb, var(--bad) 15%, transparent);
 }
 
 .panel h3 {
@@ -375,4 +394,46 @@ main.login {
 
 header.top form {
   margin-left: auto;
+}
+
+/* Enemy intel (see EnemyPanel). */
+.enemies {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));
+}
+
+.enemy {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--bad);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.enemy-name {
+  font-size: 15px;
+}
+
+.verdict {
+  margin: 0;
+  font-weight: 600;
+}
+
+.verdict.good {
+  color: var(--good);
+}
+.verdict.warn {
+  color: var(--warn);
+}
+.verdict.bad {
+  color: var(--bad);
+}
+
+.versus {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }

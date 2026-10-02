@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import type { RoomSnapshot } from "@bot/snapshot"
-import { Bar, Stat } from "./ui"
+import { Bar, Icon, Stat } from "./ui"
 
 export function RoomPanel({ room, children }: { room: RoomSnapshot; children?: ReactNode }) {
   const now = room.buildNext.filter(s => s.rcl <= room.rcl)
@@ -11,6 +11,7 @@ export function RoomPanel({ room, children }: { room: RoomSnapshot; children?: R
   return (
     <section className="panel">
       <h2>
+        <Icon>🏰</Icon>
         {room.name} <span className="badge">RCL {room.rcl}</span>
         {room.safeMode > 0 && <span className="badge good">safe mode {room.safeMode}</span>}
         {room.threat.hostiles > 0 && <span className="badge bad">{room.threat.hostiles} hostiles</span>}
@@ -33,7 +34,7 @@ export function RoomPanel({ room, children }: { room: RoomSnapshot; children?: R
         </Stat>
       </div>
 
-      <h3>Creeps ({total})</h3>
+      <h3>🐜 Creeps ({total})</h3>
       <div className="chips">
         {creeps.map(([role, n]) => (
           <span key={role} className="chip">
@@ -44,7 +45,7 @@ export function RoomPanel({ room, children }: { room: RoomSnapshot; children?: R
 
       {room.towerEnergy.length > 0 && (
         <>
-          <h3>Towers</h3>
+          <h3>🗼 Towers</h3>
           <div className="chips">
             {room.towerEnergy.map((e, i) => (
               <span key={i} className="chip">
@@ -55,7 +56,7 @@ export function RoomPanel({ room, children }: { room: RoomSnapshot; children?: R
         </>
       )}
 
-      <h3>Building next ({room.constructionSites} sites open)</h3>
+      <h3>🏗️ Building next ({room.constructionSites} sites open)</h3>
       {now.length === 0 ? (
         <p className="muted">Nothing more at this RCL.</p>
       ) : (
@@ -69,7 +70,7 @@ export function RoomPanel({ room, children }: { room: RoomSnapshot; children?: R
       )}
       {later.length > 0 && (
         <>
-          <h3>Later</h3>
+          <h3>⏳ Later</h3>
           <ul className="plain">
             {later.map(s => (
               <li key={`${s.type}${s.x},${s.y}`} className="muted">

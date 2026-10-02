@@ -18,6 +18,7 @@ import RemoteHaulerHandler from "creeps/action/remoteHaulerHandler"
 import RapidFillerHandler from "creeps/action/rapidFillerHandler"
 import ReserverHandler from "creeps/action/reserverHandler"
 import RetaliatorHandler from "creeps/action/retaliatorHandler"
+import ContesterHandler from "creeps/action/contesterHandler"
 
 export default class CreepComposer {
   public creepHandlerDict(): { [creepRole: string]: ICreepHandler } {
@@ -40,6 +41,7 @@ export default class CreepComposer {
     dictionary[creepRoles.RAPID_FILLER] = new RapidFillerHandler()
     dictionary[creepRoles.RESERVER] = new ReserverHandler()
     dictionary[creepRoles.RETALIATOR] = new RetaliatorHandler()
+    dictionary[creepRoles.CONTESTER] = new ContesterHandler()
 
     return dictionary
   }

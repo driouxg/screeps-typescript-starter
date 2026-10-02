@@ -19,6 +19,15 @@ export function Bar({ value, max, color }: { value: number; max: number; color?:
   )
 }
 
+/** An emoji in a tinted chip, at the start of a card's heading, so cards are told apart at a glance. */
+export function Icon({ children }: { children: ReactNode }) {
+  return (
+    <span className="icon" aria-hidden="true">
+      {children}
+    </span>
+  )
+}
+
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="muted">{children}</p>
 }

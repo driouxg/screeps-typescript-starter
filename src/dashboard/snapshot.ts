@@ -8,6 +8,44 @@ export const SNAPSHOT_VERSION = 1
 
 export type AggressionLevel = "passive" | "defensive" | "aggressive"
 
+/** See src/defence/strength.ts: score in energy-like points, and what it's made of. */
+export interface StrengthSnapshot {
+  score: number
+  bases: number
+  towers: number
+  stored: number
+  /** Combat parts seen at once. */
+  army: number
+}
+
+export interface EnemySnapshot {
+  player: string
+  /** Tick they were flagged for attacking us, if they were. */
+  flaggedSince?: number
+  /** Declared an enemy (config or Memory.enemies). */
+  declared: boolean
+  /** Null: none of their bases seen recently, so unknown. */
+  strength: StrengthSnapshot | null
+  /** Most of their combat parts seen in one room at once. */
+  combatParts: number
+  /** Last tick we saw any room of theirs. */
+  lastSeen?: number
+  rooms: {
+    room: string
+    kind: "base" | "remote" | "army seen"
+    rcl?: number
+    towers?: number
+    towerEnergy?: number
+    /** Tick their safe mode ends, while it's on. */
+    safeModeUntil?: number
+    safeModeAvailable?: number
+    stored?: number
+    combatParts?: number
+    /** Tick the room was last seen. */
+    seen: number
+  }[]
+}
+
 export interface RetaliationSnapshot {
   player: string
   /** planning, spawning, attacking, or over (status says how it ended). */
@@ -126,6 +164,10 @@ export interface DashboardSnapshot {
   relations: { allies: string[]; enemies: string[]; hostilePlayers: { [username: string]: number } }
   /** The strike on a player who attacked us (see src/defence/retaliation.ts), while it lasts or how it ended. */
   retaliation?: RetaliationSnapshot | null
+  /** Our strength, to compare with each enemy's (see src/defence/strength.ts). */
+  ourStrength?: StrengthSnapshot
+  /** What we know about each hostile player (see src/dashboard/enemyReport.ts). */
+  enemies?: EnemySnapshot[]
   expansion: { target: string; home: string; state: string; started: number; manual?: boolean } | null
   /** Rooms the bot would expand to, best first (one per room, from its best home). */
   expansionCandidates?: ExpansionCandidateSnapshot[]

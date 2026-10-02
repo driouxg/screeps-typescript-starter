@@ -1,4 +1,5 @@
 import type { AggressionLevel, ControlsSnapshot } from "@bot/snapshot"
+import { Icon } from "./ui"
 
 const LEVELS: { level: AggressionLevel; label: string; help: string }[] = [
   {
@@ -35,6 +36,7 @@ export function ControlsPanel({
   return (
     <section className="panel">
       <h2>
+        <Icon>🎛️</Icon>
         Controls {pending && <span className="badge warn">waiting for the bot</span>}
       </h2>
       <div className="segmented" role="radiogroup" aria-label="Aggression">

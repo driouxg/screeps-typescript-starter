@@ -1,5 +1,6 @@
 import * as creepRoles from "creeps/roles"
 import { isHostile } from "config/relations"
+import { considerContest, runContests } from "./contest"
 import { myUsername } from "utils/username"
 import { isHostileRoom } from "utils/roomSafety"
 import { controls } from "config/controls"
@@ -150,6 +151,7 @@ export default class RemotePlanner {
   public run(): void {
     this.trackSpawnUse()
     this.watchForThreats()
+    runContests()
 
     // Remote mining switched off (see config/controls): drop every remote now, so its creeps go home.
     if (!controls().remoteMining) {
@@ -164,8 +166,10 @@ export default class RemotePlanner {
     }
 
     // Plan now if never planned, or if remotes in memory come from older code (no miner spot).
-    const stale = !Memory.remotes || Object.values(Memory.remotes).some(r => !r.spot)
+    // Or straight away when a contest was won (see remote/contest), so the room is mined before they take it back.
+    const stale = !Memory.remotes || Object.values(Memory.remotes).some(r => !r.spot) || !!Memory.remotesReplan
     if (Game.time % PLAN_INTERVAL !== 0 && !stale) return
+    delete Memory.remotesReplan
 
     const remotes: { [id: string]: RemoteSource } = {}
     this.report = []
@@ -237,7 +241,7 @@ export default class RemotePlanner {
     // Every candidate, scored on its own route (as if it paid for all of its road).
     const candidates: (Candidate & { score: RemoteSource })[] = []
     for (const [roomName] of this.roomsInReach(home.name, reach)) {
-      const why = this.whyNotMineable(roomName)
+      const why = this.whyNotMineable(roomName, home)
       if (why) {
         this.report.push(`${home.name} -> ${roomName}: skipped, ${why}`)
         continue
@@ -338,9 +342,9 @@ export default class RemotePlanner {
 
   /**
    * Why a room can't be mined, or null if it can: it must be scouted, have sources and a controller, and nobody else
-   * (allies included) may own or reserve it.
+   * (allies included) may own or reserve it. A room reserved by a weaker player may be taken (see remote/contest).
    */
-  private whyNotMineable(roomName: string): string | null {
+  private whyNotMineable(roomName: string, home: Room): string | null {
     const intel = Memory.rooms[roomName]?.intel
     if (!intel) return "not scouted yet"
     if (!intel.controller || !intel.sourcePositions?.length) return "no controller or sources"
@@ -348,7 +352,7 @@ export default class RemotePlanner {
     if (intel.controller.owner) return `owned by ${intel.controller.owner}`
     if (0 < intel.hostileStructures) return "hostile structures"
     if (intel.controller.reservedBy && intel.controller.reservedBy !== myUsername())
-      return `reserved by ${intel.controller.reservedBy}`
+      return considerContest(home, roomName, intel.controller.reservedBy)
     // A room being defended stays mined (its creeps just keep out until it's clear); one we can't defend doesn't.
     if (Memory.remotePaused?.[roomName] && !Memory.remoteThreats?.[roomName]?.defenders) return "paused for hostiles"
     return null

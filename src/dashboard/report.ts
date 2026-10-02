@@ -8,6 +8,7 @@ import { upcomingSteps } from "structures/construction/buildOrderConstructor"
 import * as creepRoles from "creeps/roles"
 import { myUsername } from "utils/username"
 import { expansionCandidates } from "expansion/candidates"
+import { enemyReports } from "./enemyReport"
 import {
   DashboardSnapshot,
   DASHBOARD_SEGMENT,
@@ -191,6 +192,10 @@ function build(): DashboardSnapshot {
       enemies: Memory.enemies ?? [],
       hostilePlayers: Memory.hostilePlayers ?? {}
     },
+    ...(() => {
+      const { ours, enemies } = enemyReports()
+      return { ourStrength: ours, enemies }
+    })(),
     retaliation: Memory.retaliation
       ? {
           player: Memory.retaliation.player,

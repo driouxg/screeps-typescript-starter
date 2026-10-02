@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { DashboardSnapshot } from "@bot/snapshot"
-import { Empty } from "./ui"
+import { Empty, Icon } from "./ui"
 
 /**
  * The expansion underway, the rooms the bot would pick (best first), and the player's own pick: from the list, or any
@@ -28,6 +28,7 @@ export function ExpansionPanel({
   return (
     <section className="panel span-all">
       <h2>
+        <Icon>🚩</Icon>
         Expansion {!s.controls.expansion && <span className="badge warn">automatic off</span>}
         <span className={`badge ${gclFree ? "good" : ""}`}>
           {s.rooms.length} / {s.gcl.level} rooms (GCL)
@@ -75,7 +76,7 @@ export function ExpansionPanel({
         </p>
       )}
 
-      <h3>Rooms the bot would pick</h3>
+      <h3>🗺️ Rooms the bot would pick</h3>
       {s.expansionSingleSource && (
         <p className="muted">No two-source room is known within 20 rooms, so one-source rooms are included.</p>
       )}

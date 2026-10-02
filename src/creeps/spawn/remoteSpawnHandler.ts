@@ -12,13 +12,14 @@ const MINER_TICKS_PER_TILE = 2.5
 
 /**
  * Goal: Staff the remote sources RemotePlanner chose for this spawn's room, best first: a miner each (replaced before
- * the old one dies, allowing for its walk); then the home's highway maintainers, when its roads need them (see
- * maintainersWanted); then haulers (once the miner has built the container) until they have the CARRY parts each
- * source needs; then a reserver for rooms worth reserving whose reservation is running low. Bodies come from
- * remoteBodies, the same the planner priced.
+ * the old one dies, allowing for its walk); then a reserver for rooms worth reserving whose reservation is running
+ * low; then the home's highway maintainers, when its roads need them (see maintainersWanted); then haulers (once the
+ * miner has built the container) until they have the CARRY parts each source needs. Bodies come from remoteBodies,
+ * the same the planner priced.
  *
- * Maintainers go ahead of haulers: until the highway is built, haulers are slow and need far more CARRY, so topping
- * them up never ended and the maintainer never got its turn, which kept the roads from ever being built.
+ * Reservers and maintainers go ahead of haulers: until the highway is built, haulers are slow and need far more
+ * CARRY, so topping them up never ended. Reservations lapsed (halving the sources), and the maintainer never got its
+ * turn, which kept the roads from ever being built.
  */
 export default class RemoteSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
@@ -41,6 +42,15 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
         return this.config(miner, creepRoles.REMOTE_MINER, { targetSourceId: r.id })
     }
 
+    for (const room of new Set(remotes.filter(r => r.reserve).map(r => r.room))) {
+      const distance = Math.min(...remotes.filter(r => r.room === room).map(r => r.distance))
+      const reservers = serving(creepRoles.RESERVER, "targetRoom", room)
+      if (reservers.some(c => aliveFor(c, distance + 20))) continue
+      const reserved = Game.rooms[room]?.controller?.reservation?.ticksToEnd ?? 0
+      if (RESERVATION_LOW <= reserved) continue
+      return this.config([CLAIM, CLAIM, MOVE, MOVE], creepRoles.RESERVER, { targetRoom: room })
+    }
+
     const maintainers = creeps.filter(
       c => c.memory.role === creepRoles.HIGHWAY_MAINTAINER && c.memory.room === home.name
     ).length
@@ -57,15 +67,6 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
         return this.config(haulerBody(capacity, r.carryParts - carry), creepRoles.REMOTE_HAULER, {
           targetSourceId: r.id
         })
-    }
-
-    for (const room of new Set(remotes.filter(r => r.reserve).map(r => r.room))) {
-      const distance = Math.min(...remotes.filter(r => r.room === room).map(r => r.distance))
-      const reservers = serving(creepRoles.RESERVER, "targetRoom", room)
-      if (reservers.some(c => aliveFor(c, distance + 20))) continue
-      const reserved = Game.rooms[room]?.controller?.reservation?.ticksToEnd ?? 0
-      if (RESERVATION_LOW <= reserved) continue
-      return this.config([CLAIM, CLAIM, MOVE, MOVE], creepRoles.RESERVER, { targetRoom: room })
     }
 
     return null

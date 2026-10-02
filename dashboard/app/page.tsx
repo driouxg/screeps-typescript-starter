@@ -6,7 +6,8 @@ import { ControlsPanel } from "@/components/ControlsPanel"
 import { RoomPanel } from "@/components/RoomPanel"
 import { ExpansionPanel } from "@/components/ExpansionPanel"
 import { AbandonBase } from "@/components/AbandonBase"
-import { Bar, Stat } from "@/components/ui"
+import { EnemyPanel } from "@/components/EnemyPanel"
+import { Bar, Icon, Stat } from "@/components/ui"
 import {
   CpuPanel,
   HighwaysPanel,
@@ -135,7 +136,7 @@ export default function Dashboard() {
     return (
       <main>
         <header className="top">
-          <h1>Screeps dashboard</h1>
+          <h1>🎮 Screeps dashboard</h1>
         </header>
         <div className="panel">{error ? <p className="error">{error}</p> : <p className="muted">Loading…</p>}</div>
       </main>
@@ -174,7 +175,10 @@ export default function Dashboard() {
 
       <div className="grid">
         <section className="panel">
-          <h2>Empire</h2>
+          <h2>
+            <Icon>🌍</Icon>
+            Empire
+          </h2>
           <div className="stats">
             <Stat label={`GCL ${s.gcl.level}`} value={`${Math.round((100 * s.gcl.progress) / Math.max(1, s.gcl.progressTotal))}%`}>
               <Bar value={s.gcl.progress} max={s.gcl.progressTotal} />
@@ -199,7 +203,10 @@ export default function Dashboard() {
 
         {alerts.length > 0 && (
           <section className="panel alert">
-            <h2>Alerts</h2>
+            <h2>
+              <Icon>🚨</Icon>
+              Alerts
+            </h2>
             <ul className="plain">
               {alerts.map(a => (
                 <li key={a}>{a}</li>
@@ -267,6 +274,8 @@ export default function Dashboard() {
         <HighwaysPanel snapshot={s} />
         <CpuPanel snapshot={s} />
       </div>
+
+      <EnemyPanel snapshot={s} />
     </main>
   )
 }

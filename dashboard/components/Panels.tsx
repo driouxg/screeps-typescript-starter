@@ -1,5 +1,5 @@
 import type { DashboardSnapshot } from "@bot/snapshot"
-import { Empty } from "./ui"
+import { Empty, Icon } from "./ui"
 
 type Props = { snapshot: DashboardSnapshot }
 
@@ -9,6 +9,7 @@ export function RemotesPanel({ snapshot: s }: Props) {
   return (
     <section className="panel span-all">
       <h2>
+        <Icon>⛏️</Icon>
         Remote mining <span className="badge">{s.remotes.length} sources</span>
         {!s.controls.remoteMining && <span className="badge warn">switched off</span>}
       </h2>
@@ -68,7 +69,10 @@ export function RemotesPanel({ snapshot: s }: Props) {
 export function ThreatsPanel({ snapshot: s }: Props) {
   return (
     <section className="panel">
-      <h2>Remote threats</h2>
+      <h2>
+        <Icon>⚠️</Icon>
+        Remote threats
+      </h2>
       {s.threats.length === 0 ? (
         <Empty>None.</Empty>
       ) : (
@@ -108,7 +112,10 @@ export function ThreatsPanel({ snapshot: s }: Props) {
 export function HostilesPanel({ snapshot: s }: Props) {
   return (
     <section className="panel">
-      <h2>Hostile creeps in sight</h2>
+      <h2>
+        <Icon>👾</Icon>
+        Hostile creeps in sight
+      </h2>
       {s.hostiles.length === 0 ? (
         <Empty>None in the rooms we can see.</Empty>
       ) : (
@@ -190,7 +197,10 @@ export function RelationsPanel({
 
   return (
     <section className="panel">
-      <h2>Relations</h2>
+      <h2>
+        <Icon>🤝</Icon>
+        Relations
+      </h2>
       {strike && (
         <div className="danger-zone">
           <p className="row">
@@ -207,9 +217,9 @@ export function RelationsPanel({
           {strike.status && <p className="controls-help">{strike.status}</p>}
         </div>
       )}
-      <h3>Allies</h3>
+      <h3>🕊️ Allies</h3>
       {s.relations.allies.length ? <div className="chips">{s.relations.allies.map(a => <span key={a} className="chip">{a}</span>)}</div> : <Empty>None.</Empty>}
-      <h3>Declared enemies</h3>
+      <h3>⚔️ Declared enemies</h3>
       {s.relations.enemies.length ? (
         <ul className="plain">
           {s.relations.enemies.map(name => (
@@ -222,7 +232,7 @@ export function RelationsPanel({
       ) : (
         <Empty>None.</Empty>
       )}
-      <h3>Flagged for attacking us</h3>
+      <h3>🚫 Flagged for attacking us</h3>
       {flagged.length ? (
         <ul className="plain">
           {flagged.map(([name, tick]) => (
@@ -249,7 +259,10 @@ export function RelationsPanel({
 export function HighwaysPanel({ snapshot: s }: Props) {
   return (
     <section className="panel">
-      <h2>Highways</h2>
+      <h2>
+        <Icon>🛣️</Icon>
+        Highways
+      </h2>
       {s.highways.length === 0 ? (
         <Empty>No remote roads planned (only built where they pay back).</Empty>
       ) : (
@@ -285,7 +298,10 @@ export function HighwaysPanel({ snapshot: s }: Props) {
 export function CpuPanel({ snapshot: s }: Props) {
   return (
     <section className="panel">
-      <h2>CPU</h2>
+      <h2>
+        <Icon>🧠</Icon>
+        CPU
+      </h2>
       {s.cpuProfile.length === 0 ? (
         <Empty>
           Profiling is off. Run <code>Memory.cpuProfile = {"{}"}</code> in the game console to turn it on.

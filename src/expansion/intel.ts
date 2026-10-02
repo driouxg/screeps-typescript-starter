@@ -31,6 +31,10 @@ export interface RoomIntel {
   /** Tick its safe mode ends (when it was on), and charges it had left. */
   safeModeUntil?: number
   safeModeAvailable?: number
+  /** Another player's base: energy in its storage and terminal (see defence/strength). */
+  storedEnergy?: number
+  /** Other players' creeps seen here: their ATTACK, RANGED_ATTACK and HEAL parts, by player (see defence/strength). */
+  combatParts?: { [username: string]: number }
 }
 
 declare global {
@@ -85,8 +89,25 @@ export function recordIntel(room: Room, force = false): void {
     towerEnergy: towers.reduce((sum, t) => sum + t.store.energy, 0),
     safeModeUntil: controller?.safeMode ? Game.time + controller.safeMode : undefined,
     safeModeAvailable: controller?.owner ? controller.safeModeAvailable : undefined,
+    storedEnergy:
+      controller?.owner && !controller.my
+        ? (room.storage?.store.energy ?? 0) + (room.terminal?.store.energy ?? 0)
+        : undefined,
+    combatParts: combatPartsByPlayer(room),
     ...terrainRatios(room.name)
   }
+}
+
+/** Active ATTACK, RANGED_ATTACK and HEAL parts of other players' creeps in the room (not NPCs), by player. */
+function combatPartsByPlayer(room: Room): { [username: string]: number } | undefined {
+  const parts: { [username: string]: number } = {}
+  for (const c of room.find(FIND_HOSTILE_CREEPS)) {
+    const owner = c.owner.username
+    if (owner === "Invader" || owner === "Source Keeper") continue
+    const n = c.getActiveBodyparts(ATTACK) + c.getActiveBodyparts(RANGED_ATTACK) + c.getActiveBodyparts(HEAL)
+    if (0 < n) parts[owner] = (parts[owner] ?? 0) + n
+  }
+  return Object.keys(parts).length ? parts : undefined
 }
 
 function terrainRatios(roomName: string): { swampRatio: number; wallRatio: number } {
