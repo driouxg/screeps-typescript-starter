@@ -24,6 +24,8 @@ const BLOCKED_TICKS = 20000
 const AGGRESSIVE_TICKS = 1500
 /** Whether a home needs scouting is worked out this often. */
 const CACHE_TICKS = 50
+/** Share of a home's scoutable rooms seen at least once before its scouts switch to wandering (see wellScouted). */
+const WELL_SCOUTED_SHARE = 0.8
 
 declare global {
   interface RoomMemory {
@@ -49,6 +51,23 @@ export function needsScouting(home: string): boolean {
 
   needCache.set(home, { tick: Game.time, needed })
   return needed
+}
+
+const wellCache = new Map<string, { tick: number; well: boolean }>()
+
+/**
+ * Whether enough of `home`'s area is known (WELL_SCOUTED_SHARE of its scoutable rooms, and nothing it still needs, see
+ * needsScouting) for its scouts to stop choosing targets and just wander, which costs far less CPU.
+ */
+export function wellScouted(home: string): boolean {
+  const cached = wellCache.get(home)
+  if (cached && Game.time - cached.tick < CACHE_TICKS) return cached.well
+
+  const rooms = [...scoutableRooms(home).keys()]
+  const seen = rooms.filter(name => Memory.rooms[name]?.intel).length
+  const well = WELL_SCOUTED_SHARE * rooms.length <= seen && !needsScouting(home)
+  wellCache.set(home, { tick: Game.time, well })
+  return well
 }
 
 /**

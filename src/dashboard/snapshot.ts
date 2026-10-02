@@ -12,6 +12,7 @@ export interface ControlsSnapshot {
   aggression: AggressionLevel
   remoteMining: boolean
   expansion: boolean
+  scouting: boolean
 }
 
 export interface RoomSnapshot {

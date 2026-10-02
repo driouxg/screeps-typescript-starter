@@ -1,6 +1,9 @@
+import { controls } from "config/controls"
 import { isHostile } from "config/relations"
 import { recordIntel } from "expansion/intel"
-import { nextScoutTarget, scoutArrived } from "expansion/scouting"
+import { nextScoutTarget, scoutArrived, wellScouted } from "expansion/scouting"
+import { scoutableRooms } from "expansion/scoutRange"
+import { isHostileRoom } from "utils/roomSafety"
 import { myUsername } from "utils/username"
 import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
@@ -10,39 +13,115 @@ import ICreepHandler from "./ICreepHandler"
  * longer than this, it has no way to its target and picks another.
  */
 const STUCK_TICKS = 200
+/** With no room to target, a scout wanders and looks for one again this often. */
+const RETARGET_TICKS = 50
 
 /**
- * Goal: Find out what's in the rooms around home (see expansion/intel), for remote mining and expansion.
+ * Goal: Find out what's in the rooms around home (see expansion/intel), for remote mining and expansion, as cheaply as
+ * possible: a scout only ever paths to the exit of the room it's in (never across several rooms), worked out once per
+ * room.
  *
- * Each time it reaches its target, the scout records the room and heads for the next one (see expansion/scouting:
- * unseen rooms nearest home first, then the stalest). Rooms it passes through are recorded on the way.
+ * Two modes:
+ * - targeted, while the area isn't well scouted (see wellScouted): heads for a chosen room (see expansion/scouting:
+ *   unseen rooms nearest home first, then the stalest), room by room along the map route, records it on arrival and
+ *   picks the next.
+ * - wandering, once it is: on entering each room, records it (at most every so often, see recordIntel) and walks on
+ *   to the neighbour seen longest ago, staying within scouting range. No target searches, no route planning.
+ *
+ * With scouting switched off (see config/controls) scouts retire.
  */
 export default class ScoutHandler implements ICreepHandler {
   public handle(creep: Creep): void {
-    const memory = creep.memory as ScoutMemory
-    memory.targetRoom = memory.targetRoom ?? creep.memory.room
-    if (memory.lastRoom !== creep.room.name) {
-      memory.lastRoom = creep.room.name
-      memory.enteredRoom = Game.time
-      scoutArrived(creep.room.name)
-    }
-
-    if (creep.room.name === memory.targetRoom) {
-      smartMove(creep, new RoomPosition(25, 25, creep.room.name), 20) // Move creep off of border
-      this.updateRoomStatus(creep.room)
-      recordIntel(creep.room, true)
-
-      memory.targetRoom = nextScoutTarget(creep.memory.room, creep.room.name) ?? creep.room.name
+    if (!controls().scouting) {
+      creep.suicide()
       return
     }
+    const memory = creep.memory as ScoutMemory
+    const home = creep.memory.room
+
+    if (memory.lastRoom !== creep.room.name) {
+      memory.previousRoom = memory.lastRoom
+      memory.lastRoom = creep.room.name
+      memory.enteredRoom = Game.time
+      delete memory.exit
+      scoutArrived(creep.room.name)
+      if (wellScouted(home)) {
+        delete memory.targetRoom
+        this.updateRoomStatus(creep.room)
+        recordIntel(creep.room)
+      }
+    }
+
+    if (wellScouted(home)) this.wander(creep, memory)
+    else this.target(creep, memory)
+  }
+
+  private target(creep: Creep, memory: ScoutMemory): void {
+    const home = creep.memory.room
+    const due = Game.time >= (memory.retargetAt ?? 0)
+    if ((!memory.targetRoom && due) || creep.room.name === memory.targetRoom) {
+      if (creep.room.name === memory.targetRoom) {
+        this.updateRoomStatus(creep.room)
+        recordIntel(creep.room, true)
+      }
+      delete memory.exit
+      memory.targetRoom = nextScoutTarget(home, creep.room.name) ?? undefined
+      // Nothing left to pick: walk on as if wandering, and only look again every RETARGET_TICKS.
+      if (!memory.targetRoom) memory.retargetAt = Game.time + RETARGET_TICKS
+    }
+    if (!memory.targetRoom) return this.wander(creep, memory)
 
     // No progress towards the target: it can't be reached from here (the attempt is already counted against it).
     if (STUCK_TICKS < Game.time - (memory.enteredRoom ?? Game.time)) {
-      memory.targetRoom = nextScoutTarget(creep.memory.room, creep.room.name) ?? creep.room.name
+      memory.targetRoom = nextScoutTarget(home, creep.room.name) ?? undefined
       memory.enteredRoom = Game.time
+      delete memory.exit
       return
     }
-    smartMove(creep, new RoomPosition(25, 25, memory.targetRoom), 20)
+
+    if (!memory.exit) {
+      const route = Game.map.findRoute(creep.room.name, memory.targetRoom, {
+        routeCallback: name => (name !== memory.targetRoom && isHostileRoom(name) ? Infinity : 1)
+      })
+      const next = route !== ERR_NO_PATH ? route[0]?.room : undefined
+      if (!next || !this.setExit(creep, memory, next)) {
+        delete memory.targetRoom // unreachable: pick another next tick
+        return
+      }
+    }
+    this.walkToExit(creep, memory)
+  }
+
+  private wander(creep: Creep, memory: ScoutMemory): void {
+    if (!memory.exit) {
+      const range = scoutableRooms(creep.memory.room)
+      const neighbours = Object.values(Game.map.describeExits(creep.room.name) ?? {}).filter(
+        (name): name is string => !!name && (range.has(name) || name === creep.memory.room) && !isHostileRoom(name)
+      )
+      // Don't turn straight back unless it's a dead end.
+      const onward = neighbours.filter(n => n !== memory.previousRoom)
+      const options = (0 < onward.length ? onward : neighbours).sort(
+        (a, b) => seenAt(a) - seenAt(b) || Math.random() - 0.5
+      )
+      if (options.length <= 0 || !this.setExit(creep, memory, options[0])) return
+    }
+    this.walkToExit(creep, memory)
+  }
+
+  /** Remember the exit tile towards `next` nearest the scout (by path, worked out once per room). */
+  private setExit(creep: Creep, memory: ScoutMemory, next: string): boolean {
+    const direction = Game.map.findExit(creep.room.name, next)
+    if (direction < 0) return false
+    const exit = creep.pos.findClosestByPath(direction as ExitConstant)
+    if (!exit) return false
+    memory.exit = { x: exit.x, y: exit.y }
+    return true
+  }
+
+  /** Step onto the remembered exit tile; the game moves the scout into the next room from there. */
+  private walkToExit(creep: Creep, memory: ScoutMemory): void {
+    const exit = new RoomPosition(memory.exit!.x, memory.exit!.y, creep.room.name)
+    if (smartMove(creep, exit, 0) === ERR_NO_PATH) delete memory.exit
   }
 
   private updateRoomStatus(room: Room) {
@@ -67,9 +146,19 @@ export default class ScoutHandler implements ICreepHandler {
   }
 }
 
+/** When a room's intel was last recorded; never-seen rooms first. */
+function seenAt(roomName: string): number {
+  return Memory.rooms[roomName]?.intel?.tick ?? -Infinity
+}
+
 export interface ScoutMemory extends CreepMemory {
-  targetRoom: string
-  /** The room the scout is in, and when it got there (see STUCK_TICKS). */
+  targetRoom?: string
+  /** The room the scout is in, and when it got there (see STUCK_TICKS); the room it came from. */
   lastRoom?: string
   enteredRoom?: number
+  previousRoom?: string
+  /** With nothing to target, when to look again (see RETARGET_TICKS). */
+  retargetAt?: number
+  /** The exit tile of the current room it's walking to. */
+  exit?: { x: number; y: number }
 }

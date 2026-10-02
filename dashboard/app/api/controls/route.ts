@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   }
   if (change.aggression !== undefined && !LEVELS.includes(change.aggression))
     return NextResponse.json({ error: `aggression must be one of ${LEVELS.join(", ")}` }, { status: 400 })
-  for (const key of ["remoteMining", "expansion"] as const)
+  for (const key of ["remoteMining", "expansion", "scouting"] as const)
     if (change[key] !== undefined && typeof change[key] !== "boolean")
       return NextResponse.json({ error: `${key} must be true or false` }, { status: 400 })
 
@@ -28,7 +28,9 @@ export async function POST(request: Request) {
     const controls: ControlsSnapshot = {
       aggression: change.aggression ?? current.aggression,
       remoteMining: change.remoteMining ?? current.remoteMining,
-      expansion: change.expansion ?? current.expansion
+      expansion: change.expansion ?? current.expansion,
+      // Snapshots from before scouting could be switched off don't have it: it was on.
+      scouting: change.scouting ?? current.scouting ?? true
     }
     await setControls(controls)
     return NextResponse.json({ controls })

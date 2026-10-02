@@ -2,6 +2,7 @@ import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import * as creepRoles from "../roles"
 import { needsScouting } from "expansion/scouting"
+import { controls } from "config/controls"
 
 /** With nothing new to find, a scout goes out this often to keep intel fresh. */
 const REFRESH_EVERY = 3000

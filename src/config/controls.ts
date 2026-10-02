@@ -12,6 +12,7 @@
  *               so towers and defenders engage them before they strike; remote defenders are sent without a margin
  * remoteMining  false stops all remote mining (its creeps go home)
  * expansion     false stops starting new expansions (one already underway is finished)
+ * scouting      false stops all scouting: no scouts are spawned, and those out retire
  */
 
 export type Aggression = "passive" | "defensive" | "aggressive"
@@ -21,9 +22,10 @@ export interface Controls {
   aggression: Aggression
   remoteMining: boolean
   expansion: boolean
+  scouting: boolean
 }
 
-export const DEFAULT_CONTROLS: Controls = { aggression: "defensive", remoteMining: true, expansion: true }
+export const DEFAULT_CONTROLS: Controls = { aggression: "defensive", remoteMining: true, expansion: true, scouting: true }
 
 declare global {
   interface Memory {
@@ -40,6 +42,7 @@ export function controls(): Controls {
       ? (set.aggression as Aggression)
       : DEFAULT_CONTROLS.aggression,
     remoteMining: typeof set.remoteMining === "boolean" ? set.remoteMining : DEFAULT_CONTROLS.remoteMining,
-    expansion: typeof set.expansion === "boolean" ? set.expansion : DEFAULT_CONTROLS.expansion
+    expansion: typeof set.expansion === "boolean" ? set.expansion : DEFAULT_CONTROLS.expansion,
+    scouting: typeof set.scouting === "boolean" ? set.scouting : DEFAULT_CONTROLS.scouting
   }
 }

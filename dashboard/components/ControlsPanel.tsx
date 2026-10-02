@@ -29,7 +29,7 @@ export function ControlsPanel({
   pending: boolean
   saving: boolean
   onAggression: (level: AggressionLevel) => void
-  onToggle: (key: "remoteMining" | "expansion", value: boolean) => void
+  onToggle: (key: "remoteMining" | "expansion" | "scouting", value: boolean) => void
 }) {
   const current = LEVELS.find(l => l.level === controls.aggression)
   return (
@@ -69,6 +69,15 @@ export function ControlsPanel({
           onChange={e => onToggle("expansion", e.target.checked)}
         />
         <span>Expansion (start new rooms)</span>
+      </label>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={controls.scouting ?? true}
+          disabled={saving}
+          onChange={e => onToggle("scouting", e.target.checked)}
+        />
+        <span>Scouting</span>
       </label>
       <p className="controls-help">
         Changes go to the bot&apos;s Memory.controls and apply on its next tick; this panel confirms them with the next
