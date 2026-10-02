@@ -257,7 +257,13 @@ export default function Dashboard() {
       <div className="grid">
         <ThreatsPanel snapshot={s} />
         <HostilesPanel snapshot={s} />
-        <RelationsPanel snapshot={s} />
+        <RelationsPanel
+          snapshot={s}
+          busy={saving}
+          onForgive={player => command("/api/relations", { forgive: player })}
+          onRetaliate={player => command("/api/relations", { retaliate: player })}
+          onCancelRetaliation={() => command("/api/relations", { cancelRetaliation: true })}
+        />
         <HighwaysPanel snapshot={s} />
         <CpuPanel snapshot={s} />
       </div>

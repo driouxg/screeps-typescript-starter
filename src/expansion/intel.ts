@@ -25,6 +25,12 @@ export interface RoomIntel {
   keeperLairs?: number
   /** Keeper lairs and the resources they guard, so paths can keep out of keepers' reach without vision. */
   keeperPosts?: { x: number; y: number }[]
+  /** Another player's base: its towers and the energy in them, and safe mode (see defence/retaliation). */
+  towers?: number
+  towerEnergy?: number
+  /** Tick its safe mode ends (when it was on), and charges it had left. */
+  safeModeUntil?: number
+  safeModeAvailable?: number
 }
 
 declare global {
@@ -48,6 +54,9 @@ export function recordIntel(room: Room, force = false): void {
       s.structureType === STRUCTURE_SPAWN ||
       s.structureType === STRUCTURE_INVADER_CORE
   }).length
+  const towers = room.find(FIND_HOSTILE_STRUCTURES, {
+    filter: s => s.structureType === STRUCTURE_TOWER
+  }) as StructureTower[]
   const hostileFighters = room.find(FIND_HOSTILE_CREEPS, {
     filter: c => isHostile(c) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
   }).length
@@ -72,6 +81,10 @@ export function recordIntel(room: Room, force = false): void {
     keeperLairs: room.find(FIND_HOSTILE_STRUCTURES, { filter: s => s.structureType === STRUCTURE_KEEPER_LAIR }).length,
     keeperPosts: keeperPosts(room),
     hostileFighters,
+    towers: towers.length,
+    towerEnergy: towers.reduce((sum, t) => sum + t.store.energy, 0),
+    safeModeUntil: controller?.safeMode ? Game.time + controller.safeMode : undefined,
+    safeModeAvailable: controller?.owner ? controller.safeModeAvailable : undefined,
     ...terrainRatios(room.name)
   }
 }

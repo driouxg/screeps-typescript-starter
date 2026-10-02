@@ -152,21 +152,90 @@ export function HostilesPanel({ snapshot: s }: Props) {
   )
 }
 
-export function RelationsPanel({ snapshot: s }: Props) {
+export function RelationsPanel({
+  snapshot: s,
+  busy,
+  onForgive,
+  onRetaliate,
+  onCancelRetaliation
+}: Props & {
+  busy: boolean
+  onForgive: (player: string) => void
+  onRetaliate: (player: string) => void
+  onCancelRetaliation: () => void
+}) {
   const flagged = Object.entries(s.relations.hostilePlayers)
+  const strike = s.retaliation ?? null
+  const underway = strike !== null && strike.state !== "over"
+
+  const retaliate = (player: string) => {
+    if (
+      window.confirm(
+        `Send a squad at ${player}'s weak spot? The bot only goes for rooms without working towers or safe mode, and ` +
+          `calls it off if there's none.`
+      )
+    )
+      onRetaliate(player)
+  }
+  const retaliateButton = (player: string) => (
+    <button
+      className="button danger"
+      disabled={busy || underway}
+      title={underway ? "One strike at a time" : undefined}
+      onClick={() => retaliate(player)}
+    >
+      Retaliate
+    </button>
+  )
+
   return (
     <section className="panel">
       <h2>Relations</h2>
+      {strike && (
+        <div className="danger-zone">
+          <p className="row">
+            <span>
+              <span className={`badge ${underway ? "warn" : ""}`}>{underway ? strike.state : "last strike"}</span>{" "}
+              {strike.player}
+              {strike.target ? ` in ${strike.target}` : ""}
+              {underway && strike.squad ? `, squad of ${strike.squad}` : ""}
+            </span>
+            <button className="button" disabled={busy} onClick={onCancelRetaliation}>
+              {underway ? "Call off" : "Clear"}
+            </button>
+          </p>
+          {strike.status && <p className="controls-help">{strike.status}</p>}
+        </div>
+      )}
       <h3>Allies</h3>
       {s.relations.allies.length ? <div className="chips">{s.relations.allies.map(a => <span key={a} className="chip">{a}</span>)}</div> : <Empty>None.</Empty>}
       <h3>Declared enemies</h3>
-      {s.relations.enemies.length ? <div className="chips">{s.relations.enemies.map(a => <span key={a} className="chip">{a}</span>)}</div> : <Empty>None.</Empty>}
+      {s.relations.enemies.length ? (
+        <ul className="plain">
+          {s.relations.enemies.map(name => (
+            <li key={name} className="row">
+              <span>{name}</span>
+              {retaliateButton(name)}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Empty>None.</Empty>
+      )}
       <h3>Flagged for attacking us</h3>
       {flagged.length ? (
         <ul className="plain">
           {flagged.map(([name, tick]) => (
-            <li key={name}>
-              {name} <span className="muted">since tick {tick.toLocaleString()} ({ago(tick, s.tick)})</span>
+            <li key={name} className="row">
+              <span>
+                {name} <span className="muted">since tick {tick.toLocaleString()} ({ago(tick, s.tick)})</span>
+              </span>
+              <span>
+                <button className="button" disabled={busy} onClick={() => onForgive(name)}>
+                  Forgive
+                </button>{" "}
+                {retaliateButton(name)}
+              </span>
             </li>
           ))}
         </ul>

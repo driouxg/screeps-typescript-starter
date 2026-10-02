@@ -62,7 +62,13 @@ function parseArgs(argv) {
     // Rooms owned by a player we don't classify (neutral); with --neutral-towers 1 its first room gets a tower that
     // shoots any foreign creep in range.
     neutralRooms: null,
-    neutralTowers: 0
+    neutralTowers: 0,
+    // Tick to ask for a strike on the "enemy" player (see --hostile-rooms and src/defence/retaliation.ts), as the
+    // dashboard's Retaliate button does.
+    retaliate: null,
+    // 1: the enemy's second room (see --hostile-rooms) gets something to fight, without towers: a spawn,
+    // extensions (one under a rampart), a container, a worker and an armed defender that fights back (see addOutpost).
+    hostileOutpost: 0
   }
   const strings = ["label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms"]
   for (let i = 0; i < argv.length; i++) {
@@ -189,7 +195,7 @@ async function addPlannedRamparts(server, player, room, rcl, hits) {
  * Another player owning `rooms`: a spawn in the first (so the player exists) and the other controllers claimed. Its
  * code does nothing, so it never attacks; whether we treat it as friendly depends on Memory.allies.
  */
-async function addNeighbour(server, username, rooms, code) {
+async function addNeighbour(server, username, rooms, code, tower = !!code) {
   const [first, ...rest] = rooms
   const { x, y } = await chooseSpawnPos(server.world, first)
   const bot = await server.world.addBot({
@@ -200,7 +206,7 @@ async function addNeighbour(server, username, rooms, code) {
     modules: { main: code || "module.exports.loop=()=>{}" }
   })
   const { db } = server.common.storage
-  if (code) {
+  if (tower) {
     // A working tower next to its spawn (towers need RCL 3).
     await db["rooms.objects"].update({ room: first, type: "controller" }, { $set: { level: 3 } })
     await server.world.addRoomObject(first, "tower", x + 2, y, {
@@ -214,6 +220,80 @@ async function addNeighbour(server, username, rooms, code) {
   for (const room of rest)
     await db["rooms.objects"].update({ room, type: "controller" }, { $set: { user: bot.id, level: 1 } })
   return bot
+}
+
+/** Code for the enemy with an outpost: its armed creeps fight any foreign creep in their room. */
+const OUTPOST_DEFENDER = `module.exports.loop = function () {
+  for (const c of Object.values(Game.creeps)) {
+    if (!c.getActiveBodyparts(ATTACK)) continue
+    const target = c.pos.findClosestByRange(FIND_HOSTILE_CREEPS)
+    if (target && c.attack(target) === ERR_NOT_IN_RANGE) c.moveTo(target)
+  }
+}`
+
+/** What --hostile-outpost puts in the enemy's room: structures by type, and creeps (bodies). */
+const OUTPOST_STRUCTURES = ["spawn", "extension", "extension", "extension", "extension", "container"]
+const OUTPOST_CREEPS = {
+  worker: ["work", "carry", "move"],
+  defender: ["tough", "tough", "attack", "attack", "attack", "move", "move", "move", "move", "move"]
+}
+
+/**
+ * Fill an enemy room for a strike to hit (no towers, so retaliation goes ahead): OUTPOST_STRUCTURES and an extension
+ * under a rampart around the room's centre, and OUTPOST_CREEPS. The controller goes to RCL 3 so the extensions count.
+ */
+async function addOutpost(server, enemy, room) {
+  const { db } = server.common.storage
+  await db["rooms.objects"].update({ room, type: "controller" }, { $set: { level: 3 } })
+  const terrain = await server.world.getTerrain(room)
+  const used = new Set()
+  const free = () => {
+    for (let r = 2; r < 20; r++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          const x = 25 + dx
+          const y = 25 + dy
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || (x + y) % 2) continue // every other tile: room to walk
+          if (terrain.get(x, y) === "wall" || used.has(`${x},${y}`)) continue
+          used.add(`${x},${y}`)
+          return { x, y }
+        }
+    throw new Error(`No room for the outpost in ${room}`)
+  }
+  const time = await server.world.gameTime
+  const structure = {
+    spawn: { name: "Outpost", store: { energy: 300 }, storeCapacityResource: { energy: 300 }, hits: 5000, hitsMax: 5000, spawning: null },
+    extension: { store: { energy: 50 }, storeCapacityResource: { energy: 50 }, hits: 1000, hitsMax: 1000 },
+    container: { store: { energy: 500 }, storeCapacity: 2000, hits: 5000, hitsMax: 250000, nextDecayTime: time + 500 }
+  }
+  for (const type of OUTPOST_STRUCTURES) {
+    const { x, y } = free()
+    await server.world.addRoomObject(room, type, x, y, { ...(type === "container" ? {} : { user: enemy.id }), ...structure[type], notifyWhenAttacked: false })
+  }
+  const covered = free()
+  await server.world.addRoomObject(room, "extension", covered.x, covered.y, { user: enemy.id, ...structure.extension })
+  await server.world.addRoomObject(room, "rampart", covered.x, covered.y, { user: enemy.id, hits: 100000, hitsMax: 300000, isPublic: false, nextDecayTime: time + 100 })
+  for (const [name, body] of Object.entries(OUTPOST_CREEPS)) {
+    const { x, y } = free()
+    const parts = body.map(type => ({ type, hits: 100 }))
+    await server.world.addRoomObject(room, "creep", x, y, {
+      name, user: enemy.id, body: parts, hits: parts.length * 100, hitsMax: parts.length * 100, spawning: false,
+      fatigue: 0, store: {}, storeCapacity: body.filter(b => b === "carry").length * 50, ageTime: time + 100000, // there for the strike
+      notifyWhenAttacked: false, actionLog: {}
+    })
+  }
+}
+
+/** What's left of the enemy in the outpost room: structures by type and creeps (see addOutpost). */
+async function outpostState(server, enemyId, room) {
+  const objects = await server.world.roomObjects(room)
+  const count = {}
+  for (const o of objects) {
+    const theirs = o.user === enemyId || o.type === "container"
+    if (!theirs || o.type === "controller") continue
+    count[o.type] = (count[o.type] || 0) + 1
+  }
+  return count
 }
 
 /** Code for a player whose towers shoot any foreign creep in their room. */
@@ -271,6 +351,12 @@ function printSummary(result) {
     )
   for (const [key, v] of Object.entries(result.cpuProfile || {}))
     console.log(`  cpu ${key.padEnd(19)} ${String(v.cpu).padStart(7)} total  ${v.perCall.toFixed(3)} per call  (${v.calls} calls)`)
+  if (result.outpost) {
+    const o = result.outpost
+    const list = c => Object.entries(c).map(([t, n]) => `${n} ${t}`).join(", ") || "nothing"
+    console.log(`  outpost ${o.room.padEnd(14)} before: ${list(o.before)}`)
+    console.log(`  ${"".padEnd(22)} after:  ${list(o.after)}`)
+  }
   console.log(`  errors logged          ${result.errors.logged}  (uncaught: ${result.errors.uncaught})`)
   if (result.errors.first) console.log(`  first error: ${result.errors.first.split("\n")[0]}`)
   if (result.errors.last)
@@ -290,7 +376,13 @@ async function main() {
   // Added before our bot: adding a second player after the first makes the first one's tick-1 start fail.
   const raider = opts.attack !== null ? await addRaider(server) : null
   const ally = opts.allyRooms ? await addNeighbour(server, "ally", opts.allyRooms.split(",")) : null
-  if (opts.hostileRooms) await addNeighbour(server, "enemy", opts.hostileRooms.split(","))
+  const enemyRooms = opts.hostileRooms ? opts.hostileRooms.split(",") : []
+  const outpostRoom = opts.hostileOutpost && enemyRooms[1]
+  const enemy = opts.hostileRooms
+    ? await addNeighbour(server, "enemy", enemyRooms, outpostRoom ? OUTPOST_DEFENDER : undefined, false)
+    : null
+  if (outpostRoom) await addOutpost(server, enemy, outpostRoom)
+  const outpostBefore = outpostRoom ? await outpostState(server, enemy.id, outpostRoom) : null
   if (opts.neutralRooms)
     await addNeighbour(server, "neutral", opts.neutralRooms.split(","), opts.neutralTowers ? TOWER_SHOOTER : undefined)
   const player = await server.world.addBot({
@@ -348,6 +440,10 @@ async function main() {
     if (opts.startRamparts && opts.rampartsAt && tick === opts.rampartsAt) {
       const n = await addPlannedRamparts(server, player, opts.room, opts.startRcl || 3, opts.startRamparts)
       console.log(`tick ${String(tick).padStart(6)}  added ${n} ramparts with ${opts.startRamparts} hits`)
+    }
+    if (opts.retaliate && tick === opts.retaliate) {
+      await player.console(`Memory.retaliation = { player: "enemy", requested: Date.now() }`)
+      console.log(`tick ${String(tick).padStart(6)}  retaliation on "enemy" requested`)
     }
     if (raider && tick === opts.attack) {
       const body = opts.attackBody.split(",").map(p => p.trim())
@@ -411,6 +507,9 @@ async function main() {
         }
       : {},
     defence: bench.defence || null,
+    outpost: outpostRoom
+      ? { room: outpostRoom, before: outpostBefore, after: await outpostState(server, enemy.id, outpostRoom) }
+      : null,
     roomsVisited: bench.roomsVisited || {},
     // The bot's own view at the end: remote mining plan, allies, and what it knows about each room.
     // CPU per creep role and loop phase, from our bot's profiler (see profile in main.ts): total, and per call.

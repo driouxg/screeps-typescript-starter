@@ -1,5 +1,6 @@
 import { controls } from "config/controls"
 import { relationOf } from "config/relations"
+import { squad } from "defence/retaliation"
 import { income } from "creeps/spawn/utils/economy"
 import { assessThreat } from "defence/threat"
 import { containerBuilt } from "remote/remoteCreeps"
@@ -190,6 +191,16 @@ function build(): DashboardSnapshot {
       enemies: Memory.enemies ?? [],
       hostilePlayers: Memory.hostilePlayers ?? {}
     },
+    retaliation: Memory.retaliation
+      ? {
+          player: Memory.retaliation.player,
+          state: Memory.retaliation.state ?? "planning",
+          status: Memory.retaliation.status,
+          target: Memory.retaliation.target,
+          home: Memory.retaliation.home,
+          squad: squad().length
+        }
+      : null,
     expansion: Memory.expansion ?? null,
     ...expansionOptions(owned),
     expansionRequest: Memory.expansionRequest ?? null,

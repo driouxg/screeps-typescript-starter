@@ -12,6 +12,7 @@ import { clearLoiterersFromSpawns } from "creeps/action/common/parking"
 import { fleeIfThreatened } from "defence/flee"
 import { recordAggression } from "config/relations"
 import ExpansionPlanner from "expansion/expansionPlanner"
+import { runRetaliation } from "defence/retaliation"
 import RemotePlanner from "remote/remotePlanner"
 import { drawHighways } from "remote/highwayVisualizer"
 import { report } from "dashboard/report"
@@ -118,6 +119,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   creepCpu = Game.cpu.getUsed()
   new ExpansionPlanner().run()
   new RemotePlanner().run()
+  runRetaliation()
   // Only a display: a failure here mustn't stop the rest of the tick.
   try {
     drawHighways()

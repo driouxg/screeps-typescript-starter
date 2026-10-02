@@ -10,6 +10,7 @@ import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
 import RapidFillerSpawnHandler from "creeps/spawn/rapidFillerSpawnHandler"
 import RemoteSpawnHandler from "creeps/spawn/remoteSpawnHandler"
 import RemoteDefenderSpawnHandler from "creeps/spawn/remoteDefenderSpawnHandler"
+import RetaliationSpawnHandler from "creeps/spawn/retaliationSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
@@ -61,6 +62,9 @@ export default class SpawnComposer {
       new BuilderSpawnHandler("first"),
       // Defending remote mining comes before growing it: a weak raider left alone kills miner after hauler.
       new RemoteDefenderSpawnHandler(),
+      // A strike the player asked for (see defence/retaliation): a one-off, so it goes ahead of growing the economy,
+      // or a busy spawn would never get to it.
+      new RetaliationSpawnHandler(),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
       // Cheap, and once in place they take over filling the rapid fill's spawns and extensions.

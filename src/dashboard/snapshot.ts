@@ -8,6 +8,17 @@ export const SNAPSHOT_VERSION = 1
 
 export type AggressionLevel = "passive" | "defensive" | "aggressive"
 
+export interface RetaliationSnapshot {
+  player: string
+  /** planning, spawning, attacking, or over (status says how it ended). */
+  state: string
+  status?: string
+  target?: string
+  home?: string
+  /** Squad creeps alive. */
+  squad: number
+}
+
 export interface ControlsSnapshot {
   aggression: AggressionLevel
   remoteMining: boolean
@@ -113,6 +124,8 @@ export interface DashboardSnapshot {
   threats: ThreatSnapshot[]
   hostiles: HostileSnapshot[]
   relations: { allies: string[]; enemies: string[]; hostilePlayers: { [username: string]: number } }
+  /** The strike on a player who attacked us (see src/defence/retaliation.ts), while it lasts or how it ended. */
+  retaliation?: RetaliationSnapshot | null
   expansion: { target: string; home: string; state: string; started: number; manual?: boolean } | null
   /** Rooms the bot would expand to, best first (one per room, from its best home). */
   expansionCandidates?: ExpansionCandidateSnapshot[]

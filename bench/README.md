@@ -62,6 +62,8 @@ npm run bench -- --start-rcl 4 --ticks 3000 --ally-rooms W1N1,W0N2 --hostile-roo
 | `--hostile-rooms` | — | Rooms owned by a player "enemy", who is added to our `Memory.enemies` |
 | `--neutral-rooms` | — | Rooms owned by a player "neutral" that we don't classify |
 | `--neutral-towers` | 0 | `1`: the neutral gets a tower that shoots any foreign creep, so the bot should flag it hostile |
+| `--retaliate` | — | Tick to ask for a strike on "enemy" (as the dashboard's Retaliate button does, see src/defence/retaliation.ts); its rooms have no towers, so it should go ahead |
+| `--hostile-outpost` | 0 | `1`: the enemy's second room (`--hostile-rooms W1N2,W2N1`) gets a spawn, extensions (one under a rampart), a container, a worker and an armed defender, and no towers. The summary lists what's left of it, to check a strike fights |
 
 The ally's and enemy's code does nothing. The result's `roomsVisited` counts creep-ticks per room (so you can check nothing
 entered a hostile room), and `botState` holds the bot's remote mining plan and `remoteReport` (every candidate

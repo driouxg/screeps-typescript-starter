@@ -53,13 +53,16 @@ export async function setControls(controls: ControlsSnapshot): Promise<void> {
 }
 
 /**
- * Requests the bot acts on: the player's expansion pick and bases to tear down (see src/expansion), and which rooms
- * show their build plan and highways in the game (see constructionSiteVisualizer.ts and remote/highwayVisualizer.ts).
+ * Requests the bot acts on: the player's expansion pick and bases to tear down (see src/expansion), which rooms
+ * show their build plan and highways in the game (see constructionSiteVisualizer.ts and remote/highwayVisualizer.ts),
+ * players forgiven, and a strike on one (see src/defence/retaliation.ts).
  */
 export type Command =
   | { path: "expansionRequest"; value: { target: string } | { cancel: true } | null }
   | { path: `abandonRooms.${string}`; value: { requested: number } | null }
   | { path: `buildPlanOverlay.${string}` | `highwayOverlay.${string}`; value: boolean }
+  | { path: `hostilePlayers.${string}`; value: null }
+  | { path: "retaliation"; value: { player: string; requested: number } | null }
 
 /**
  * Write one command into the bot's Memory. A dotted path ("buildPlanOverlay.W1N2") sets just that key of its parent
@@ -145,6 +148,13 @@ async function readSnapshotFile(): Promise<DashboardSnapshot> {
   const abandoning = Object.entries(commands).filter(([key, value]) => key.startsWith("abandonRooms.") && value)
   if (abandoning.length)
     snapshot.abandoning = abandoning.map(([key]) => ({ room: key.slice("abandonRooms.".length), status: "requested" }))
+  for (const [key, value] of Object.entries(commands))
+    if (key.startsWith("hostilePlayers.") && value === null)
+      delete snapshot.relations.hostilePlayers[key.slice("hostilePlayers.".length)]
+  if ("retaliation" in commands) {
+    const r = commands.retaliation as { player: string } | null
+    snapshot.retaliation = r ? { player: r.player, state: "planning", status: "requested", squad: 0 } : null
+  }
   for (const room of snapshot.rooms) {
     const overlay = commands[`buildPlanOverlay.${room.name}`]
     if (typeof overlay === "boolean") room.buildPlanOverlay = overlay
