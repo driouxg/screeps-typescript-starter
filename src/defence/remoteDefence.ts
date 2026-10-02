@@ -1,6 +1,7 @@
 import { isHostile } from "config/relations"
 import { defenderBody } from "creeps/spawn/meleeDefenderSpawnHandler"
 import { creepDamage, isCombatant } from "./threat"
+import { controls } from "config/controls"
 
 /**
  * Goal: Don't let a weak attacker shut down remote mining. When hostiles show up where our remote creeps work (a
@@ -106,6 +107,10 @@ export function forgetStaleThreats(): void {
  * healing `healing` and with `hits` in all; 0 if even MAX_REMOTE_DEFENDERS wouldn't.
  */
 export function defendersToWin(capacity: number, damage: number, healing: number, hits: number): number {
+  // Aggression (see config/controls): passive never sends defenders, aggressive fights without a margin.
+  const aggression = controls().aggression
+  if (aggression === "passive") return 0
+  const margin = aggression === "aggressive" ? 1 : WIN_MARGIN
   const body = defenderBody(capacity)
   const attack = body.filter(p => p === ATTACK).length * ATTACK_POWER
   if (attack <= 0) return 0
@@ -114,7 +119,7 @@ export function defendersToWin(capacity: number, damage: number, healing: number
     if (net <= 0) continue
     const fightTicks = hits / net
     const survivalTicks = damage <= 0 ? Infinity : (n * body.length * 100) / damage
-    if (fightTicks * WIN_MARGIN <= survivalTicks) return n
+    if (fightTicks * margin <= survivalTicks) return n
   }
   return 0
 }

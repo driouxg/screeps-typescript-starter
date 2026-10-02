@@ -1,3 +1,4 @@
+import { controls } from "./controls"
 import { myUsername } from "utils/username"
 
 /**
@@ -48,9 +49,15 @@ export function isHostilePlayer(username: string | undefined): boolean {
   return relationOf(username) === "hostile"
 }
 
-/** Whether a creep (or power creep) belongs to a hostile player. */
-export function isHostile(creep: { owner: Owner }): boolean {
-  return isHostilePlayer(creep.owner.username)
+/**
+ * Whether a creep (or power creep) is hostile: it belongs to a hostile player, or (with aggression "aggressive", see
+ * config/controls) it's an armed creep of a player who isn't an ally.
+ */
+export function isHostile(creep: { owner: Owner; body?: BodyPartDefinition[] }): boolean {
+  const relation = relationOf(creep.owner.username)
+  if (relation === "hostile") return true
+  if (relation !== "neutral" || controls().aggression !== "aggressive") return false
+  return (creep.body ?? []).some(p => 0 < p.hits && (p.type === ATTACK || p.type === RANGED_ATTACK))
 }
 
 /**
@@ -58,6 +65,8 @@ export function isHostile(creep: { owner: Owner }): boolean {
  * structures or controller. Allies are never flagged (a warning is logged instead).
  */
 export function recordAggression(): void {
+  // Passive: nobody becomes hostile just for attacking us (see config/controls).
+  if (controls().aggression === "passive") return
   for (const room of Object.values(Game.rooms)) {
     for (const e of room.getEventLog()) {
       if (e.event !== EVENT_ATTACK && e.event !== EVENT_ATTACK_CONTROLLER) continue

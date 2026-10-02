@@ -186,3 +186,57 @@ function isPlaceable(step: BuildOrderStep, terrain: RoomTerrain): boolean {
   // Roads can be built on walls (tunnels); nothing else can.
   return step.structureType === STRUCTURE_ROAD || terrain.get(step.x, step.y) !== TERRAIN_MASK_WALL
 }
+
+export interface UpcomingStep {
+  x: number
+  y: number
+  structureType: BuildableStructureConstant
+  /** RCL at which the room may have this many of the type, so the step can be placed. */
+  rcl: number
+  /** Construction site placed already. */
+  site: boolean
+}
+
+/**
+ * The next `n` steps of the build order not built yet, with the RCL each needs: those the room can build now first, in
+ * the order build() places them (priority, then distance to the spawn), then the rest by the RCL they need. For
+ * reporting (see dashboard/report.ts).
+ */
+export function upcomingSteps(room: Room, n: number): UpcomingStep[] {
+  const buildOrder = room.memory.buildOrder ?? []
+  const key = (x: number, y: number, type: string) => `${x},${y},${type}`
+  const built = new Set(room.find(FIND_STRUCTURES).map(s => key(s.pos.x, s.pos.y, s.structureType)))
+  const sites = new Set(room.find(FIND_MY_CONSTRUCTION_SITES).map(s => key(s.pos.x, s.pos.y, s.structureType)))
+  const anchor = spawnAnchor(room, buildOrder)
+  const seen: { [type: string]: number } = {}
+  for (const s of room.find(FIND_STRUCTURES)) seen[s.structureType] = (seen[s.structureType] || 0) + 1
+
+  const pending = buildOrder
+    .filter(step => !built.has(key(step.x, step.y, step.structureType)))
+    .map((step, index) => {
+      const pos = new RoomPosition(step.x, step.y, room.name)
+      return { step, index, pos, priority: priorityOf(room, pos, step.structureType) }
+    })
+    .sort(
+      (a, b) =>
+        a.priority - b.priority ||
+        (anchor ? anchor.getRangeTo(a.pos) - anchor.getRangeTo(b.pos) : 0) ||
+        a.index - b.index
+    )
+
+  const upcoming: UpcomingStep[] = []
+  for (const { step } of pending) {
+    const type = step.structureType as BuildableStructureConstant
+    const nth = (seen[type] = (seen[type] || 0) + 1)
+    const limits = CONTROLLER_STRUCTURES[type] ?? {}
+    let rcl = 1
+    while (rcl < 8 && (limits[rcl] ?? 0) < nth) rcl++
+    if (type === STRUCTURE_RAMPART || type === STRUCTURE_WALL) rcl = Math.max(rcl, DEFENCE_MIN_RCL)
+    if (isTunnel(room, new RoomPosition(step.x, step.y, room.name), type)) rcl = Math.max(rcl, TUNNEL_MIN_RCL)
+    upcoming.push({ x: step.x, y: step.y, structureType: type, rcl, site: sites.has(key(step.x, step.y, type)) })
+  }
+  const level = room.controller?.level ?? 0
+  const when = (s: UpcomingStep) => (s.rcl <= level ? 0 : s.rcl)
+  // Array.prototype.sort is stable, so each group keeps build()'s order.
+  return upcoming.sort((a, b) => when(a) - when(b)).slice(0, n)
+}

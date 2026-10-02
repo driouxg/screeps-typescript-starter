@@ -465,8 +465,13 @@ async function main() {
 
   const out = path.join(RESULTS, `${opts.label}.json`)
   fs.writeFileSync(out, JSON.stringify(result, null, 2))
+  // The bot's dashboard snapshot (memory segment 90, see src/dashboard/report.ts), for developing the dashboard.
+  const [dashboard] = await player.getSegments([90])
+  if (dashboard) fs.writeFileSync(path.join(RESULTS, `${opts.label}.dashboard.json`), dashboard)
   printSummary(result)
-  console.log(`\nWrote results/${opts.label}.json and results/${opts.label}.log`)
+  console.log(
+    `\nWrote results/${opts.label}.json${dashboard ? `, ${opts.label}.dashboard.json` : ""} and results/${opts.label}.log`
+  )
 
   log.end()
   server.stop()

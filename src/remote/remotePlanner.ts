@@ -2,6 +2,7 @@ import * as creepRoles from "creeps/roles"
 import { isHostile } from "config/relations"
 import { myUsername } from "utils/username"
 import { isHostileRoom } from "utils/roomSafety"
+import { controls } from "config/controls"
 import {
   builtShare,
   placeRoadSites,
@@ -140,6 +141,12 @@ export default class RemotePlanner {
     this.trackSpawnUse()
     this.watchForThreats()
 
+    // Remote mining switched off (see config/controls): drop every remote now, so its creeps go home.
+    if (!controls().remoteMining) {
+      if (Object.keys(Memory.remotes ?? {}).length) console.log("Remote mining switched off")
+      Memory.remotes = {}
+      return
+    }
     const homes = Object.values(Game.rooms).filter(r => r.controller?.my && MIN_RCL <= r.controller.level)
     if (Game.time % SITE_INTERVAL === 0) {
       surveyHighways()

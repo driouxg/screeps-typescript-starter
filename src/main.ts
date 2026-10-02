@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import * as creepRoles from "creeps/roles"
 import ConstructionComposer from "composer/constructionComposer"
 import CreepComposer from "composer/creepComposer"
 import { ErrorMapper } from "utils/ErrorMapper"
@@ -14,6 +13,7 @@ import { fleeIfThreatened } from "defence/flee"
 import { recordAggression } from "config/relations"
 import ExpansionPlanner from "expansion/expansionPlanner"
 import RemotePlanner from "remote/remotePlanner"
+import { report } from "dashboard/report"
 
 declare global {
   /*
@@ -140,6 +140,11 @@ export const loop = ErrorMapper.wrapLoop(() => {
       } \n creepCpu: ${creepCpu - startCpu} \n structureCpu: ${structureCpu - spawnCpu}`
     )
 
+  // Last, so it reports what this tick decided (see dashboard/report.ts).
+  const reportCpu = Game.cpu.getUsed()
+  report()
+  profile("dashboard", Game.cpu.getUsed() - reportCpu)
+
   deleteRoomEvents()
 })
 
@@ -159,8 +164,6 @@ function profile(key: string, cpu: number): void {
 function manageCreepActions(creepHandlerDict: { [creepRole: string]: ICreepHandler }): void {
   for (const creepName in Game.creeps) {
     const creep: Creep = Game.creeps[creepName]
-    // Creeps spawned before REMOTE_MINER was renamed.
-    if (creep.memory.role === creepRoles.LEGACY_REMOTE_MINER) creep.memory.role = creepRoles.REMOTE_MINER
     const handler: ICreepHandler | undefined = creepHandlerDict[creep.memory.role]
     if (!handler) continue
 

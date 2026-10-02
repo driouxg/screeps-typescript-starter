@@ -1,5 +1,6 @@
 import { myUsername } from "utils/username"
 import { recordIntel, RoomIntel } from "./intel"
+import { controls } from "config/controls"
 
 /**
  * Goal: Decide when and where to expand, and drive the expansion through to a working spawn in the new room.
@@ -51,6 +52,8 @@ export default class ExpansionPlanner {
   }
 
   private maybeStart(): void {
+    // Expansion switched off (see config/controls): finish one underway (see run), start none.
+    if (!controls().expansion) return
     const owned = Object.values(Game.rooms).filter(r => r.controller?.my)
     if (Game.gcl.level <= owned.length) return
 

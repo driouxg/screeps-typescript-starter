@@ -1,0 +1,23 @@
+{
+  "name": "screeps-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dashboard for the bot: reads its state from memory segment 90 and sets Memory.controls",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "15.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}
