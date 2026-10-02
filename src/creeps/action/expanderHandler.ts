@@ -4,13 +4,19 @@ import ICreepHandler from "./ICreepHandler"
 
 /** Upgrade instead of building if the new controller gets this close to downgrading. */
 const DOWNGRADE_SAFETY = 5000
+/**
+ * Upgrade to this level before building: a newly claimed controller has no safe mode, and each level reached adds one
+ * (see SafeModeHandler), so a raid on the pioneers can be stopped. Level 2 is only 200 energy of upgrading.
+ */
+const SAFE_MODE_LEVEL = 2
 
 /**
  * Goal: Pioneer for a newly claimed room. Walk there, harvest its sources (spread across them, picking up dropped
- * energy first), and build the first spawn. Once the spawn exists, stay on as one of the room's builders.
+ * energy first), upgrade the controller to SAFE_MODE_LEVEL, then build the first spawn. Once the spawn exists, stay
+ * on as one of the room's builders.
  */
 export default class ExpanderHandler implements ICreepHandler {
-  handle(creep: Creep): void {
+  public handle(creep: Creep): void {
     const memory = creep.memory as ExpanderMemory
     const target = memory.targetRoom
     if (!target) return
@@ -39,7 +45,9 @@ export default class ExpanderHandler implements ICreepHandler {
     const site = creep.pos.findClosestByRange(FIND_MY_CONSTRUCTION_SITES, {
       filter: s => s.structureType === STRUCTURE_SPAWN
     })
-    const mustUpgrade = controller?.my && (controller.ticksToDowngrade ?? Infinity) < DOWNGRADE_SAFETY
+    const mustUpgrade =
+      controller?.my &&
+      (controller.level < SAFE_MODE_LEVEL || (controller.ticksToDowngrade ?? Infinity) < DOWNGRADE_SAFETY)
 
     if (site && !mustUpgrade) {
       if (creep.build(site) === ERR_NOT_IN_RANGE) smartMove(creep, site, 3)
