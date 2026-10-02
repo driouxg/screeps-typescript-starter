@@ -2,18 +2,32 @@ import * as creepRoles from "../roles"
 import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
 
-/** Upgrade instead of building if the new controller gets this close to downgrading. */
-const DOWNGRADE_SAFETY = 5000
+/** Upgrade instead of building if the new controller gets this close to downgrading: an emergency only. */
+const DOWNGRADE_SAFETY = 2000
 /**
  * Upgrade to this level before building: a newly claimed controller has no safe mode, and each level reached adds one
  * (see SafeModeHandler), so a raid on the pioneers can be stopped. Level 2 is only 200 energy of upgrading.
  */
 const SAFE_MODE_LEVEL = 2
+/**
+ * Having reached SAFE_MODE_LEVEL, keep upgrading until the downgrade timer is this share of its maximum for the level
+ * (each upgrade adds CONTROLLER_DOWNGRADE_RESTORE ticks). It's low right after a level-up, and topped up once it
+ * lasts the whole spawn build (9000 ticks at RCL 2), instead of the pioneers coming back to it again and again.
+ * Progress towards the next level doesn't help: only the timer decides when a controller downgrades.
+ */
+const TOP_UP_SHARE = 0.9
+
+declare global {
+  interface RoomMemory {
+    /** The pioneers have upgraded the new room's controller enough to build its spawn (see ExpanderHandler). */
+    pioneerUpgradeDone?: boolean
+  }
+}
 
 /**
  * Goal: Pioneer for a newly claimed room. Walk there, harvest its sources (spread across them, picking up dropped
- * energy first), upgrade the controller to SAFE_MODE_LEVEL, then build the first spawn. Once the spawn exists, stay
- * on as one of the room's builders.
+ * energy first), upgrade the controller to SAFE_MODE_LEVEL and top up its downgrade timer, then build the first spawn.
+ * Once the spawn exists, stay on as one of the room's builders.
  */
 export default class ExpanderHandler implements ICreepHandler {
   public handle(creep: Creep): void {
@@ -45,15 +59,25 @@ export default class ExpanderHandler implements ICreepHandler {
     const site = creep.pos.findClosestByRange(FIND_MY_CONSTRUCTION_SITES, {
       filter: s => s.structureType === STRUCTURE_SPAWN
     })
-    const mustUpgrade =
-      controller?.my &&
-      (controller.level < SAFE_MODE_LEVEL || (controller.ticksToDowngrade ?? Infinity) < DOWNGRADE_SAFETY)
+    const mustUpgrade = controller?.my === true && this.mustUpgrade(controller)
 
     if (site && !mustUpgrade) {
       if (creep.build(site) === ERR_NOT_IN_RANGE) smartMove(creep, site, 3)
     } else if (controller?.my) {
       if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) smartMove(creep, controller, 3)
     }
+  }
+
+  /** Up to SAFE_MODE_LEVEL and a topped-up timer once (see TOP_UP_SHARE), then only if it's about to downgrade. */
+  private mustUpgrade(controller: StructureController): boolean {
+    const ticksToDowngrade = controller.ticksToDowngrade ?? Infinity
+    if (ticksToDowngrade < DOWNGRADE_SAFETY) return true
+    const memory = controller.room.memory
+    if (memory.pioneerUpgradeDone) return false
+    if (controller.level < SAFE_MODE_LEVEL) return true
+    if (ticksToDowngrade < CONTROLLER_DOWNGRADE[controller.level] * TOP_UP_SHARE) return true
+    memory.pioneerUpgradeDone = true
+    return false
   }
 
   private gather(creep: Creep) {
