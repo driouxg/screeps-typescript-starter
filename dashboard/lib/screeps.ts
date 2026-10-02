@@ -1,6 +1,7 @@
 import "server-only"
 import { promises as fs } from "node:fs"
 import path from "node:path"
+import { gunzipSync } from "node:zlib"
 import type { ControlsSnapshot, DashboardSnapshot } from "@bot/snapshot"
 import { DASHBOARD_SEGMENT } from "@bot/snapshot"
 
@@ -60,7 +61,11 @@ export type Command =
   | { path: `abandonRooms.${string}`; value: { requested: number } | null }
   | { path: `buildPlanOverlay.${string}`; value: boolean }
 
-/** Write one command into the bot's Memory (a dotted path sets just that key). */
+/**
+ * Write one command into the bot's Memory. A dotted path ("buildPlanOverlay.W1N2") sets just that key of its parent
+ * object: the server writes `Memory.<path> = value`, which fails while the parent doesn't exist, so the parent is
+ * read, changed and written back whole (a null value removes the key).
+ */
 export async function sendCommand(command: Command): Promise<void> {
   if (source() === "file") {
     const commands = await readMockCommands()
@@ -68,11 +73,37 @@ export async function sendCommand(command: Command): Promise<void> {
     await fs.writeFile(mockCommandsPath(), JSON.stringify(commands, null, 2))
     return
   }
+
+  const dot = command.path.indexOf(".")
+  if (dot < 0) return writeMemory(command.path, command.value)
+  const parentPath = command.path.slice(0, dot)
+  const key = command.path.slice(dot + 1)
+  const current = await readMemory(parentPath)
+  const parent: Record<string, unknown> =
+    current && typeof current === "object" && !Array.isArray(current) ? { ...(current as Record<string, unknown>) } : {}
+  if (command.value === null) delete parent[key]
+  else parent[key] = command.value
+  await writeMemory(parentPath, parent)
+}
+
+async function writeMemory(memoryPath: string, value: unknown): Promise<void> {
   const shard = env("SCREEPS_SHARD")
   await call("/api/user/memory", {
     method: "POST",
-    body: JSON.stringify({ path: command.path, value: command.value, ...(shard ? { shard } : {}) })
+    body: JSON.stringify({ path: memoryPath, value, ...(shard ? { shard } : {}) })
   })
+}
+
+/** Memory at `memoryPath`, or undefined if it isn't set. The server sends it gzipped and base64 encoded ("gz:..."). */
+async function readMemory(memoryPath: string): Promise<unknown> {
+  const shard = env("SCREEPS_SHARD")
+  const query = new URLSearchParams({ path: memoryPath, ...(shard ? { shard } : {}) })
+  const body = await call<{ data?: string }>(`/api/user/memory?${query}`)
+  if (!body.data) return undefined
+  const json = body.data.startsWith("gz:")
+    ? gunzipSync(Buffer.from(body.data.slice(3), "base64")).toString("utf8")
+    : body.data
+  return json === "undefined" ? undefined : JSON.parse(json)
 }
 
 // --- Snapshot file (development without a server) ---
