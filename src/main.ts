@@ -13,6 +13,7 @@ import { fleeIfThreatened } from "defence/flee"
 import { recordAggression } from "config/relations"
 import ExpansionPlanner from "expansion/expansionPlanner"
 import RemotePlanner from "remote/remotePlanner"
+import { drawHighways } from "remote/highwayVisualizer"
 import { report } from "dashboard/report"
 
 declare global {
@@ -117,6 +118,12 @@ export const loop = ErrorMapper.wrapLoop(() => {
   creepCpu = Game.cpu.getUsed()
   new ExpansionPlanner().run()
   new RemotePlanner().run()
+  // Only a display: a failure here mustn't stop the rest of the tick.
+  try {
+    drawHighways()
+  } catch (e) {
+    console.log(`Highway overlay failed: ${e instanceof Error ? e.stack : e}`)
+  }
   profile("planners", Game.cpu.getUsed() - creepCpu)
   const planCpu = Game.cpu.getUsed()
   new SpawnComposer().compose()

@@ -24,6 +24,8 @@ export interface RoomSnapshot {
   safeModeAvailable: number
   /** Whether its build plan is drawn in the game (see ConstructionSiteVisualizer). */
   buildPlanOverlay?: boolean
+  /** Whether its highway plan is drawn in the game (see remote/highwayVisualizer). */
+  highwayOverlay?: boolean
   energyAvailable: number
   energyCapacity: number
   storedEnergy: number

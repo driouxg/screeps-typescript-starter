@@ -78,6 +78,7 @@ function build(): DashboardSnapshot {
       safeMode: c.safeMode ?? 0,
       safeModeAvailable: c.safeModeAvailable,
       buildPlanOverlay: !!Memory.buildPlanOverlay?.[room.name],
+      highwayOverlay: !!Memory.highwayOverlay?.[room.name],
       energyAvailable: room.energyAvailable,
       energyCapacity: room.energyCapacityAvailable,
       storedEnergy: stored,

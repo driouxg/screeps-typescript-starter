@@ -18,6 +18,12 @@ import {
 
 const REFRESH_SECONDS = Number(process.env.NEXT_PUBLIC_REFRESH_SECONDS) || 15
 
+/** In-game overlays a room can switch on (see /api/overlay). */
+const OVERLAYS = [
+  { kind: "buildPlan", field: "buildPlanOverlay", label: "Show build plan in game" },
+  { kind: "highway", field: "highwayOverlay", label: "Show highway plan in game (roads to remotes)" }
+] as const
+
 interface Loaded {
   source: "file" | "server"
   snapshot: DashboardSnapshot
@@ -28,7 +34,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [pending, setPending] = useState<Partial<ControlsSnapshot> | null>(null)
-  /** Build plan overlays switched from here that the bot hasn't reported yet, per room. */
+  /** Overlays switched from here that the bot hasn't reported yet, by "kind:room". */
   const [overlayPending, setOverlayPending] = useState<Record<string, boolean>>({})
   const [now, setNow] = useState(() => Date.now())
 
@@ -115,7 +121,11 @@ export default function Dashboard() {
     if (!s) return
     setOverlayPending(p => {
       const left = Object.fromEntries(
-        Object.entries(p).filter(([room, show]) => s.rooms.find(r => r.name === room)?.buildPlanOverlay !== show)
+        Object.entries(p).filter(([id, show]) => {
+          const [kind, room] = id.split(":")
+          const field = OVERLAYS.find(o => o.kind === kind)!.field
+          return s.rooms.find(r => r.name === room)?.[field] !== show
+        })
       )
       return Object.keys(left).length === Object.keys(p).length ? p : left
     })
@@ -202,22 +212,26 @@ export default function Dashboard() {
       <div className="grid">
         {s.rooms.map(room => (
           <RoomPanel key={room.name} room={room}>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={overlayPending[room.name] ?? room.buildPlanOverlay ?? false}
-                disabled={saving || room.buildPlanOverlay === undefined}
-                onChange={async e => {
-                  const show = e.target.checked
-                  if (await command("/api/overlay", { room: room.name, show }))
-                    setOverlayPending(p => ({ ...p, [room.name]: show }))
-                }}
-              />
-              <span>
-                Show build plan in game{" "}
-                {room.name in overlayPending && <span className="badge warn">waiting for the bot</span>}
-              </span>
-            </label>
+            {OVERLAYS.map(({ kind, field, label }) => {
+              const id = `${kind}:${room.name}`
+              return (
+                <label className="toggle" key={kind}>
+                  <input
+                    type="checkbox"
+                    checked={overlayPending[id] ?? room[field] ?? false}
+                    disabled={saving || room[field] === undefined}
+                    onChange={async e => {
+                      const show = e.target.checked
+                      if (await command("/api/overlay", { room: room.name, kind, show }))
+                        setOverlayPending(p => ({ ...p, [id]: show }))
+                    }}
+                  />
+                  <span>
+                    {label} {id in overlayPending && <span className="badge warn">waiting for the bot</span>}
+                  </span>
+                </label>
+              )
+            })}
             <AbandonBase
               room={room.name}
               status={s.abandoning?.find(a => a.room === room.name)?.status ?? null}

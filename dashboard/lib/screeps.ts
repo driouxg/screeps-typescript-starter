@@ -54,12 +54,12 @@ export async function setControls(controls: ControlsSnapshot): Promise<void> {
 
 /**
  * Requests the bot acts on: the player's expansion pick and bases to tear down (see src/expansion), and which rooms
- * show their build plan in the game (see src/structures/construction/util/constructionSiteVisualizer.ts).
+ * show their build plan and highways in the game (see constructionSiteVisualizer.ts and remote/highwayVisualizer.ts).
  */
 export type Command =
   | { path: "expansionRequest"; value: { target: string } | { cancel: true } | null }
   | { path: `abandonRooms.${string}`; value: { requested: number } | null }
-  | { path: `buildPlanOverlay.${string}`; value: boolean }
+  | { path: `buildPlanOverlay.${string}` | `highwayOverlay.${string}`; value: boolean }
 
 /**
  * Write one command into the bot's Memory. A dotted path ("buildPlanOverlay.W1N2") sets just that key of its parent
@@ -148,6 +148,8 @@ async function readSnapshotFile(): Promise<DashboardSnapshot> {
   for (const room of snapshot.rooms) {
     const overlay = commands[`buildPlanOverlay.${room.name}`]
     if (typeof overlay === "boolean") room.buildPlanOverlay = overlay
+    const highway = commands[`highwayOverlay.${room.name}`]
+    if (typeof highway === "boolean") room.highwayOverlay = highway
   }
   return snapshot
 }
