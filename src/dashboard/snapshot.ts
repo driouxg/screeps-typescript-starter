@@ -131,6 +131,9 @@ export interface DashboardSnapshot {
     sites: number
     lowest: number
   }[]
-  /** CPU per creep role / loop phase, when profiling is on (Memory.cpuProfile). */
-  cpuProfile: { key: string; cpu: number; calls: number; perCall: number }[]
+  /**
+   * CPU per creep role / loop phase, when profiling is on (Memory.cpuProfile). perTick: its total over the ticks
+   * profiled (for a role, all its creeps together).
+   */
+  cpuProfile: { key: string; cpu: number; calls: number; perCall: number; perTick?: number }[]
 }

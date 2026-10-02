@@ -128,10 +128,19 @@ function build(): DashboardSnapshot {
     [] as DashboardSnapshot["hostiles"]
   )
 
-  const profile = Object.entries(Memory.cpuProfile ?? {})
+  // Ticks profiled: each main loop phase (every key but the creep roles) is profiled once a tick.
+  const entries = Object.entries(Memory.cpuProfile ?? {})
+  const ticks = Math.max(1, ...entries.filter(([key]) => !key.startsWith("creep:")).map(([, v]) => v.calls))
+  const profile = entries
     .sort((a, b) => b[1].cpu - a[1].cpu)
     .slice(0, PROFILE_LINES)
-    .map(([key, v]) => ({ key, cpu: Math.round(v.cpu), calls: v.calls, perCall: +(v.cpu / v.calls).toFixed(3) }))
+    .map(([key, v]) => ({
+      key,
+      cpu: Math.round(v.cpu),
+      calls: v.calls,
+      perCall: +(v.cpu / v.calls).toFixed(3),
+      perTick: +(v.cpu / ticks).toFixed(3)
+    }))
 
   return {
     version: SNAPSHOT_VERSION,

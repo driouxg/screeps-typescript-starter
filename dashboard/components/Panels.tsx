@@ -226,6 +226,7 @@ export function CpuPanel({ snapshot: s }: Props) {
           <thead>
             <tr>
               <th>Where</th>
+              <th className="num">Per tick</th>
               <th className="num">Per call</th>
               <th className="num">Calls</th>
               <th className="num">Total</th>
@@ -235,6 +236,7 @@ export function CpuPanel({ snapshot: s }: Props) {
             {s.cpuProfile.map(p => (
               <tr key={p.key}>
                 <td>{p.key}</td>
+                <td className="num">{p.perTick === undefined ? "–" : p.perTick.toFixed(2)}</td>
                 <td className="num">{p.perCall.toFixed(3)}</td>
                 <td className="num">{p.calls.toLocaleString()}</td>
                 <td className="num">{p.cpu.toLocaleString()}</td>

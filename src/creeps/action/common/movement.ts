@@ -30,6 +30,13 @@ const TOW_REPATH_AFTER = 3
  * defaults to 2000), without letting an unreachable target burn a whole tick's CPU every time it repaths.
  */
 const CROSS_ROOM_MAX_OPS = 6000
+/** Search budget for planning a trip to another room (see travelRooms): once per trip, so it can afford to be wide. */
+const TRAVEL_PLAN_MAX_OPS = 20000
+const TRAVEL_PLAN_MAX_ROOMS = 16
+/** After a trip couldn't be planned, fall back to the map route (see routeRooms) this long before trying again. */
+const TRAVEL_RETRY_TICKS = 100
+/** A trip planned at least this long ago is planned again when the creep gets stuck on it. */
+const TRAVEL_REPLAN_AFTER = 50
 
 interface MoveState {
   x: number
@@ -48,6 +55,8 @@ declare global {
     shovedTick?: number
     /** Works from a fixed spot (e.g. a rapid filler): treated as an obstacle, never shoved or parked. */
     stationary?: boolean
+    /** The rooms its path to another room crosses (see travelRooms); null rooms: couldn't be planned. */
+    travel?: { to: string; rooms: string[] | null; tick: number }
   }
 }
 
@@ -67,6 +76,9 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
   const stuck = updateStuckCount(creep)
 
   if (GIVE_UP_AFTER <= stuck) {
+    // Stuck on an old trip plan: the way may have closed (e.g. a wall built), so plan it again next time.
+    const travel = creep.memory.travel
+    if (travel && TRAVEL_REPLAN_AFTER <= Game.time - travel.tick) delete creep.memory.travel
     stepAside(creep)
     creep.memory.moveState!.stuck = 0
     return ERR_NO_PATH
@@ -74,7 +86,9 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
 
   if (0 < stuck && stuck < REPATH_AFTER) shoveBlocker(creep, pos, range)
 
-  const rooms = creep.room.name === pos.roomName ? null : routeRooms(creep.room.name, pos.roomName)
+  let rooms: Set<string> | null = null
+  if (creep.room.name !== pos.roomName) rooms = travelRooms(creep, pos, range)
+  else if (creep.memory.travel) delete creep.memory.travel
   return creep.moveTo(pos, {
     range,
     reusePath: stuck === 0 ? (rooms ? REUSE_PATH_CROSS_ROOM : REUSE_PATH) : 0,
@@ -88,6 +102,51 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
         ? blockedMatrix()
         : applyCreepCosts(roomName, matrix)
   })
+}
+
+/**
+ * Rooms a creep may path through on its way to `pos` in another room: the rooms crossed by a path planned once per trip
+ * (and again if it strays off them, changes destination, or gets stuck on an old plan), over terrain, structures we
+ * can see, hostile rooms and keepers, but not creeps. The map route (see routeRooms) only knows that rooms share an
+ * exit, not whether it can be reached: a room whose exit on that side is walled off inside it left creeps stuck
+ * against the wall. Falls back to the map route while the trip can't be planned.
+ */
+function travelRooms(creep: Creep, pos: RoomPosition, range: number): Set<string> | null {
+  const travel = creep.memory.travel
+  if (travel?.to === pos.roomName) {
+    if (travel.rooms?.includes(creep.room.name)) return new Set(travel.rooms)
+    if (!travel.rooms && Game.time - travel.tick < TRAVEL_RETRY_TICKS) return routeRooms(creep.room.name, pos.roomName)
+  }
+
+  const rooms = planTravel(creep.pos, pos, range)
+  creep.memory.travel = { to: pos.roomName, rooms, tick: Game.time }
+  return rooms ? new Set(rooms) : routeRooms(creep.room.name, pos.roomName)
+}
+
+/** The rooms a path from `from` to within `range` of `pos` crosses, in order; null if there's no such path. */
+function planTravel(from: RoomPosition, pos: RoomPosition, range: number): string[] | null {
+  const result = PathFinder.search(
+    from,
+    { pos, range },
+    {
+      plainCost: 1,
+      swampCost: 5,
+      maxOps: TRAVEL_PLAN_MAX_OPS,
+      maxRooms: TRAVEL_PLAN_MAX_ROOMS,
+      roomCallback: roomName => {
+        if (roomName !== pos.roomName && roomName !== from.roomName && isHostileRoom(roomName)) return false
+        const matrix = new PathFinder.CostMatrix()
+        for (const s of Game.rooms[roomName]?.find(FIND_STRUCTURES) ?? []) {
+          if (s.structureType === STRUCTURE_ROAD) {
+            if (matrix.get(s.pos.x, s.pos.y) === 0) matrix.set(s.pos.x, s.pos.y, 1)
+          } else if (isObstacleStructure(s)) matrix.set(s.pos.x, s.pos.y, 0xff)
+        }
+        return applyKeeperCosts(roomName, matrix)
+      }
+    }
+  )
+  if (result.incomplete) return null
+  return [...new Set([from.roomName, ...result.path.map(p => p.roomName)])]
 }
 
 /**
