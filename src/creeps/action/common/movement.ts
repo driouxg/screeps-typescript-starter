@@ -19,6 +19,8 @@ const OBSTACLE_SITE_COST = 10
 const SHOVE_DEPTH = 3
 /** Ticks a tow may fail to advance before the puller paths around the crowd instead of through it. */
 const TOW_REPATH_AFTER = 3
+/** Search budget for a path to another room: enough to finish a path across several rooms (moveTo defaults to 2000). */
+const CROSS_ROOM_MAX_OPS = 20000
 
 interface MoveState {
   x: number
@@ -63,17 +65,47 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
 
   if (0 < stuck && stuck < REPATH_AFTER) shoveBlocker(creep, pos, range)
 
+  const rooms = creep.room.name === pos.roomName ? null : routeRooms(creep.room.name, pos.roomName)
   return creep.moveTo(pos, {
     range,
     reusePath: stuck === 0 ? REUSE_PATH : 0,
     ignoreCreeps: stuck < REPATH_AFTER,
-    // Never route through a hostile room (see isHostileRoom) we aren't already in or headed for.
+    ...(rooms ? { maxOps: CROSS_ROOM_MAX_OPS, maxRooms: Math.min(rooms.size, 64) } : {}),
+    // Never route through a hostile room (see isHostileRoom) we aren't already in or headed for, nor (going to
+    // another room) off the room route.
     costCallback: (roomName, matrix) =>
-      roomName !== pos.roomName && roomName !== creep.room.name && isHostileRoom(roomName)
+      (rooms && !rooms.has(roomName)) ||
+      (roomName !== pos.roomName && roomName !== creep.room.name && isHostileRoom(roomName))
         ? blockedMatrix()
         : applyCreepCosts(roomName, matrix)
   })
 }
+
+/**
+ * Rooms a creep going from `from` to `to` may path through: the room route (avoiding hostile rooms) plus its rooms'
+ * direct neighbours, so the path can cut a corner. Without this, a cross-room moveTo searches the whole area, runs out
+ * of ops, and walks a partial path toward whatever tile looked closest; repathing from there picks a different partial
+ * path, and the creep walks back and forth. Cached per tick. Null when there's no route (then nothing is restricted).
+ */
+function routeRooms(from: string, to: string): Set<string> | null {
+  if (routeCache.tick !== Game.time) routeCache = { tick: Game.time, routes: {} }
+  const key = `${from}>${to}`
+  if (key in routeCache.routes) return routeCache.routes[key]
+
+  const route = Game.map.findRoute(from, to, {
+    routeCallback: roomName => (roomName !== to && isHostileRoom(roomName) ? Infinity : 1)
+  })
+  let rooms: Set<string> | null = null
+  if (route !== ERR_NO_PATH) {
+    rooms = new Set([from, ...route.map(r => r.room)])
+    for (const name of [...rooms])
+      for (const exit of Object.values(Game.map.describeExits(name) ?? {}))
+        if (exit && !isHostileRoom(exit)) rooms.add(exit)
+  }
+  routeCache.routes[key] = rooms
+  return rooms
+}
+let routeCache: { tick: number; routes: { [key: string]: Set<string> | null } } = { tick: -1, routes: {} }
 
 /**
  * Pull `target` (a creep without MOVE parts) to `dest`: walk to it, then tow it there. Call once per tick.
