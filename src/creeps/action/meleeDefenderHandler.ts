@@ -1,12 +1,14 @@
 import { isHostile } from "config/relations"
 import { isCombatant } from "defence/threat"
 import { smartMove } from "./common/movement"
+import { loiter, stopLoitering } from "./common/loiter"
 import { park } from "./common/parking"
 import ICreepHandler from "./ICreepHandler"
 
 /**
  * Goal: Kill hostiles in our room, fighters first. Stay inside the room (chasing raiders out through an exit just
- * splits our defence), and wait near the spawn when there's nothing to fight.
+ * splits our defence). With nothing to fight, wait near where the hostiles died (see loiter), out of the way, or
+ * park.
  */
 export default class MeleeDefenderHandler implements ICreepHandler {
   public handle(creep: Creep): void {
@@ -17,9 +19,10 @@ export default class MeleeDefenderHandler implements ICreepHandler {
     const enemy = creep.pos.findClosestByRange(0 < fighters.length ? fighters : hostiles)
 
     if (!enemy) {
-      park(creep)
+      if (!loiter(creep)) park(creep)
       return
     }
+    stopLoitering(creep)
 
     if (creep.attack(enemy) === ERR_NOT_IN_RANGE) smartMove(creep, enemy, 1)
   }

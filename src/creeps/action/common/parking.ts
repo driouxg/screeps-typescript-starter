@@ -85,7 +85,7 @@ function findParkingSpot(creep: Creep): RoomPosition | null {
   return null
 }
 
-function isParkingSpot(room: Room, x: number, y: number, creep: Creep): boolean {
+export function isParkingSpot(room: Room, x: number, y: number, creep: Creep): boolean {
   if (x < 2 || 47 < x || y < 2 || 47 < y) return false
   if (room.getTerrain().get(x, y) === TERRAIN_MASK_WALL) return false
   if (plannedTiles(room).has(x * 50 + y)) return false

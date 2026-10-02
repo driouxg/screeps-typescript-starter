@@ -1,3 +1,4 @@
+import { loiter, stopLoitering } from "./common/loiter"
 import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
 
@@ -18,7 +19,12 @@ export default class HealerHandler implements ICreepHandler {
       }
     }
 
-    if (!allyToHeal) return
+    // Nothing to heal: wait with the defenders near where the fight was, out of the way.
+    if (!allyToHeal) {
+      loiter(creep)
+      return
+    }
+    stopLoitering(creep)
 
     if (creep.heal(allyToHeal) === ERR_NOT_IN_RANGE) {
       smartMove(creep, allyToHeal, 1)

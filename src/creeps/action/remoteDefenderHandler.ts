@@ -1,6 +1,7 @@
 import { isHostile } from "config/relations"
 import { hostileFighters } from "defence/remoteDefence"
 import { sendHome } from "remote/remoteCreeps"
+import { loiter, stopLoitering } from "./common/loiter"
 import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
 
@@ -16,7 +17,8 @@ const CHASE_TICKS = 10
  * same wherever else this home is threatened, or wait at home.
  *
  * Fights hostile fighters (and healers) in whatever room it's in, nearest first, and in the room it defends any other
- * hostile creep too; otherwise heads for that room. Hits anything hostile next to it on the way. The room counts as
+ * hostile creep too; otherwise heads for that room. Hits anything hostile next to it on the way. Between fights it
+ * waits near where the hostiles died, off the roads (see loiter), not in the way of the creeps getting back to work. The room counts as
  * clear once it's been seen without hostiles for a while (see remoteDefence), which lets mining resume.
  */
 export default class RemoteDefenderHandler implements ICreepHandler {
@@ -41,6 +43,7 @@ export default class RemoteDefenderHandler implements ICreepHandler {
     const passing = creep.pos.findInRange(FIND_HOSTILE_CREEPS, 1, { filter: isHostile })[0]
 
     if (enemy) {
+      stopLoitering(creep)
       memory.lastEnemy = { x: enemy.pos.x, y: enemy.pos.y, roomName: enemy.pos.roomName, tick: Game.time }
       if (creep.attack(enemy) === ERR_NOT_IN_RANGE) {
         if (passing) creep.attack(passing)
@@ -58,6 +61,7 @@ export default class RemoteDefenderHandler implements ICreepHandler {
     delete memory.lastEnemy
     if (!memory.targetRoom) return sendHome(creep)
     if (!here) smartMove(creep, new RoomPosition(25, 25, memory.targetRoom), 20)
+    else loiter(creep)
   }
 }
 
