@@ -382,7 +382,7 @@ function score(
   newRoad: number
 ): RemoteSource {
   const income = (reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
-  const miner = minerBody(capacity, income)
+  const miner = minerBody(capacity, income, roadsOn && roadsBuilt)
   const carryFor = (withRoads: boolean) =>
     Math.ceil((income * (roundTrip(c.route, withRoads) + TRIP_OVERHEAD) * HAULER_MARGIN) / CARRY_CAPACITY)
   const container = CONTAINER_UPKEEP + CONSTRUCTION_COST[STRUCTURE_CONTAINER] / AMORTIZE_TICKS

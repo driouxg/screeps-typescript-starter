@@ -13,14 +13,16 @@ export function workNeeded(income: number): number {
 /**
  * Remote miner: one WORK more than the source needs (5 for an unreserved source's 5/tick, 6 for a reserved one's
  * 10/tick), so it has ticks to spare for keeping its container and nearby roads repaired; 1 CARRY to hold the energy
- * it repairs with; 3 MOVE, enough for its one walk out. At RCL 4: 5 WORK, 1 CARRY, 3 MOVE (700) or 6 WORK (750).
+ * it repairs with; 3 MOVE, enough for its one walk out, or 2 once the highway is built (`roads`): on roads its 7 other
+ * parts move every 2 ticks with either. At RCL 4: 5 WORK, 1 CARRY, 3 MOVE (700) or 6 WORK (750).
  * Less WORK if the room can't afford it, but never less than the source needs, nor less than 1.
  */
-export function minerBody(capacity: number, income: number): BodyPartConstant[] {
-  const extras = [CARRY, MOVE, MOVE, MOVE] as BodyPartConstant[]
+export function minerBody(capacity: number, income: number, roads = false): BodyPartConstant[] {
+  const moves = roads ? 2 : 3
+  const extras = [CARRY, ...parts(moves, MOVE)] as BodyPartConstant[]
   const affordable = Math.floor((capacity - cost(extras)) / BODYPART_COST[WORK])
   const work = Math.max(1, Math.min(workNeeded(income) + 1, affordable))
-  return [...parts(work, WORK), CARRY, ...parts(3, MOVE)]
+  return [...parts(work, WORK), CARRY, ...parts(moves, MOVE)]
 }
 
 /** Haulers carry at most this many CARRY (16 CARRY, 8 MOVE: 1200 energy, at RCL 4). */

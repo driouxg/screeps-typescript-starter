@@ -56,6 +56,8 @@ function parseArgs(argv) {
     startRamparts: null,
     // Tick to add those ramparts (default: with the fast-forward). Later means they arrive in a running economy.
     rampartsAt: null,
+    // With --start-rcl: 1 also builds the room's planned roads (not tunnels), as if its builders had finished them.
+    startRoads: 0,
     // Other players: rooms owned by a friendly player (added to our Memory.allies) or a hostile one (Memory.enemies).
     allyRooms: null,
     hostileRooms: null,
@@ -171,6 +173,20 @@ async function fastForwardRcl(server, player, room, rcl, rampartHits) {
   }
   const ramparts = rampartHits ? await addPlannedRamparts(server, player, room, rcl, rampartHits) : 0
   return `${placed.extension} extensions, ${placed.tower} towers, ${placed.container} containers, ${ramparts} ramparts`
+}
+
+/** Build the room's planned roads, except tunnels through walls. */
+async function addPlannedRoads(server, player, room) {
+  const memory = JSON.parse((await player.memory) || "{}")
+  const buildOrder = (memory.rooms && memory.rooms[room] && memory.rooms[room].buildOrder) || []
+  const terrain = await server.world.getTerrain(room)
+  const time = await server.world.gameTime
+  let n = 0
+  for (const step of buildOrder.filter(s => s.structureType === "road" && terrain.get(s.x, s.y) !== "wall")) {
+    await server.world.addRoomObject(room, "road", step.x, step.y, { hits: 5000, hitsMax: 5000, nextDecayTime: time + 1000 })
+    n++
+  }
+  return n
 }
 
 /** Build the room's planned ramparts with `hits` hits (1 = just finished by builders). */
@@ -357,6 +373,8 @@ function printSummary(result) {
     console.log(`  outpost ${o.room.padEnd(14)} before: ${list(o.before)}`)
     console.log(`  ${"".padEnd(22)} after:  ${list(o.after)}`)
   }
+  for (const [role, bodies] of Object.entries(result.bodies || {}))
+    console.log(`  body ${role.padEnd(17)} ${bodies.join(", ")}`)
   console.log(`  errors logged          ${result.errors.logged}  (uncaught: ${result.errors.uncaught})`)
   if (result.errors.first) console.log(`  first error: ${result.errors.first.split("\n")[0]}`)
   if (result.errors.last)
@@ -436,6 +454,8 @@ async function main() {
         opts.rampartsAt ? null : opts.startRamparts
       )
       console.log(`tick ${String(tick).padStart(6)}  fast-forwarded to RCL ${opts.startRcl}: ${placed}`)
+      if (opts.startRoads)
+        console.log(`tick ${String(tick).padStart(6)}  built ${await addPlannedRoads(server, player, opts.room)} planned roads`)
     }
     if (opts.startRamparts && opts.rampartsAt && tick === opts.rampartsAt) {
       const n = await addPlannedRamparts(server, player, opts.room, opts.startRcl || 3, opts.startRamparts)
@@ -511,6 +531,23 @@ async function main() {
       ? { room: outpostRoom, before: outpostBefore, after: await outpostState(server, enemy.id, outpostRoom) }
       : null,
     roomsVisited: bench.roomsVisited || {},
+    // Bodies of our creeps in the home room at the end, by role: "<n>x <parts>", e.g. "3x 16 carry 8 move".
+    bodies: await (async () => {
+      const creeps = (JSON.parse((await player.memory) || "{}").creeps) || {}
+      const byRole = {}
+      for (const o of await server.world.roomObjects(opts.room)) {
+        if (o.type !== "creep" || o.user !== player.id) continue
+        const role = (creeps[o.name] && creeps[o.name].role) || "?"
+        const parts = {}
+        for (const b of o.body) parts[b.type] = (parts[b.type] || 0) + 1
+        const key = Object.entries(parts).map(([t, n]) => `${n} ${t}`).join(" ")
+        const roles = (byRole[role] = byRole[role] || {})
+        roles[key] = (roles[key] || 0) + 1
+      }
+      return Object.fromEntries(
+        Object.entries(byRole).map(([role, bodies]) => [role, Object.entries(bodies).map(([b, n]) => `${n}x ${b}`)])
+      )
+    })(),
     // The bot's own view at the end: remote mining plan, allies, and what it knows about each room.
     // CPU per creep role and loop phase, from our bot's profiler (see profile in main.ts): total, and per call.
     cpuProfile: await (async () => {

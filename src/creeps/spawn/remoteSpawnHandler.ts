@@ -32,7 +32,7 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
 
     for (const r of remotes) {
       const income = (r.reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
-      const miner = minerBody(capacity, income)
+      const miner = minerBody(capacity, income, r.roads)
       const minerLead = r.distance * MINER_TICKS_PER_TILE + miner.length * CREEP_SPAWN_TIME
       if (!serving(creepRoles.REMOTE_MINER, "targetSourceId", r.id).some(m => aliveFor(m, minerLead)))
         return this.config(miner, creepRoles.REMOTE_MINER, { targetSourceId: r.id })
