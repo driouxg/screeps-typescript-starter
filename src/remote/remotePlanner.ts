@@ -49,9 +49,11 @@ import { assessRemoteThreat, forgetStaleThreats } from "defence/remoteDefence"
  */
 
 export const MIN_RCL = 3
+/** The furthest (in rooms) we ever mine. */
+export const MAX_REMOTE_ROUTE = 2
 /** Rooms away we mine: adjacent ones at RCL 3, further from RCL 4. */
 function maxRoute(level: number): number {
-  return level < 4 ? 1 : 2
+  return level < 4 ? 1 : MAX_REMOTE_ROUTE
 }
 const PLAN_INTERVAL = 500
 /** Highway health is surveyed and road sites placed this often. */

@@ -18,3 +18,14 @@ export function blockedMatrix(): CostMatrix {
   for (let y = 0; y < 50; y++) for (let x = 0; x < 50; x++) matrix.set(x, y, 0xff)
   return matrix
 }
+
+/** Rooms in different zones (novice/respawn areas, closed rooms) can't be reached or claimed from each other. */
+export function sameMapZone(a: string, b: string): boolean {
+  try {
+    const statusA = Game.map.getRoomStatus(a)
+    const statusB = Game.map.getRoomStatus(b)
+    return statusA.status !== "closed" && statusA.status === statusB.status
+  } catch {
+    return true
+  }
+}

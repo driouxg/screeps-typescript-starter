@@ -1,6 +1,7 @@
 import { myUsername } from "utils/username"
 import { recordIntel, RoomIntel } from "./intel"
 import { controls } from "config/controls"
+import { sameMapZone } from "utils/roomSafety"
 
 /**
  * Goal: Decide when and where to expand, and drive the expansion through to a working spawn in the new room.
@@ -20,7 +21,7 @@ import { controls } from "config/controls"
 
 export const MIN_HOME_RCL = 3
 const MIN_DISTANCE = 2
-const MAX_DISTANCE = 6
+export const MAX_DISTANCE = 6
 const CLAIM_TIMEOUT = 3000
 const BUILD_TIMEOUT = 15000
 const BLACKLIST_TICKS = 20000
@@ -155,17 +156,6 @@ export function scoreRoom(roomName: string, home: string): number | null {
     intel.controllerToSources * 0.5 -
     intel.hostileFighters * 10
   )
-}
-
-/** Rooms in different zones (novice/respawn areas, closed rooms) can't be claimed from each other. */
-function sameMapZone(a: string, b: string): boolean {
-  try {
-    const statusA = Game.map.getRoomStatus(a)
-    const statusB = Game.map.getRoomStatus(b)
-    return statusA.status !== "closed" && statusA.status === statusB.status
-  } catch {
-    return true
-  }
 }
 
 /**

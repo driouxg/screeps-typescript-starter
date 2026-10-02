@@ -1,45 +1,48 @@
-import { isHostileRoom } from "utils/roomSafety"
 import { isHostile } from "config/relations"
 import { recordIntel } from "expansion/intel"
+import { nextScoutTarget, scoutArrived } from "expansion/scouting"
 import { myUsername } from "utils/username"
 import { smartMove } from "./common/movement"
 import ICreepHandler from "./ICreepHandler"
 
-/** How far (in rooms) scouts explore from the room they were spawned in. */
-const SCOUT_RANGE = 6
+/**
+ * A scout's body is all MOVE, so it never tires and crosses a room in well under this many ticks; stuck in one room
+ * longer than this, it has no way to its target and picks another.
+ */
+const STUCK_TICKS = 200
 
 /**
- * Goal: Keep intel on the rooms around us fresh (see expansion/intel), for remote mining and expansion.
+ * Goal: Find out what's in the rooms around home (see expansion/intel), for remote mining and expansion.
  *
- * Each time it reaches its target, the scout records the room and heads for the room within SCOUT_RANGE whose
- * intel is oldest (never-seen rooms first), nearest first on ties.
+ * Each time it reaches its target, the scout records the room and heads for the next one (see expansion/scouting:
+ * unseen rooms nearest home first, then the stalest). Rooms it passes through are recorded on the way.
  */
 export default class ScoutHandler implements ICreepHandler {
-  handle(creep: Creep): void {
+  public handle(creep: Creep): void {
     const memory = creep.memory as ScoutMemory
     memory.targetRoom = memory.targetRoom ?? creep.memory.room
+    if (memory.lastRoom !== creep.room.name) {
+      memory.lastRoom = creep.room.name
+      memory.enteredRoom = Game.time
+      scoutArrived(creep.room.name)
+    }
 
     if (creep.room.name === memory.targetRoom) {
       smartMove(creep, new RoomPosition(25, 25, creep.room.name), 20) // Move creep off of border
       this.updateRoomStatus(creep.room)
       recordIntel(creep.room, true)
 
-      memory.targetRoom = this.findNewTargetRoom(creep)
-    } else smartMove(creep, new RoomPosition(25, 25, memory.targetRoom), 20)
-  }
-
-  private findNewTargetRoom(creep: Creep): string {
-    const home = creep.memory.room
-    const lastSeen = (name: string) => Memory.rooms[name]?.intel?.tick ?? -Infinity
-
-    let best: { name: string; seen: number; distance: number } | null = null
-    for (const [name, distance] of roomsWithin(home, SCOUT_RANGE)) {
-      if (name === creep.room.name || Memory.rooms[name]?.status === "aggressive" || isHostileRoom(name)) continue
-      const seen = lastSeen(name)
-      if (!best || seen < best.seen || (seen === best.seen && distance < best.distance)) best = { name, seen, distance }
+      memory.targetRoom = nextScoutTarget(creep.memory.room, creep.room.name) ?? creep.room.name
+      return
     }
 
-    return best?.name ?? creep.room.name
+    // No progress towards the target: it can't be reached from here (the attempt is already counted against it).
+    if (STUCK_TICKS < Game.time - (memory.enteredRoom ?? Game.time)) {
+      memory.targetRoom = nextScoutTarget(creep.memory.room, creep.room.name) ?? creep.room.name
+      memory.enteredRoom = Game.time
+      return
+    }
+    smartMove(creep, new RoomPosition(25, 25, memory.targetRoom), 20)
   }
 
   private updateRoomStatus(room: Room) {
@@ -64,28 +67,9 @@ export default class ScoutHandler implements ICreepHandler {
   }
 }
 
-/**
- * Rooms reachable within `range` exits of `from` (breadth first), with their distance. Uses the map's exits, so it
- * needs no vision.
- */
-function roomsWithin(from: string, range: number): Map<string, number> {
-  const distances = new Map<string, number>([[from, 0]])
-  let frontier = [from]
-  for (let d = 1; d <= range && 0 < frontier.length; d++) {
-    const next: string[] = []
-    for (const room of frontier) {
-      const exits = Game.map.describeExits(room) ?? {}
-      for (const name of Object.values(exits)) {
-        if (!name || distances.has(name)) continue
-        distances.set(name, d)
-        next.push(name)
-      }
-    }
-    frontier = next
-  }
-  return distances
-}
-
 export interface ScoutMemory extends CreepMemory {
   targetRoom: string
+  /** The room the scout is in, and when it got there (see STUCK_TICKS). */
+  lastRoom?: string
+  enteredRoom?: number
 }

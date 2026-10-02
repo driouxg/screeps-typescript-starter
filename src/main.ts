@@ -67,10 +67,6 @@ declare global {
 
   type BuildOrderStep = { x: number; y: number; structureType: BuildableStructureConstant }
 
-  interface SpawnMemory {
-    scoutLastSpawned: number
-  }
-
   type RoomEventType = PULL_REQUEST
 
   type PULL_REQUEST = "PULL_REQUEST"

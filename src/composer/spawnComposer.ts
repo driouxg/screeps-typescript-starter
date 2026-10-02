@@ -70,11 +70,13 @@ export default class SpawnComposer {
       new ExpanderSpawnHandler(),
       // Remote mining is income (see RemotePlanner), so it's staffed before the workers that spend it.
       new RemoteSpawnHandler(),
+      // Remotes and expansion targets have to be found first: a 50 energy scout while there's anything left to find.
+      new ScoutSpawnHandler("needed"),
       // Workers are sized by the energy budget (see utils/economy.ts). Builders get first claim while
       // construction sites exist.
       new BuilderSpawnHandler("budget"),
       new UpgraderSpawnHandler("budget"),
-      new ScoutSpawnHandler(),
+      new ScoutSpawnHandler("refresh"),
       new WatcherSpawnHandler()
     ]
   }
