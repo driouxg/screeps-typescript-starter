@@ -364,9 +364,17 @@ function shoveBlocker(creep: Creep, pos: RoomPosition, range: number): void {
   if (path.length <= 0) return
 
   const blocker = creep.room.lookForAt(LOOK_CREEPS, path[0].x, path[0].y)[0]
-  if (!blocker || !canBeShoved(blocker) || 0 < blocker.fatigue) return
+  if (!blocker || !canBeShoved(blocker) || 0 < blocker.fatigue || onExit(creep.pos)) return
 
   blocker.move(blocker.pos.getDirectionTo(creep))
+}
+
+/**
+ * Whether a tile is on the room's edge. A creep swapped onto one is moved into the next room at the end of the tick,
+ * and creeps that only work in their own room (pullers parked by the exit, say) never came back: so no swaps onto it.
+ */
+function onExit(pos: RoomPosition): boolean {
+  return pos.x <= 0 || 49 <= pos.x || pos.y <= 0 || 49 <= pos.y
 }
 
 /**
@@ -396,7 +404,7 @@ function stepAside(creep: Creep): void {
   }
 
   const other = swappable[0]
-  if (!other) return
+  if (!other || onExit(creep.pos)) return
   creep.move(creep.pos.getDirectionTo(other))
   other.move(other.pos.getDirectionTo(creep))
 }

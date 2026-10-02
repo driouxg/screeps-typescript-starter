@@ -1,5 +1,5 @@
 import { containerBuilt, isRemoteRoomActive } from "remote/remoteCreeps"
-import { needsMaintainer } from "remote/highway"
+import { maintainersWanted } from "remote/highway"
 import { haulerBody, maintainerBody, minerBody } from "remote/remoteBodies"
 import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
@@ -11,11 +11,14 @@ const RESERVATION_LOW = 2000
 const MINER_TICKS_PER_TILE = 2.5
 
 /**
- * Goal: Staff the remote sources RemotePlanner chose for this spawn's room, best first: a miner (replaced before the
- * old one dies, allowing for its walk), haulers (once the miner has built the container) until they have the CARRY
- * parts the source needs, and a reserver for
- * rooms worth reserving whose reservation is running low. Then the home's highway maintainer, when its roads need one
- * (see remote/highway). Bodies come from remoteBodies, the same the planner priced.
+ * Goal: Staff the remote sources RemotePlanner chose for this spawn's room, best first: a miner each (replaced before
+ * the old one dies, allowing for its walk); then the home's highway maintainers, when its roads need them (see
+ * maintainersWanted); then haulers (once the miner has built the container) until they have the CARRY parts each
+ * source needs; then a reserver for rooms worth reserving whose reservation is running low. Bodies come from
+ * remoteBodies, the same the planner priced.
+ *
+ * Maintainers go ahead of haulers: until the highway is built, haulers are slow and need far more CARRY, so topping
+ * them up never ended and the maintainer never got its turn, which kept the roads from ever being built.
  */
 export default class RemoteSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
@@ -36,7 +39,15 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
       const minerLead = r.distance * MINER_TICKS_PER_TILE + miner.length * CREEP_SPAWN_TIME
       if (!serving(creepRoles.REMOTE_MINER, "targetSourceId", r.id).some(m => aliveFor(m, minerLead)))
         return this.config(miner, creepRoles.REMOTE_MINER, { targetSourceId: r.id })
+    }
 
+    const maintainers = creeps.filter(
+      c => c.memory.role === creepRoles.HIGHWAY_MAINTAINER && c.memory.room === home.name
+    ).length
+    if (maintainers < maintainersWanted(home.name))
+      return this.config(maintainerBody(capacity), creepRoles.HIGHWAY_MAINTAINER, {})
+
+    for (const r of remotes) {
       // No haulers until the miner has built the source's container: until then there's nothing for them to collect.
       if (!containerBuilt(r)) continue
       const carry = serving(creepRoles.REMOTE_HAULER, "targetSourceId", r.id)
@@ -56,12 +67,6 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
       if (RESERVATION_LOW <= reserved) continue
       return this.config([CLAIM, CLAIM, MOVE, MOVE], creepRoles.RESERVER, { targetRoom: room })
     }
-
-    if (
-      needsMaintainer(home.name) &&
-      !creeps.some(c => c.memory.role === creepRoles.HIGHWAY_MAINTAINER && c.memory.room === home.name)
-    )
-      return this.config(maintainerBody(capacity), creepRoles.HIGHWAY_MAINTAINER, {})
 
     return null
   }

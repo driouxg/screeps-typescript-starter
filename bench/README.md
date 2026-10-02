@@ -39,6 +39,7 @@ npm run bench -- --start-rcl 3 --gcl 2 --ticks 4500    # expansion: claim a seco
 | `--gcl` | 1 | The player's GCL level (how many rooms it may own) |
 | `--start-rcl` | — | At tick 5, jump the home room to this RCL and build the extensions and towers it allows at the bot's planned positions, full of energy, plus its planned containers |
 | `--start-ramparts` | — | Also build the planned ramparts with this many hits (`1` = just finished by builders) |
+| `--cancel-expansion` | — | Tick to cancel the expansion underway (as the dashboard's Cancel does); the summary's `construction sites` line shows what's left by room |
 | `--start-roads` | 0 | With `--start-rcl`: `1` also builds the room's planned roads (not tunnels), as if its builders had finished them |
 | `--ramparts-at` | with `--start-rcl` | Tick to add those ramparts, e.g. `1000` so they arrive in a running economy |
 

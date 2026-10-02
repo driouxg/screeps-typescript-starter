@@ -1,6 +1,6 @@
 import PullRequestEvent from "room/pullRequestEvent"
 import { isStandable } from "utils/standable"
-import { pullTo } from "./common/movement"
+import { pullTo, smartMove } from "./common/movement"
 import { park, unpark } from "./common/parking"
 import ICreepHandler from "./ICreepHandler"
 import * as creepRoles from "../roles"
@@ -12,6 +12,12 @@ const SKIP_TICKS = 500
 
 export default class PullerHandler implements ICreepHandler {
   handle(creep: Creep): void {
+    // Pull requests are per room: one that ended up next door (pushed over the exit) would wait there for good, while
+    // home spawned another in its place.
+    if (creep.room.name !== creep.memory.room) {
+      smartMove(creep, new RoomPosition(25, 25, creep.memory.room), 20)
+      return
+    }
     const pullRequest = this.getFirstPullRequest(creep)
     this.track(creep, pullRequest)
     if (!pullRequest) {

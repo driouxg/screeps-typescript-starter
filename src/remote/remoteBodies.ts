@@ -50,11 +50,26 @@ export function haulerCostPerCarry(): { energy: number; parts: number } {
   return { energy: BODYPART_COST[CARRY] + BODYPART_COST[MOVE] / perMove, parts: 1 + 1 / perMove }
 }
 
-/** Highway maintainer: 4 WORK, 4 CARRY, 4 MOVE (800), smaller if the room can't afford it. */
+/** Highway maintainer: WORK parts (with a CARRY and a MOVE each), up to this many. */
+const MAINTAINER_WORK = 3
+/** ...then 2 CARRY and a MOVE at a time, up to this many CARRY in all. */
+const MAINTAINER_CARRY = 15
+
+/**
+ * Highway maintainer: up to MAINTAINER_WORK sets of WORK, CARRY, MOVE, then pairs of CARRY with a MOVE, as the room
+ * can afford, up to MAINTAINER_CARRY CARRY: 1 MOVE per 2 other parts, a tile per tick on roads even when full. Mostly
+ * CARRY because a road costs 300 energy (1500 on swamp): with 4 CARRY (200) it couldn't build one per load and spent
+ * its life walking back to refuel. At RCL 4 (1300): 3 WORK, 11 CARRY, 7 MOVE (550 energy a load).
+ */
 export function maintainerBody(capacity: number): BodyPartConstant[] {
-  const unitCost = BODYPART_COST[WORK] + BODYPART_COST[CARRY] + BODYPART_COST[MOVE]
-  const units = Math.max(1, Math.min(4, Math.floor(capacity / unitCost)))
-  return [...parts(units, WORK), ...parts(units, CARRY), ...parts(units, MOVE)]
+  const workSet = BODYPART_COST[WORK] + BODYPART_COST[CARRY] + BODYPART_COST[MOVE]
+  const carrySet = 2 * BODYPART_COST[CARRY] + BODYPART_COST[MOVE]
+  const work = Math.max(1, Math.min(MAINTAINER_WORK, Math.floor(capacity / workSet)))
+  const pairs = Math.max(
+    0,
+    Math.min(Math.floor((MAINTAINER_CARRY - work) / 2), Math.floor((capacity - work * workSet) / carrySet))
+  )
+  return [...parts(work, WORK), ...parts(work + 2 * pairs, CARRY), ...parts(work + pairs, MOVE)]
 }
 
 export function bodyCost(body: BodyPartConstant[]): number {

@@ -182,8 +182,34 @@ export default class ExpansionPlanner {
     const room = Game.rooms[expansion.target]
     if (expansion.state === "building" && room?.controller?.my && room.find(FIND_MY_SPAWNS).length === 0)
       room.controller.unclaim()
+    removeSites(expansion.target)
     delete Memory.expansion
   }
+}
+
+/**
+ * Remove our construction sites in an expansion given up on (its spawn, and whatever its build order placed), so no
+ * builder or pioneer goes there to build them. Works without vision. If remote mining uses the room, the sites it
+ * placed stay: the container at a miner's spot and roads on the highway.
+ */
+function removeSites(roomName: string): void {
+  const containers = new Set(
+    Object.values(Memory.remotes ?? {})
+      .filter(r => r.room === roomName && r.spot)
+      .map(r => r.spot.x * 50 + r.spot.y)
+  )
+  const roads = new Set<number>()
+  for (const highway of Object.values(Memory.highways ?? {}))
+    for (const xy of highway.rooms[roomName]?.tiles ?? []) roads.add(xy)
+  let removed = 0
+  for (const site of Object.values(Game.constructionSites)) {
+    if (site.pos.roomName !== roomName) continue
+    const xy = site.pos.x * 50 + site.pos.y
+    if (site.structureType === STRUCTURE_CONTAINER && containers.has(xy)) continue
+    if (site.structureType === STRUCTURE_ROAD && roads.has(xy)) continue
+    if (site.remove() === OK) removed++
+  }
+  if (removed) console.log(`Expansion: removed ${removed} construction sites in ${roomName}`)
 }
 
 function freeGclLevel(): boolean {

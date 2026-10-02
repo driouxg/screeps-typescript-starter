@@ -13,7 +13,7 @@ import { myUsername } from "utils/username"
  * - From ROAD_MIN_RCL, road construction sites are placed along it (placeRoadSites), a few at a time, and placed again
  *   wherever a road has been destroyed. Rooms owned or reserved by other players are skipped: we can't build there.
  * - The highway maintainer (see HighwayMaintainerHandler) builds those sites and repairs the roads. One is spawned
- *   when a road drops below MAINTAIN_BELOW or there are sites to build (needsMaintainer).
+ *   when a road drops below MAINTAIN_BELOW, and two while there's road to build (maintainersWanted).
  */
 
 /** Roads are built from this RCL: before it the energy is worth more at home, and haulers carry 1 MOVE per CARRY. */
@@ -35,6 +35,8 @@ const MAX_TOTAL_SITES = 90
  * every site, and its builders have other work: the remote rooms got none, so the maintainer was never sent.
  */
 const MAX_ROOM_SITES = 5
+/** Highway maintainers while a highway is being built (see maintainersWanted): one alone took thousands of ticks. */
+const BUILDING_MAINTAINERS = 2
 
 export interface HighwayRoom {
   /** Tiles on the highway, as x * 50 + y. */
@@ -161,6 +163,8 @@ export function setHighway(home: string, tiles: RoomPosition[]): void {
   const rooms: { [room: string]: HighwayRoom } = {}
   const order: string[] = []
   for (const pos of tiles) {
+    // No road can be built on a room's edge: counted as missing, it kept the room from ever being done.
+    if (onEdge(pos.x, pos.y)) continue
     let room = rooms[pos.roomName]
     if (!room) {
       const old = previous?.rooms[pos.roomName]
@@ -181,6 +185,10 @@ export function setHighway(home: string, tiles: RoomPosition[]): void {
   else highways[home] = { order, rooms }
 }
 
+function onEdge(x: number, y: number): boolean {
+  return x <= 0 || 49 <= x || y <= 0 || 49 <= y
+}
+
 /** Refresh the health of every highway room we can see. */
 export function surveyHighways(): void {
   for (const highway of Object.values(Memory.highways ?? {}))
@@ -193,8 +201,12 @@ export function surveyHighways(): void {
 /** Update a highway room's health from what we see now. */
 export function survey(room: Room, entry: HighwayRoom): void {
   const roads = new Map<number, StructureRoad>()
-  for (const s of room.find(FIND_STRUCTURES))
+  // Tiles a structure we can't walk through stands on: no road can go there, so they don't count as missing.
+  const blocked = new Set<number>()
+  for (const s of room.find(FIND_STRUCTURES)) {
     if (s.structureType === STRUCTURE_ROAD) roads.set(s.pos.x * 50 + s.pos.y, s as StructureRoad)
+    else if ((OBSTACLE_OBJECT_TYPES as string[]).includes(s.structureType)) blocked.add(s.pos.x * 50 + s.pos.y)
+  }
   const sites = new Set(
     room
       .find(FIND_MY_CONSTRUCTION_SITES, { filter: s => s.structureType === STRUCTURE_ROAD })
@@ -205,10 +217,11 @@ export function survey(room: Room, entry: HighwayRoom): void {
   let lowest = 1
   let open = 0
   for (const xy of entry.tiles) {
+    if (onEdge(Math.floor(xy / 50), xy % 50)) continue // planned before edges were left out (see setHighway)
     const road = roads.get(xy)
     if (sites.has(xy)) open++
     if (!road) {
-      missing++
+      if (!blocked.has(xy)) missing++
       continue
     }
     const share = road.hits / road.hitsMax
@@ -284,21 +297,39 @@ export function placeRoadSites(home: Room): void {
 }
 
 /**
- * Whether the home's highway needs its maintainer: a road below MAINTAIN_BELOW, or road sites to build outside the
- * home room (the home's own builders take care of those inside it).
+ * Highway maintainers the home needs: none while its roads are fine; while there's road to build outside the home
+ * room (sites, or roads still missing where we may build: see toBuild), BUILDING_MAINTAINERS until the highway is
+ * mostly built (ROADS_BUILT_SHARE), then one; one for a road below MAINTAIN_BELOW. The home's own builders take care
+ * of the home room: maintainers building there competed with its haulers for energy and never got to the remotes.
  */
-export function needsMaintainer(home: string): boolean {
+export function maintainersWanted(home: string): number {
   const highway = Memory.highways?.[home]
-  if (!highway) return false
-  return Object.entries(highway.rooms).some(([name, room]) => 0 < room.damaged || (name !== home && 0 < room.sites))
+  if (!highway) return 0
+  const rooms = Object.entries(highway.rooms)
+  if (rooms.some(([name, room]) => name !== home && toBuild(home, name, room)))
+    return builtShare(home) < ROADS_BUILT_SHARE ? BUILDING_MAINTAINERS : 1
+  return rooms.some(([, room]) => 0 < room.damaged) ? 1 : 0
 }
 
-/** Highway rooms (nearest to home first) where the maintainer has work: sites, or roads below VISIT_BELOW. */
+/**
+ * Highway rooms outside home (nearest to home first) where the maintainer has work: road to build (see toBuild),
+ * roads below VISIT_BELOW, or never seen. The home room is its own builders' and towers' (see maintainersWanted).
+ */
 export function roomsNeedingWork(home: string): string[] {
   const highway = Memory.highways?.[home]
   if (!highway) return []
   return highway.order.filter(name => {
     const room = highway.rooms[name]
-    return name !== home && (0 < room.sites || room.lowest < VISIT_BELOW || !room.checked)
+    return name !== home && (toBuild(home, name, room) || room.lowest < VISIT_BELOW || !room.checked)
   })
+}
+
+/**
+ * Whether a highway room has road to build: open sites, or roads missing that sites will be placed for (the home is
+ * ROAD_MIN_RCL and the room is ours to build in). Sites are placed a few at a time (MAX_ROOM_SITES), so a room with
+ * none open can still have most of its road to build.
+ */
+export function toBuild(home: string, name: string, room: HighwayRoom): boolean {
+  if (0 < room.sites) return true
+  return 0 < room.missing && ROAD_MIN_RCL <= (Game.rooms[home]?.controller?.level ?? 0) && canBuildIn(name)
 }

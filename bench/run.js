@@ -70,7 +70,9 @@ function parseArgs(argv) {
     retaliate: null,
     // 1: the enemy's second room (see --hostile-rooms) gets something to fight, without towers: a spawn,
     // extensions (one under a rampart), a container, a worker and an armed defender that fights back (see addOutpost).
-    hostileOutpost: 0
+    hostileOutpost: 0,
+    // Tick to cancel the expansion underway, as the dashboard's Cancel does (see src/expansion/expansionPlanner.ts).
+    cancelExpansion: null
   }
   const strings = ["label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms"]
   for (let i = 0; i < argv.length; i++) {
@@ -373,6 +375,8 @@ function printSummary(result) {
     console.log(`  outpost ${o.room.padEnd(14)} before: ${list(o.before)}`)
     console.log(`  ${"".padEnd(22)} after:  ${list(o.after)}`)
   }
+  const sites = Object.entries(result.sites || {}).map(([room, n]) => `${room} ${n}`).join(", ")
+  console.log(`  construction sites     ${sites || "none"}`)
   for (const [role, bodies] of Object.entries(result.bodies || {}))
     console.log(`  body ${role.padEnd(17)} ${bodies.join(", ")}`)
   console.log(`  errors logged          ${result.errors.logged}  (uncaught: ${result.errors.uncaught})`)
@@ -461,6 +465,10 @@ async function main() {
       const n = await addPlannedRamparts(server, player, opts.room, opts.startRcl || 3, opts.startRamparts)
       console.log(`tick ${String(tick).padStart(6)}  added ${n} ramparts with ${opts.startRamparts} hits`)
     }
+    if (opts.cancelExpansion && tick === opts.cancelExpansion) {
+      await player.console(`Memory.expansionRequest = { cancel: true }`)
+      console.log(`tick ${String(tick).padStart(6)}  expansion cancelled`)
+    }
     if (opts.retaliate && tick === opts.retaliate) {
       await player.console(`Memory.retaliation = { player: "enemy", requested: Date.now() }`)
       console.log(`tick ${String(tick).padStart(6)}  retaliation on "enemy" requested`)
@@ -531,6 +539,13 @@ async function main() {
       ? { room: outpostRoom, before: outpostBefore, after: await outpostState(server, enemy.id, outpostRoom) }
       : null,
     roomsVisited: bench.roomsVisited || {},
+    // Our construction sites at the end, by room.
+    sites: await (async () => {
+      const sites = await server.common.storage.db["rooms.objects"].find({ type: "constructionSite", user: player.id })
+      const byRoom = {}
+      for (const s of sites) byRoom[s.room] = (byRoom[s.room] || 0) + 1
+      return byRoom
+    })(),
     // Bodies of our creeps in the home room at the end, by role: "<n>x <parts>", e.g. "3x 16 carry 8 move".
     bodies: await (async () => {
       const creeps = (JSON.parse((await player.memory) || "{}").creeps) || {}

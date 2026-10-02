@@ -16,6 +16,18 @@ const KEEPER_POST_COST = 40
 /** A resource within this range of a lair is guarded by that lair's keeper. */
 const GUARD_RANGE = 5
 
+/**
+ * Whether something at `pos` is within a keeper's reach (see the top of this file) for a creep working `margin` tiles
+ * from it (1: harvesting a source, withdrawing from a container): near a keeper's post, or a keeper we can see.
+ */
+export function inKeeperReach(room: Room, pos: RoomPosition, margin = 1): boolean {
+  if (keeperPosts(room).some(p => Math.max(Math.abs(p.x - pos.x), Math.abs(p.y - pos.y)) <= POST_RANGE + margin))
+    return true
+  return room
+    .find(FIND_HOSTILE_CREEPS, { filter: c => c.owner.username === KEEPER })
+    .some(k => k.pos.inRangeTo(pos, KEEPER_RANGE + margin))
+}
+
 /** Lairs plus the sources and minerals they guard, as recorded in intel. */
 export function keeperPosts(room: Room): { x: number; y: number }[] {
   const lairs = room.find(FIND_HOSTILE_STRUCTURES, { filter: s => s.structureType === STRUCTURE_KEEPER_LAIR })
