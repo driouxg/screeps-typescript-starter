@@ -196,6 +196,11 @@ function build(): DashboardSnapshot {
       const { ours, enemies } = enemyReports()
       return { ourStrength: ours, enemies }
     })(),
+    scoutRequests: Object.entries(Memory.scoutRequests ?? {}).reduce(
+      (all, [room, r]) =>
+        r ? all.concat({ room, home: r.home, status: r.status ?? "waiting for the bot", done: !!r.done }) : all,
+      [] as NonNullable<DashboardSnapshot["scoutRequests"]>
+    ),
     retaliation: Memory.retaliation
       ? {
           player: Memory.retaliation.player,

@@ -78,10 +78,15 @@ function parseArgs(argv) {
     rivalRooms: null,
     rivalRemote: null,
     // Our Memory.controls.aggression at the start (passive, defensive, aggressive).
-    aggression: null
+    aggression: null,
+    // 0: start with scouting switched off (Memory.controls.scouting).
+    scouting: 1,
+    // Ask for a room to be scouted at a tick, as the dashboard's Scouting card does (see src/expansion/scoutRequests.ts).
+    scoutRequest: null,
+    scoutAt: 1000
   }
   const strings = [
-    "label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms", "rivalRooms", "rivalRemote", "aggression"
+    "label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms", "rivalRooms", "rivalRemote", "aggression", "scoutRequest"
   ]
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase())
@@ -496,7 +501,10 @@ async function main() {
   if (ally) await player.console(`Memory.allies = ["ally"]`)
   // The "enemy" player is one we've declared hostile, as a player would in config/relations or Memory.enemies.
   if (opts.hostileRooms) await player.console(`Memory.enemies = ["enemy"]`)
-  if (opts.aggression) await player.console(`Memory.controls = { aggression: "${opts.aggression}" }`)
+  if (opts.aggression || !opts.scouting)
+    await player.console(
+      `Memory.controls = { ${opts.aggression ? `aggression: "${opts.aggression}", ` : ""}scouting: ${!!opts.scouting} }`
+    )
   console.log(
     `Running ${opts.ticks} ticks in ${opts.room}, spawn at ${opts.x},${opts.y}${
       opts.untilRcl ? `, stopping at RCL ${opts.untilRcl}` : ""
@@ -522,6 +530,10 @@ async function main() {
     if (opts.startRamparts && opts.rampartsAt && tick === opts.rampartsAt) {
       const n = await addPlannedRamparts(server, player, opts.room, opts.startRcl || 3, opts.startRamparts)
       console.log(`tick ${String(tick).padStart(6)}  added ${n} ramparts with ${opts.startRamparts} hits`)
+    }
+    if (opts.scoutRequest && tick === opts.scoutAt) {
+      await player.console(`Memory.scoutRequests = { ${opts.scoutRequest}: { requested: Date.now() } }`)
+      console.log(`tick ${String(tick).padStart(6)}  scouting ${opts.scoutRequest} requested`)
     }
     if (opts.cancelExpansion && tick === opts.cancelExpansion) {
       await player.console(`Memory.expansionRequest = { cancel: true }`)

@@ -66,6 +66,8 @@ export default class SpawnComposer {
       // A strike the player asked for (see defence/retaliation): a one-off, so it goes ahead of growing the economy,
       // or a busy spawn would never get to it.
       new RetaliationSpawnHandler(),
+      // A room the player asked to scout: one MOVE part, right away.
+      new ScoutSpawnHandler("requested"),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
       // Cheap, and once in place they take over filling the rapid fill's spawns and extensions.

@@ -42,6 +42,8 @@ npm run bench -- --start-rcl 3 --gcl 2 --ticks 4500    # expansion: claim a seco
 | `--cancel-expansion` | — | Tick to cancel the expansion underway (as the dashboard's Cancel does); the summary's `construction sites` line shows what's left by room |
 | `--rival-rooms`, `--rival-remote` | — | A player "rival" owning `--rival-rooms` (a base in the first) who reserves `--rival-remote` with a reserver and a miner there; the summary shows who holds it at the end (see src/remote/contest.ts) |
 | `--aggression` | — | Our `Memory.controls.aggression` at the start, e.g. `aggressive` (contests need it) |
+| `--scout-request`, `--scout-at` | —, 1000 | Ask for a room to be scouted at that tick (as the dashboard's Scouting card does); the log says how it went |
+| `--scouting` | 1 | `0`: start with scouting switched off (a requested room is still scouted) |
 | `--start-roads` | 0 | With `--start-rcl`: `1` also builds the room's planned roads (not tunnels), as if its builders had finished them |
 | `--ramparts-at` | with `--start-rcl` | Tick to add those ramparts, e.g. `1000` so they arrive in a running economy |
 

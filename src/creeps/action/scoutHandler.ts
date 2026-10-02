@@ -2,6 +2,7 @@ import { controls } from "config/controls"
 import { isHostile } from "config/relations"
 import { recordIntel } from "expansion/intel"
 import { nextScoutTarget, scoutArrived, wellScouted } from "expansion/scouting"
+import { completeScoutRequest, requestOpen } from "expansion/scoutRequests"
 import { scoutableRooms } from "expansion/scoutRange"
 import { isHostileRoom } from "utils/roomSafety"
 import { myUsername } from "utils/username"
@@ -28,16 +29,20 @@ const RETARGET_TICKS = 50
  * - wandering, once it is: on entering each room, records it (at most every so often, see recordIntel) and walks on
  *   to the neighbour seen longest ago, staying within scouting range. No target searches, no route planning.
  *
- * With scouting switched off (see config/controls) scouts retire.
+ * A room the player asked for (see expansion/scoutRequests) comes first: the scout goes straight there, records it and
+ * then goes back to the above.
+ *
+ * With scouting switched off (see config/controls) scouts retire, except on a request: the player asked for that.
  */
 export default class ScoutHandler implements ICreepHandler {
   public handle(creep: Creep): void {
-    if (!controls().scouting) {
+    const memory = creep.memory as ScoutMemory
+    const home = creep.memory.room
+    if (memory.requestRoom && !requestOpen(memory.requestRoom, creep)) delete memory.requestRoom
+    if (!controls().scouting && !memory.requestRoom) {
       creep.suicide()
       return
     }
-    const memory = creep.memory as ScoutMemory
-    const home = creep.memory.room
 
     if (memory.lastRoom !== creep.room.name) {
       memory.previousRoom = memory.lastRoom
@@ -52,8 +57,31 @@ export default class ScoutHandler implements ICreepHandler {
       }
     }
 
-    if (wellScouted(home)) this.wander(creep, memory)
+    if (memory.requestRoom) this.request(creep, memory, memory.requestRoom)
+    else if (wellScouted(home)) this.wander(creep, memory)
     else this.target(creep, memory)
+  }
+
+  /** Straight to the room the player asked for, room by room; there, record it and report back. */
+  private request(creep: Creep, memory: ScoutMemory, room: string): void {
+    if (creep.room.name === room) {
+      this.updateRoomStatus(creep.room)
+      recordIntel(creep.room, true)
+      completeScoutRequest(room)
+      delete memory.requestRoom
+      delete memory.targetRoom
+      delete memory.exit
+      smartMove(creep, new RoomPosition(25, 25, room), 20) // off the exit tile
+      return
+    }
+    if (!memory.exit) {
+      const route = Game.map.findRoute(creep.room.name, room, {
+        routeCallback: name => (name !== room && isHostileRoom(name) ? Infinity : 1)
+      })
+      const next = route !== ERR_NO_PATH ? route[0]?.room : undefined
+      if (!next || !this.setExit(creep, memory, next)) return // no way from here: the request times out
+    }
+    this.walkToExit(creep, memory)
   }
 
   private target(creep: Creep, memory: ScoutMemory): void {
@@ -153,6 +181,8 @@ function seenAt(roomName: string): number {
 
 export interface ScoutMemory extends CreepMemory {
   targetRoom?: string
+  /** A room the player asked to scout (see expansion/scoutRequests). */
+  requestRoom?: string
   /** The room the scout is in, and when it got there (see STUCK_TICKS); the room it came from. */
   lastRoom?: string
   enteredRoom?: number

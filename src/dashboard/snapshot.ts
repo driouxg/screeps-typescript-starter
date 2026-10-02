@@ -164,6 +164,8 @@ export interface DashboardSnapshot {
   relations: { allies: string[]; enemies: string[]; hostilePlayers: { [username: string]: number } }
   /** The strike on a player who attacked us (see src/defence/retaliation.ts), while it lasts or how it ended. */
   retaliation?: RetaliationSnapshot | null
+  /** Rooms the player asked to scout (see src/expansion/scoutRequests.ts), and how it's going. */
+  scoutRequests?: { room: string; home?: string; status: string; done: boolean }[]
   /** Our strength, to compare with each enemy's (see src/defence/strength.ts). */
   ourStrength?: StrengthSnapshot
   /** What we know about each hostile player (see src/dashboard/enemyReport.ts). */

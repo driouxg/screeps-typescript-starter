@@ -7,6 +7,7 @@ import { RoomPanel } from "@/components/RoomPanel"
 import { ExpansionPanel } from "@/components/ExpansionPanel"
 import { AbandonBase } from "@/components/AbandonBase"
 import { EnemyPanel } from "@/components/EnemyPanel"
+import { ScoutPanel } from "@/components/ScoutPanel"
 import { Bar, Icon, Stat } from "@/components/ui"
 import {
   CpuPanel,
@@ -199,6 +200,13 @@ export default function Dashboard() {
           saving={saving}
           onAggression={(aggression: AggressionLevel) => change({ aggression })}
           onToggle={(key, value) => change({ [key]: value })}
+        />
+
+        <ScoutPanel
+          snapshot={s}
+          busy={saving}
+          onRequest={room => command("/api/scout", { room })}
+          onCancel={room => command("/api/scout", { room, cancel: true })}
         />
 
         {alerts.length > 0 && (

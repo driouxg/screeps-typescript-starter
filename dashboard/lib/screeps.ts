@@ -62,6 +62,7 @@ export type Command =
   | { path: `abandonRooms.${string}`; value: { requested: number } | null }
   | { path: `buildPlanOverlay.${string}` | `highwayOverlay.${string}`; value: boolean }
   | { path: `hostilePlayers.${string}`; value: null }
+  | { path: `scoutRequests.${string}`; value: { requested: number } | null }
   | { path: "retaliation"; value: { player: string; requested: number } | null }
 
 /**
@@ -151,6 +152,12 @@ async function readSnapshotFile(): Promise<DashboardSnapshot> {
   for (const [key, value] of Object.entries(commands))
     if (key.startsWith("hostilePlayers.") && value === null)
       delete snapshot.relations.hostilePlayers[key.slice("hostilePlayers.".length)]
+  for (const [key, value] of Object.entries(commands)) {
+    if (!key.startsWith("scoutRequests.")) continue
+    const room = key.slice("scoutRequests.".length)
+    const others = (snapshot.scoutRequests ?? []).filter(r => r.room !== room)
+    snapshot.scoutRequests = value ? others.concat({ room, status: "waiting for the bot", done: false }) : others
+  }
   if ("retaliation" in commands) {
     const r = commands.retaliation as { player: string } | null
     snapshot.retaliation = r ? { player: r.player, state: "planning", status: "requested", squad: 0 } : null
