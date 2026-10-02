@@ -3,7 +3,7 @@
  *
  * A keeper walks to within 1 tile of the source or mineral it guards (one within 5 tiles of its lair), stays there,
  * and attacks anything within 3 tiles; it never chases. So:
- * - tiles within KEEPER_RANGE of a keeper we can see are impassable;
+ * - tiles within KEEPER_RANGE of a keeper we can see away from its post (e.g. walking out of its lair) are impassable;
  * - tiles within KEEPER_RANGE + 1 of a keeper's post (its lair, or the resource it guards) cost KEEPER_POST_COST, so
  *   paths go around them, even without vision, but a narrow room can still be crossed if there's no other way.
  */
@@ -44,6 +44,11 @@ export function applyKeeperCosts(roomName: string, matrix: CostMatrix): CostMatr
       }
   }
   for (const p of posts) raise(p.x, p.y, POST_RANGE, KEEPER_POST_COST)
-  for (const k of keepers) raise(k.pos.x, k.pos.y, KEEPER_RANGE, 0xff)
+  // A keeper idle at its post reaches no further than the post's zone above, so it adds nothing: paths must cost the
+  // same with vision as without, or a creep routed through the room (from intel) reroutes once it sees the keeper,
+  // leaves, loses vision and routes back in, walking back and forth. Only a keeper away from its post (walking out
+  // of its lair) blocks its reach.
+  const atPost = (k: Creep) => posts.some(p => Math.max(Math.abs(k.pos.x - p.x), Math.abs(k.pos.y - p.y)) <= 1)
+  for (const k of keepers) if (!atPost(k)) raise(k.pos.x, k.pos.y, KEEPER_RANGE, 0xff)
   return matrix
 }

@@ -13,14 +13,23 @@ import { blockedMatrix, isHostileRoom } from "utils/roomSafety"
 const REPATH_AFTER = 2
 const GIVE_UP_AFTER = 6
 const REUSE_PATH = 5
+/**
+ * Path reuse on the way to another room. Each search there spans the whole route (thousands of ops), and moveTo keeps
+ * only the current room's part of the path anyway, so it searches again on entering each room; in between there's no
+ * need to (creeps in the way are handled by the stuck checks, which search again straight away).
+ */
+const REUSE_PATH_CROSS_ROOM = 50
 /** Path cost of our own construction sites for obstacle structures: walkable, but standing there blocks building. */
 const OBSTACLE_SITE_COST = 10
 /** How many creeps deep a tow may push through a packed crowd to clear its next tile. */
 const SHOVE_DEPTH = 3
 /** Ticks a tow may fail to advance before the puller paths around the crowd instead of through it. */
 const TOW_REPATH_AFTER = 3
-/** Search budget for a path to another room: enough to finish a path across several rooms (moveTo defaults to 2000). */
-const CROSS_ROOM_MAX_OPS = 20000
+/**
+ * Search budget for a path to another room: enough to finish a path across the few rooms routeRooms allows (moveTo
+ * defaults to 2000), without letting an unreachable target burn a whole tick's CPU every time it repaths.
+ */
+const CROSS_ROOM_MAX_OPS = 6000
 
 interface MoveState {
   x: number
@@ -68,7 +77,7 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
   const rooms = creep.room.name === pos.roomName ? null : routeRooms(creep.room.name, pos.roomName)
   return creep.moveTo(pos, {
     range,
-    reusePath: stuck === 0 ? REUSE_PATH : 0,
+    reusePath: stuck === 0 ? (rooms ? REUSE_PATH_CROSS_ROOM : REUSE_PATH) : 0,
     ignoreCreeps: stuck < REPATH_AFTER,
     ...(rooms ? { maxOps: CROSS_ROOM_MAX_OPS, maxRooms: Math.min(rooms.size, 64) } : {}),
     // Never route through a hostile room (see isHostileRoom) we aren't already in or headed for, nor (going to
