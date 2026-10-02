@@ -30,6 +30,11 @@ export const ROADS_BUILT_SHARE = 0.8
 /** Open road construction sites per home at a time, and in all (the game allows MAX_CONSTRUCTION_SITES). */
 const MAX_HOME_SITES = 15
 const MAX_TOTAL_SITES = 90
+/**
+ * Open road sites per highway room. Without a per-room cap the home room (first in order, with the most tiles) took
+ * every site, and its builders have other work: the remote rooms got none, so the maintainer was never sent.
+ */
+const MAX_ROOM_SITES = 5
 
 export interface HighwayRoom {
   /** Tiles on the highway, as x * 50 + y. */
@@ -135,11 +140,11 @@ export function planRoute(
 
 /** The tiles of a route, keyed as planRoute's `shared` expects. */
 /**
- * Ticks for a hauler's round trip (walking only). Over roads, 1 per tile each way. Without roads a hauler has 1 MOVE
- * per CARRY: 1 tick per tile out (empty), and back (full) 1 per plain tile but 5 per swamp tile.
+ * Ticks for a hauler's round trip (walking only). Haulers have 2 CARRY per MOVE (see haulerBody): out empty, a tick a
+ * tile anywhere; back full, a tick a tile over roads, but without them 2 per plain tile and 10 per swamp tile.
  */
 export function roundTrip(route: Route, roads: boolean): number {
-  return roads ? 2 * route.length : 2 * route.length + 4 * route.swamps
+  return roads ? 2 * route.length : route.length + 2 * (route.length - route.swamps) + 10 * route.swamps
 }
 
 export function routeKeys(route: Route): string[] {
@@ -240,18 +245,21 @@ export function canBuildIn(roomName: string): boolean {
 
 /**
  * Place road construction sites along a home's highway, nearest rooms first, in rooms we can see and may build in,
- * keeping at most MAX_HOME_SITES of the home's road sites open. A destroyed road gets its site back here too.
+ * keeping at most MAX_ROOM_SITES open per room and MAX_HOME_SITES of the home's road sites open in all. A destroyed
+ * road gets its site back here too.
  */
 export function placeRoadSites(home: Room): void {
   const highway = Memory.highways?.[home.name]
   if (!highway || (home.controller?.level ?? 0) < ROAD_MIN_RCL) return
 
   const all = Object.values(Game.constructionSites)
-  let open = all.filter(s => s.structureType === STRUCTURE_ROAD && highway.rooms[s.pos.roomName]).length
+  const roadSites = all.filter(s => s.structureType === STRUCTURE_ROAD && highway.rooms[s.pos.roomName])
+  let open = roadSites.length
   let total = all.length
   for (const name of highway.order) {
     const room = Game.rooms[name]
     if (!room || !canBuildIn(name)) continue
+    let roomOpen = roadSites.filter(s => s.pos.roomName === name).length
     const terrain = room.getTerrain()
     const taken = new Set(
       [...room.find(FIND_STRUCTURES), ...room.find(FIND_CONSTRUCTION_SITES)]
@@ -262,11 +270,13 @@ export function placeRoadSites(home: Room): void {
     )
     for (const xy of highway.rooms[name].tiles) {
       if (MAX_HOME_SITES <= open || MAX_TOTAL_SITES <= total) return
+      if (MAX_ROOM_SITES <= roomOpen) break
       const x = Math.floor(xy / 50)
       const y = xy % 50
       if (taken.has(xy) || terrain.get(x, y) === TERRAIN_MASK_WALL) continue
       if (room.createConstructionSite(x, y, STRUCTURE_ROAD) === OK) {
         open++
+        roomOpen++
         total++
       }
     }

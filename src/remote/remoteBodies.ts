@@ -23,15 +23,17 @@ export function minerBody(capacity: number, income: number): BodyPartConstant[] 
   return [...parts(work, WORK), CARRY, ...parts(3, MOVE)]
 }
 
-/** Haulers carry at most this many CARRY (16 CARRY, 8 MOVE over roads: 1200 energy, at RCL 4). */
+/** Haulers carry at most this many CARRY (16 CARRY, 8 MOVE: 1200 energy, at RCL 4). */
 export const MAX_HAULER_CARRY = 16
+const HAULER_CARRY_PER_MOVE = 2
 
 /**
- * Remote hauler: CARRY and MOVE only. Over roads 2 CARRY per MOVE moves a tile per tick when full; without roads it
- * takes 1 MOVE per CARRY. As many CARRY as `wanted` and the room's energy capacity allow, up to MAX_HAULER_CARRY.
+ * Remote hauler: CARRY and MOVE only, 2 CARRY per MOVE: a tile per tick when full over roads, half that (a fifth on
+ * swamp) off them, and a tile per tick anywhere when empty (see roundTrip); it's what makes a highway pay. As many
+ * CARRY as `wanted` and the room's energy capacity allow, up to MAX_HAULER_CARRY.
  */
-export function haulerBody(capacity: number, roads: boolean, wanted = MAX_HAULER_CARRY): BodyPartConstant[] {
-  const perMove = roads ? 2 : 1
+export function haulerBody(capacity: number, wanted = MAX_HAULER_CARRY): BodyPartConstant[] {
+  const perMove = HAULER_CARRY_PER_MOVE
   const unitCost = perMove * BODYPART_COST[CARRY] + BODYPART_COST[MOVE]
   const units = Math.max(
     1,
@@ -41,8 +43,8 @@ export function haulerBody(capacity: number, roads: boolean, wanted = MAX_HAULER
 }
 
 /** Energy and body parts per CARRY part of a hauler (its MOVE share included). */
-export function haulerCostPerCarry(roads: boolean): { energy: number; parts: number } {
-  const perMove = roads ? 2 : 1
+export function haulerCostPerCarry(): { energy: number; parts: number } {
+  const perMove = HAULER_CARRY_PER_MOVE
   return { energy: BODYPART_COST[CARRY] + BODYPART_COST[MOVE] / perMove, parts: 1 + 1 / perMove }
 }
 

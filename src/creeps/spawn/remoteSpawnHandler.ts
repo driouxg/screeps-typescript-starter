@@ -43,7 +43,7 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
         .filter(h => aliveFor(h, 2 * r.travel))
         .reduce((sum, h) => sum + h.getActiveBodyparts(CARRY), 0)
       if (carry < r.carryParts)
-        return this.config(haulerBody(capacity, r.roads, r.carryParts - carry), creepRoles.REMOTE_HAULER, {
+        return this.config(haulerBody(capacity, r.carryParts - carry), creepRoles.REMOTE_HAULER, {
           targetSourceId: r.id
         })
     }

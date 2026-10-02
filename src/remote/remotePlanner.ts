@@ -28,11 +28,11 @@ import { assessRemoteThreat, forgetStaleThreats } from "defence/remoteDefence"
  *
  *   income     5/tick, or 10/tick once the room can afford a reserver (a reserved controller doubles the source)
  *   miner      its body every 1500 ticks
- *   haulers    CARRY to move `income` over a round trip, with the MOVE they need: half as many once the highway's
- *              roads are built, which also makes the trip shorter (no swamp slowdown)
+ *   haulers    CARRY to move `income` over a round trip, with 1 MOVE per 2 CARRY: full, they're twice as fast once
+ *              the highway's roads are built (five times on swamp), so far fewer are needed
  *   container  built once by the miner (amortized over AMORTIZE_TICKS) and repaired, as containers outside our rooms
  *              decay fast; no haulers go before it's built (see RemoteSpawnHandler)
- *   roads      from ROAD_MIN_RCL: built once (amortized) and kept up, plus the highway maintainer's body now and then;
+ *   roads      from ROAD_MIN_RCL: built once (amortized over ROAD_AMORTIZE_TICKS) and kept up, plus the highway maintainer's body now and then;
  *              only the road a source adds counts, as routes share roads (see remote/highway)
  *   reserver   2 CLAIM + 2 MOVE every 600 ticks, shared by the room's sources
  *
@@ -80,6 +80,14 @@ const REMOTE_ROLES = [
 ]
 /** One-off building (containers, roads) is spread over this many ticks when weighing a source. */
 const AMORTIZE_TICKS = 20000
+/** Roads last as long as they're kept up (their upkeep is counted separately), so building one is spread over longer. */
+const ROAD_AMORTIZE_TICKS = 100000
+/**
+ * Energy per tick a whole spawn's time is worth when weighing a road: spawn time, not energy, limits how many remotes a
+ * home can run, and remotes net roughly this per spawn's worth of their creeps. A road makes full haulers twice as
+ * fast (see roundTrip), so it takes fewer of them, and less of the spawn's time.
+ */
+const SPAWN_TIME_VALUE = 15
 /** Ticks per hauler round trip beyond walking: withdrawing, delivering, passing other creeps. */
 const TRIP_OVERHEAD = 10
 /** Hauling capacity beyond the exact need, so energy doesn't pile up and decay at the source. */
@@ -106,7 +114,7 @@ export interface RemoteSource {
   reserve: boolean
   /** Whether its route gets a road (see score). */
   road: boolean
-  /** Whether haulers are built for roads (2 CARRY per MOVE): it gets a road and the highway is mostly built. */
+  /** Whether haulers travel at road speed (see roundTrip): it gets a road and the highway is mostly built. */
   roads: boolean
   workParts: number
   /** CARRY parts the source's haulers need in all. */
@@ -358,7 +366,8 @@ function roadBuildCost(pos: RoomPosition): number {
  * From ROAD_MIN_RCL it's weighed both ways, and the source gets a road (a highway, see remote/highway) only if that
  * nets more: a road halves the haulers' MOVE parts and keeps them at a tile per tick, but it costs 300 energy a tile,
  * 1500 on swamp, and a long swampy route may never pay that back. `newRoad` is the energy to build the part of its
- * road not already on the highway (routes share roads); building is spread over AMORTIZE_TICKS.
+ * road not already on the highway (routes share roads); building is spread over ROAD_AMORTIZE_TICKS. The spawn time
+ * the road saves (fewer hauler parts) counts too, at SPAWN_TIME_VALUE, though it isn't part of the net reported.
  *
  * Haulers are spawned for the roads there are now (`roadsBuilt`), so while a road is being built they need more
  * CARRY and MOVE; spawn time is counted for whichever needs more, so the spawn isn't overbooked meanwhile.
@@ -380,19 +389,22 @@ function score(
 
   const option = (withRoad: boolean) => {
     const carry = carryFor(withRoad)
-    const perCarry = haulerCostPerCarry(withRoad)
+    const perCarry = haulerCostPerCarry()
     const creeps = (bodyCost(miner) + carry * perCarry.energy) / CREEP_LIFE_TIME
-    const road = withRoad ? newRoad / AMORTIZE_TICKS + c.route.roadUpkeep : 0
-    return { net: income - creeps - container - road, haulerParts: carry * perCarry.parts }
+    const road = withRoad ? newRoad / ROAD_AMORTIZE_TICKS + c.route.roadUpkeep : 0
+    const haulerParts = carry * perCarry.parts
+    const load = ((miner.length + haulerParts) * CREEP_SPAWN_TIME) / CREEP_LIFE_TIME
+    const net = income - creeps - container - road
+    return { net, haulerParts, value: net - load * SPAWN_TIME_VALUE }
   }
   const without = option(false)
   const withRoad = roadsOn ? option(true) : null
-  const road = withRoad !== null && without.net < withRoad.net
+  const road = withRoad !== null && without.value < withRoad.value
   const chosen = road ? withRoad! : without
 
   const roads = road && roadsBuilt
   const carryParts = carryFor(roads)
-  const haulerParts = Math.max(carryParts * haulerCostPerCarry(roads).parts, chosen.haulerParts)
+  const haulerParts = Math.max(carryParts * haulerCostPerCarry().parts, chosen.haulerParts)
   const spawnLoad = ((miner.length + haulerParts) * CREEP_SPAWN_TIME) / CREEP_LIFE_TIME
 
   return {
