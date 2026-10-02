@@ -1,7 +1,8 @@
+import type { ReactNode } from "react"
 import type { RoomSnapshot } from "@bot/snapshot"
 import { Bar, Stat } from "./ui"
 
-export function RoomPanel({ room }: { room: RoomSnapshot }) {
+export function RoomPanel({ room, children }: { room: RoomSnapshot; children?: ReactNode }) {
   const now = room.buildNext.filter(s => s.rcl <= room.rcl)
   const later = room.buildNext.filter(s => s.rcl > room.rcl)
   const creeps = Object.entries(room.creeps).sort((a, b) => b[1] - a[1])
@@ -78,6 +79,7 @@ export function RoomPanel({ room }: { room: RoomSnapshot }) {
           </ul>
         </>
       )}
+      {children}
     </section>
   )
 }

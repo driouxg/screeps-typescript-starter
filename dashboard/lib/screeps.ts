@@ -51,10 +51,42 @@ export async function setControls(controls: ControlsSnapshot): Promise<void> {
   })
 }
 
+/** Requests the bot acts on (see src/expansion): the player's expansion pick, and bases to tear down. */
+export type Command =
+  | { path: "expansionRequest"; value: { target: string } | { cancel: true } | null }
+  | { path: `abandonRooms.${string}`; value: { requested: number } | null }
+
+/** Write one command into the bot's Memory (a dotted path sets just that key). */
+export async function sendCommand(command: Command): Promise<void> {
+  if (source() === "file") {
+    const commands = await readMockCommands()
+    commands[command.path] = command.value
+    await fs.writeFile(mockCommandsPath(), JSON.stringify(commands, null, 2))
+    return
+  }
+  const shard = env("SCREEPS_SHARD")
+  await call("/api/user/memory", {
+    method: "POST",
+    body: JSON.stringify({ path: command.path, value: command.value, ...(shard ? { shard } : {}) })
+  })
+}
+
 // --- Snapshot file (development without a server) ---
 
 function mockControlsPath(): string {
   return path.join(process.cwd(), ".mock-controls.json")
+}
+
+function mockCommandsPath(): string {
+  return path.join(process.cwd(), ".mock-commands.json")
+}
+
+async function readMockCommands(): Promise<Record<string, unknown>> {
+  try {
+    return JSON.parse(await fs.readFile(mockCommandsPath(), "utf8")) as Record<string, unknown>
+  } catch {
+    return {}
+  }
 }
 
 async function readSnapshotFile(): Promise<DashboardSnapshot> {
@@ -71,6 +103,13 @@ async function readSnapshotFile(): Promise<DashboardSnapshot> {
   } catch {
     // No changes yet.
   }
+  // Commands show up as requests the bot hasn't acted on yet.
+  const commands = await readMockCommands()
+  if ("expansionRequest" in commands)
+    snapshot.expansionRequest = commands.expansionRequest as DashboardSnapshot["expansionRequest"]
+  const abandoning = Object.entries(commands).filter(([key, value]) => key.startsWith("abandonRooms.") && value)
+  if (abandoning.length)
+    snapshot.abandoning = abandoning.map(([key]) => ({ room: key.slice("abandonRooms.".length), status: "requested" }))
   return snapshot
 }
 

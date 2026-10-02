@@ -6,9 +6,10 @@ import ICreepHandler from "./ICreepHandler"
  * on the target) and moves on.
  */
 export default class ClaimerHandler implements ICreepHandler {
-  handle(creep: Creep): void {
+  public handle(creep: Creep): void {
     const memory = creep.memory as ClaimerMemory
-    const target = memory.targetRoom ?? Memory.expansion?.target
+    // Follow the expansion if its target changes on the way (the player picked another room from the dashboard).
+    const target = Memory.expansion?.state === "claiming" ? Memory.expansion.target : memory.targetRoom
     if (!target) return
 
     if (creep.room.name !== target) {

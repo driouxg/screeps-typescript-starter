@@ -82,6 +82,15 @@ export interface HostileSnapshot {
   parts: { [part: string]: number }
 }
 
+export interface ExpansionCandidateSnapshot {
+  room: string
+  home: string
+  score: number
+  sources: number
+  /** Rooms away from home by route. */
+  distance: number
+}
+
 export interface DashboardSnapshot {
   version: number
   tick: number
@@ -99,7 +108,15 @@ export interface DashboardSnapshot {
   threats: ThreatSnapshot[]
   hostiles: HostileSnapshot[]
   relations: { allies: string[]; enemies: string[]; hostilePlayers: { [username: string]: number } }
-  expansion: { target: string; home: string; state: string; started: number } | null
+  expansion: { target: string; home: string; state: string; started: number; manual?: boolean } | null
+  /** Rooms the bot would expand to, best first (one per room, from its best home). */
+  expansionCandidates?: ExpansionCandidateSnapshot[]
+  /** Whether one-source rooms are candidates: no two-source room is known anywhere near. */
+  expansionSingleSource?: boolean
+  /** The player's pick (or cancel) from the dashboard, not yet acted on, and why. */
+  expansionRequest?: { target?: string; cancel?: boolean; status?: string } | null
+  /** Bases being torn down, and how far along. */
+  abandoning?: { room: string; status: string }[]
   highways: {
     home: string
     room: string

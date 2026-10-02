@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from "react"
 import type { AggressionLevel, ControlsSnapshot, DashboardSnapshot } from "@bot/snapshot"
 import { ControlsPanel } from "@/components/ControlsPanel"
 import { RoomPanel } from "@/components/RoomPanel"
+import { ExpansionPanel } from "@/components/ExpansionPanel"
+import { AbandonBase } from "@/components/AbandonBase"
 import { Bar, Stat } from "@/components/ui"
 import {
   CpuPanel,
-  ExpansionPanel,
   HighwaysPanel,
   HostilesPanel,
   RelationsPanel,
@@ -63,6 +64,26 @@ export default function Dashboard() {
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       // The bot reports the change with its next snapshot; until then, show what was asked for.
       setPending(p => ({ ...p, ...update }))
+      setError(null)
+      await load()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Send a request the bot acts on (expansion pick, abandoning a base); it reports back in a later snapshot. */
+  const command = async (endpoint: string, body: object) => {
+    setSaving(true)
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`)
       setError(null)
       await load()
     } catch (e) {
@@ -155,9 +176,26 @@ export default function Dashboard() {
 
       <div className="grid">
         {s.rooms.map(room => (
-          <RoomPanel key={room.name} room={room} />
+          <RoomPanel key={room.name} room={room}>
+            <AbandonBase
+              room={room.name}
+              status={s.abandoning?.find(a => a.room === room.name)?.status ?? null}
+              onlyRoom={s.rooms.length <= 1}
+              busy={saving}
+              onAbandon={(name, confirm) => command("/api/abandon", { room: name, confirm })}
+              onCancel={name => command("/api/abandon", { room: name, cancel: true })}
+            />
+          </RoomPanel>
         ))}
       </div>
+
+      <ExpansionPanel
+        snapshot={s}
+        busy={saving}
+        onPick={target => command("/api/expansion", { target })}
+        onCancel={() => command("/api/expansion", { cancel: true })}
+        onClear={() => command("/api/expansion", { clear: true })}
+      />
 
       <RemotesPanel snapshot={s} />
 
@@ -165,7 +203,6 @@ export default function Dashboard() {
         <ThreatsPanel snapshot={s} />
         <HostilesPanel snapshot={s} />
         <RelationsPanel snapshot={s} />
-        <ExpansionPanel snapshot={s} />
         <HighwaysPanel snapshot={s} />
         <CpuPanel snapshot={s} />
       </div>

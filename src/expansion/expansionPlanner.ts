@@ -1,7 +1,9 @@
 import { myUsername } from "utils/username"
-import { recordIntel, RoomIntel } from "./intel"
+import { recordIntel } from "./intel"
 import { controls } from "config/controls"
 import { sameMapZone } from "utils/roomSafety"
+import { ExpansionCandidate, expansionCandidates, whyNotClaimable } from "./candidates"
+import { abandonBases } from "./abandonBase"
 
 /**
  * Goal: Decide when and where to expand, and drive the expansion through to a working spawn in the new room.
@@ -9,19 +11,26 @@ import { sameMapZone } from "utils/roomSafety"
  * When: there's a free GCL slot, a home room at MIN_HOME_RCL or above (a tower to defend it and enough capacity for
  * the claimer and pioneers), no raid at home, and no other expansion underway.
  *
- * Where: the best-scoring room from scouted intel, between MIN_DISTANCE and MAX_DISTANCE rooms away by route (see
- * scoreRoom). Adjacent rooms are left for remote mining.
+ * Where: the best-scoring room from scouted intel (see candidates): it must have two sources, unless there is really
+ * nowhere better.
+ *
+ * Or the player picks the room (Memory.expansionRequest, from the dashboard): any room with a free controller that a
+ * claimer can reach, whatever its sources or distance, and whether or not automatic expansion is switched on. The
+ * request waits (with a status saying why) until there's a free GCL level and a home to send the claimer from; it
+ * takes over from an expansion that's still claiming. `{ cancel: true }` abandons the expansion underway.
  *
  * Then Memory.expansion steps through:
  *   claiming - a claimer (ClaimerSpawnHandler/ClaimerHandler) claims the controller
  *   building - pioneers (ExpanderSpawnHandler/ExpanderHandler) build the new room's first spawn
  * and is cleared once the spawn exists, after which the new room runs itself. A target that gets owned or reserved
  * by someone else, defended, or takes too long is abandoned and blacklisted for a while.
+ *
+ * Bases the player gives up on are torn down by abandonBases (see abandonBase).
  */
 
 export const MIN_HOME_RCL = 3
-const MIN_DISTANCE = 2
-export const MAX_DISTANCE = 6
+/** A claimer lives 600 ticks: further than this many rooms, it dies on the way. */
+const MAX_CLAIM_ROUTE = 10
 const CLAIM_TIMEOUT = 3000
 const BUILD_TIMEOUT = 15000
 const BLACKLIST_TICKS = 20000
@@ -32,6 +41,15 @@ export interface ExpansionMemory {
   home: string
   state: "claiming" | "building"
   started: number
+  /** Picked by the player (see Memory.expansionRequest), not by the planner. */
+  manual?: boolean
+}
+
+export interface ExpansionRequest {
+  target?: string
+  cancel?: boolean
+  /** Why it hasn't been acted on yet, written by the bot. */
+  status?: string
 }
 
 declare global {
@@ -39,14 +57,19 @@ declare global {
     expansion?: ExpansionMemory
     /** Rooms not to expand to until the given tick. */
     expansionBlacklist?: { [roomName: string]: number }
+    /** Set from the dashboard: expand to this room, or cancel the expansion underway (see ExpansionPlanner). */
+    expansionRequest?: ExpansionRequest | null
   }
 }
+
 
 export default class ExpansionPlanner {
   public run(): void {
     for (const name in Game.rooms) recordIntel(Game.rooms[name])
+    abandonBases()
     if (Game.time % PLAN_INTERVAL !== 0) return
 
+    this.handleRequest()
     const expansion = Memory.expansion
     if (expansion) this.advance(expansion)
     else this.maybeStart()
@@ -55,29 +78,66 @@ export default class ExpansionPlanner {
   private maybeStart(): void {
     // Expansion switched off (see config/controls): finish one underway (see run), start none.
     if (!controls().expansion) return
-    const owned = Object.values(Game.rooms).filter(r => r.controller?.my)
-    if (Game.gcl.level <= owned.length) return
+    if (!freeGclLevel()) return
 
-    const homes = owned.filter(
-      r =>
-        MIN_HOME_RCL <= (r.controller?.level ?? 0) &&
-        0 < r.find(FIND_MY_SPAWNS).length &&
-        r.memory.raidStart === undefined &&
-        BODYPART_COST[CLAIM] + 2 * BODYPART_COST[MOVE] <= r.energyCapacityAvailable
-    )
-    if (homes.length <= 0) return
-
-    let best: { target: string; home: string; score: number } | null = null
-    for (const roomName in Memory.rooms) {
-      for (const home of homes) {
-        const score = scoreRoom(roomName, home.name)
-        if (score !== null && (!best || best.score < score)) best = { target: roomName, home: home.name, score }
-      }
+    let best: ExpansionCandidate | null = null
+    for (const home of eligibleHomes()) {
+      const top = expansionCandidates(home.name).candidates[0]
+      if (top && (!best || best.score < top.score)) best = top
     }
     if (!best) return
 
-    Memory.expansion = { target: best.target, home: best.home, state: "claiming", started: Game.time }
-    console.log(`Expansion: claiming ${best.target} from ${best.home} (score ${best.score.toFixed(1)})`)
+    Memory.expansion = { target: best.room, home: best.home, state: "claiming", started: Game.time }
+    console.log(`Expansion: claiming ${best.room} from ${best.home} (score ${best.score.toFixed(1)})`)
+  }
+
+  /** The player's pick from the dashboard (see the top of this file). */
+  private handleRequest(): void {
+    const request = Memory.expansionRequest
+    if (!request) {
+      if (request === null) delete Memory.expansionRequest
+      return
+    }
+    const expansion = Memory.expansion
+    if (request.cancel) {
+      if (expansion) this.abandon(expansion, "cancelled from the dashboard")
+      delete Memory.expansionRequest
+      return
+    }
+
+    const target = request.target
+    if (!target || !/^[WE]\d+[NS]\d+$/.test(target) || expansion?.target === target) {
+      delete Memory.expansionRequest
+      return
+    }
+    const wait = (status: string) => {
+      if (request.status !== status) console.log(`Expansion request ${target}: ${status}`)
+      request.status = status
+    }
+
+    if (expansion?.state === "building") return wait(`waiting for ${expansion.target} to get its spawn`)
+    const why = whyNotClaimable(target)
+    if (why) return wait(`can't expand there: ${why}`)
+    if (!freeGclLevel()) return wait("waiting for a free GCL level")
+
+    const homes = eligibleHomes()
+    if (homes.length <= 0) return wait(`waiting for a home at RCL ${MIN_HOME_RCL}+ with a spawn and no raid`)
+    let home: { name: string; distance: number } | null = null
+    for (const h of homes) {
+      if (!sameMapZone(h.name, target)) continue
+      const route = Game.map.findRoute(h.name, target)
+      if (route !== ERR_NO_PATH && (!home || route.length < home.distance))
+        home = { name: h.name, distance: route.length }
+    }
+    if (!home) return wait("no route from any of our rooms")
+    if (MAX_CLAIM_ROUTE < home.distance)
+      return wait(`${home.distance} rooms away: a claimer (600 ticks of life) can't get further than ${MAX_CLAIM_ROUTE}`)
+
+    if (Memory.expansionBlacklist) delete Memory.expansionBlacklist[target]
+    if (expansion) console.log(`Expansion: dropping ${expansion.target} for the player's pick`)
+    Memory.expansion = { target, home: home.name, state: "claiming", started: Game.time, manual: true }
+    delete Memory.expansionRequest
+    console.log(`Expansion: claiming ${target} from ${home.name} (picked from the dashboard)`)
   }
 
   private advance(expansion: ExpansionMemory): void {
@@ -93,6 +153,8 @@ export default class ExpansionPlanner {
         console.log(`Expansion: claimed ${expansion.target}, building its spawn`)
         return
       }
+      // A room picked from the dashboard may not have been scouted.
+      if (room && !room.controller) return this.abandon(expansion, "no controller")
       const takenByOthers =
         (intel?.controller?.owner && intel.controller.owner !== me) ||
         (intel?.controller?.reservedBy && intel.controller.reservedBy !== me) ||
@@ -124,39 +186,23 @@ export default class ExpansionPlanner {
   }
 }
 
-/**
- * Higher is better; null means not a candidate. Scored from intel:
- * - sources: each is worth 40 (a 2-source room doubles income)
- * - distance: 2-3 rooms is ideal (close enough to reinforce, far enough not to compete with remote mining)
- * - terrain: swamp slows everything; lots of wall leaves no room for a base
- * - layout: sources far from the controller mean long hauls for upgrading
- * - hostile fighters seen there
- */
-export function scoreRoom(roomName: string, home: string): number | null {
-  const intel: RoomIntel | undefined = Memory.rooms[roomName]?.intel
-  if (!intel?.controller || intel.sources <= 0) return null
+function freeGclLevel(): boolean {
+  const owned = Object.values(Game.rooms).filter(r => r.controller?.my).length
+  return owned < Game.gcl.level
+}
 
-  const me = myUsername()
-  if (intel.controller.owner) return null
-  if (intel.controller.reservedBy && intel.controller.reservedBy !== me) return null
-  if (0 < intel.hostileStructures) return null
-  if (Game.time < (Memory.expansionBlacklist?.[roomName] ?? 0)) return null
-  if (!sameMapZone(roomName, home)) return null
-
-  const route = Game.map.findRoute(home, roomName)
-  if (route === ERR_NO_PATH) return null
-  const distance = route.length
-  if (distance < MIN_DISTANCE || MAX_DISTANCE < distance) return null
-
-  return (
-    intel.sources * 40 -
-    Math.max(0, distance - 3) * 10 -
-    intel.swampRatio * 50 -
-    Math.max(0, intel.wallRatio - 0.4) * 100 -
-    intel.controllerToSources * 0.5 -
-    intel.hostileFighters * 10
+/** Rooms that can send a claimer and pioneers. */
+function eligibleHomes(): Room[] {
+  return Object.values(Game.rooms).filter(
+    r =>
+      r.controller?.my &&
+      MIN_HOME_RCL <= r.controller.level &&
+      0 < r.find(FIND_MY_SPAWNS).length &&
+      r.memory.raidStart === undefined &&
+      BODYPART_COST[CLAIM] + 2 * BODYPART_COST[MOVE] <= r.energyCapacityAvailable
   )
 }
+
 
 /**
  * The new room's first spawn: the construction composer's layout places it once the room has a build order, but

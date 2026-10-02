@@ -6,7 +6,14 @@ import { containerBuilt } from "remote/remoteCreeps"
 import { upcomingSteps } from "structures/construction/buildOrderConstructor"
 import * as creepRoles from "creeps/roles"
 import { myUsername } from "utils/username"
-import { DashboardSnapshot, DASHBOARD_SEGMENT, RoomSnapshot, SNAPSHOT_VERSION } from "./snapshot"
+import { expansionCandidates } from "expansion/candidates"
+import {
+  DashboardSnapshot,
+  DASHBOARD_SEGMENT,
+  ExpansionCandidateSnapshot,
+  RoomSnapshot,
+  SNAPSHOT_VERSION
+} from "./snapshot"
 
 /**
  * Goal: Publish the bot's state for the dashboard (see dashboard/): every REPORT_INTERVAL ticks a compact JSON
@@ -19,6 +26,7 @@ const REPORT_INTERVAL = 20
 const BUILD_NEXT = 8
 const REMOTE_REPORT_LINES = 40
 const PROFILE_LINES = 12
+const EXPANSION_CANDIDATES = 10
 
 /** Controller progress at the previous report, per room, to measure upgrading (lost on a global reset: no rate then). */
 let previous: { tick: number; progress: { [room: string]: number } } | null = null
@@ -172,6 +180,12 @@ function build(): DashboardSnapshot {
       hostilePlayers: Memory.hostilePlayers ?? {}
     },
     expansion: Memory.expansion ?? null,
+    ...expansionOptions(owned),
+    expansionRequest: Memory.expansionRequest ?? null,
+    abandoning: Object.entries(Memory.abandonRooms ?? {}).reduce(
+      (all, [room, r]) => (r ? all.concat({ room, status: r.status ?? "starting" }) : all),
+      [] as { room: string; status: string }[]
+    ),
     highways: Object.entries(Memory.highways ?? {}).reduce(
       (all, [home, h]) =>
         all.concat(
@@ -188,5 +202,24 @@ function build(): DashboardSnapshot {
       [] as DashboardSnapshot["highways"]
     ),
     cpuProfile: profile
+  }
+}
+
+/** The best rooms to expand to, each from the home it scores best from. */
+function expansionOptions(owned: Room[]): {
+  expansionCandidates: ExpansionCandidateSnapshot[]
+  expansionSingleSource: boolean
+} {
+  const best = new Map<string, ExpansionCandidateSnapshot>()
+  let singleSource = false
+  for (const home of owned) {
+    if (home.find(FIND_MY_SPAWNS).length <= 0) continue
+    const options = expansionCandidates(home.name)
+    singleSource = singleSource || options.singleSource
+    for (const c of options.candidates) if ((best.get(c.room)?.score ?? -Infinity) < c.score) best.set(c.room, c)
+  }
+  return {
+    expansionCandidates: [...best.values()].sort((a, b) => b.score - a.score).slice(0, EXPANSION_CANDIDATES),
+    expansionSingleSource: singleSource
   }
 }

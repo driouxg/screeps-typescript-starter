@@ -177,25 +177,6 @@ export function RelationsPanel({ snapshot: s }: Props) {
   )
 }
 
-export function ExpansionPanel({ snapshot: s }: Props) {
-  const e = s.expansion
-  return (
-    <section className="panel">
-      <h2>
-        Expansion {!s.controls.expansion && <span className="badge warn">switched off</span>}
-      </h2>
-      {e ? (
-        <p>
-          <strong>{e.target}</strong> from {e.home}: <span className="badge">{e.state}</span>{" "}
-          <span className="muted">started {ago(e.started, s.tick)}</span>
-        </p>
-      ) : (
-        <Empty>None underway (needs a free GCL level and a home at RCL 3+).</Empty>
-      )}
-    </section>
-  )
-}
-
 export function HighwaysPanel({ snapshot: s }: Props) {
   return (
     <section className="panel">

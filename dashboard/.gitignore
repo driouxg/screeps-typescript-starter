@@ -2,5 +2,6 @@ node_modules
 .next
 .env*.local
 .mock-controls.json
+.mock-commands.json
 next-env.d.ts
 *.tsbuildinfo
