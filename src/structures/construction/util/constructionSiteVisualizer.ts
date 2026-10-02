@@ -38,10 +38,11 @@ export default class ConstructionSiteVisualizer {
       return
     }
 
-    // Only what this draws is cached, not other visuals drawn in the room this tick.
-    const before = room.visual.export().length
+    // Only what this draws is cached, not other visuals drawn in the room this tick. export() gives undefined, not "",
+    // while nothing has been drawn in the room yet.
+    const before = (room.visual.export() ?? "").length
     this.draw(room, buildOrder, structures, sites)
-    cache.set(room.name, { tick: Game.time, key, visual: room.visual.export().slice(before) })
+    cache.set(room.name, { tick: Game.time, key, visual: (room.visual.export() ?? "").slice(before) })
   }
 
   private draw(room: Room, buildOrder: BuildOrderStep[], structures: Structure[], sites: ConstructionSite[]): void {

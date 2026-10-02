@@ -53,7 +53,12 @@ export default class ConstructionComposer {
 
       build(room)
 
-      this.constructionVisualizer.handle(room)
+      // Only a display: a failure here mustn't stop planning this room or the next ones.
+      try {
+        this.constructionVisualizer.handle(room)
+      } catch (e) {
+        console.log(`Build plan overlay failed in ${room.name}: ${e instanceof Error ? e.stack : e}`)
+      }
       if (room.memory.buildOrder) continue
       room.memory.buildOrder = []
       this.cleanupRoom(room)
