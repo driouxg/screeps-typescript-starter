@@ -77,6 +77,7 @@ function build(): DashboardSnapshot {
       ticksToDowngrade: c.ticksToDowngrade ?? 0,
       safeMode: c.safeMode ?? 0,
       safeModeAvailable: c.safeModeAvailable,
+      buildPlanOverlay: !!Memory.buildPlanOverlay?.[room.name],
       energyAvailable: room.energyAvailable,
       energyCapacity: room.energyCapacityAvailable,
       storedEnergy: stored,

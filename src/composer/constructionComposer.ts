@@ -53,7 +53,7 @@ export default class ConstructionComposer {
 
       build(room)
 
-      // this.constructionVisualizer.handle(room, room.memory.desiredState)
+      this.constructionVisualizer.handle(room)
       if (room.memory.buildOrder) continue
       room.memory.buildOrder = []
       this.cleanupRoom(room)

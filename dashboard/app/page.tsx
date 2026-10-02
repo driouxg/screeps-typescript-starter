@@ -28,6 +28,8 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [pending, setPending] = useState<Partial<ControlsSnapshot> | null>(null)
+  /** Build plan overlays switched from here that the bot hasn't reported yet, per room. */
+  const [overlayPending, setOverlayPending] = useState<Record<string, boolean>>({})
   const [now, setNow] = useState(() => Date.now())
 
   const load = useCallback(async () => {
@@ -79,7 +81,7 @@ export default function Dashboard() {
   }
 
   /** Send a request the bot acts on (expansion pick, abandoning a base); it reports back in a later snapshot. */
-  const command = async (endpoint: string, body: object) => {
+  const command = async (endpoint: string, body: object): Promise<boolean> => {
     setSaving(true)
     try {
       const response = await fetch(endpoint, {
@@ -91,8 +93,10 @@ export default function Dashboard() {
       if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`)
       setError(null)
       await load()
+      return true
     } catch (e) {
       setError((e as Error).message)
+      return false
     } finally {
       setSaving(false)
     }
@@ -105,6 +109,17 @@ export default function Dashboard() {
     const settled = (Object.keys(pending) as (keyof ControlsSnapshot)[]).every(k => s.controls[k] === pending[k])
     if (settled) setPending(null)
   }, [s, pending])
+
+  // An overlay switch is settled once the bot's snapshot reports it.
+  useEffect(() => {
+    if (!s) return
+    setOverlayPending(p => {
+      const left = Object.fromEntries(
+        Object.entries(p).filter(([room, show]) => s.rooms.find(r => r.name === room)?.buildPlanOverlay !== show)
+      )
+      return Object.keys(left).length === Object.keys(p).length ? p : left
+    })
+  }, [s])
 
   if (!s)
     return (
@@ -187,6 +202,22 @@ export default function Dashboard() {
       <div className="grid">
         {s.rooms.map(room => (
           <RoomPanel key={room.name} room={room}>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={overlayPending[room.name] ?? room.buildPlanOverlay ?? false}
+                disabled={saving || room.buildPlanOverlay === undefined}
+                onChange={async e => {
+                  const show = e.target.checked
+                  if (await command("/api/overlay", { room: room.name, show }))
+                    setOverlayPending(p => ({ ...p, [room.name]: show }))
+                }}
+              />
+              <span>
+                Show build plan in game{" "}
+                {room.name in overlayPending && <span className="badge warn">waiting for the bot</span>}
+              </span>
+            </label>
             <AbandonBase
               room={room.name}
               status={s.abandoning?.find(a => a.room === room.name)?.status ?? null}

@@ -22,6 +22,8 @@ export interface RoomSnapshot {
   ticksToDowngrade: number
   safeMode: number
   safeModeAvailable: number
+  /** Whether its build plan is drawn in the game (see ConstructionSiteVisualizer). */
+  buildPlanOverlay?: boolean
   energyAvailable: number
   energyCapacity: number
   storedEnergy: number

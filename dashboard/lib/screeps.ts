@@ -51,10 +51,14 @@ export async function setControls(controls: ControlsSnapshot): Promise<void> {
   })
 }
 
-/** Requests the bot acts on (see src/expansion): the player's expansion pick, and bases to tear down. */
+/**
+ * Requests the bot acts on: the player's expansion pick and bases to tear down (see src/expansion), and which rooms
+ * show their build plan in the game (see src/structures/construction/util/constructionSiteVisualizer.ts).
+ */
 export type Command =
   | { path: "expansionRequest"; value: { target: string } | { cancel: true } | null }
   | { path: `abandonRooms.${string}`; value: { requested: number } | null }
+  | { path: `buildPlanOverlay.${string}`; value: boolean }
 
 /** Write one command into the bot's Memory (a dotted path sets just that key). */
 export async function sendCommand(command: Command): Promise<void> {
@@ -110,6 +114,10 @@ async function readSnapshotFile(): Promise<DashboardSnapshot> {
   const abandoning = Object.entries(commands).filter(([key, value]) => key.startsWith("abandonRooms.") && value)
   if (abandoning.length)
     snapshot.abandoning = abandoning.map(([key]) => ({ room: key.slice("abandonRooms.".length), status: "requested" }))
+  for (const room of snapshot.rooms) {
+    const overlay = commands[`buildPlanOverlay.${room.name}`]
+    if (typeof overlay === "boolean") room.buildPlanOverlay = overlay
+  }
   return snapshot
 }
 
