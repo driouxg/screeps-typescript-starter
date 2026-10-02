@@ -33,6 +33,11 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/snapshot", { cache: "no-store" })
+      // Session expired: back to the login page, then here again.
+      if (response.status === 401) {
+        window.location.assign("/login")
+        return
+      }
       const body = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       setData(body as Loaded)
@@ -135,6 +140,11 @@ export default function Dashboard() {
           {data!.source === "file" ? "snapshot file" : "live"}
         </span>
         {error && <span className="error">{error}</span>}
+        <form method="post" action="/api/logout">
+          <button className="button" type="submit">
+            Sign out
+          </button>
+        </form>
       </header>
 
       <div className="grid">
