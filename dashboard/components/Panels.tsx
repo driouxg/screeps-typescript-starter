@@ -76,34 +76,36 @@ export function ThreatsPanel({ snapshot: s }: Props) {
       {s.threats.length === 0 ? (
         <Empty>None.</Empty>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Room</th>
-              <th className="num">Damage</th>
-              <th className="num">Healing</th>
-              <th className="num">Hits</th>
-              <th>Response</th>
-            </tr>
-          </thead>
-          <tbody>
-            {s.threats.map(t => (
-              <tr key={t.room}>
-                <td>{t.room}</td>
-                <td className="num">{t.damage}</td>
-                <td className="num">{t.healing}</td>
-                <td className="num">{t.hits}</td>
-                <td>
-                  {t.defenders ? (
-                    <span className="badge warn">{t.defenders} defender(s)</span>
-                  ) : (
-                    <span className="badge bad">paused</span>
-                  )}
-                </td>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Room</th>
+                <th className="num">Damage</th>
+                <th className="num">Healing</th>
+                <th className="num">Hits</th>
+                <th>Response</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {s.threats.map(t => (
+                <tr key={t.room}>
+                  <td>{t.room}</td>
+                  <td className="num">{t.damage}</td>
+                  <td className="num">{t.healing}</td>
+                  <td className="num">{t.hits}</td>
+                  <td>
+                    {t.defenders ? (
+                      <span className="badge warn">{t.defenders} defender(s)</span>
+                    ) : (
+                      <span className="badge bad">paused</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )
@@ -266,30 +268,32 @@ export function HighwaysPanel({ snapshot: s }: Props) {
       {s.highways.length === 0 ? (
         <Empty>No remote roads planned (only built where they pay back).</Empty>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Room</th>
-              <th className="num">Roads</th>
-              <th className="num">Missing</th>
-              <th className="num">Below 50%</th>
-              <th className="num">Sites</th>
-              <th className="num">Lowest</th>
-            </tr>
-          </thead>
-          <tbody>
-            {s.highways.map(h => (
-              <tr key={h.home + h.room}>
-                <td>{h.room}</td>
-                <td className="num">{h.tiles}</td>
-                <td className="num">{h.missing}</td>
-                <td className="num">{h.damaged}</td>
-                <td className="num">{h.sites}</td>
-                <td className="num">{Math.round(h.lowest * 100)}%</td>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Room</th>
+                <th className="num">Roads</th>
+                <th className="num">Missing</th>
+                <th className="num">Below 50%</th>
+                <th className="num">Sites</th>
+                <th className="num">Lowest</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {s.highways.map(h => (
+                <tr key={h.home + h.room}>
+                  <td>{h.room}</td>
+                  <td className="num">{h.tiles}</td>
+                  <td className="num">{h.missing}</td>
+                  <td className="num">{h.damaged}</td>
+                  <td className="num">{h.sites}</td>
+                  <td className="num">{Math.round(h.lowest * 100)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )
@@ -307,28 +311,30 @@ export function CpuPanel({ snapshot: s }: Props) {
           Profiling is off. Run <code>Memory.cpuProfile = {"{}"}</code> in the game console to turn it on.
         </Empty>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Where</th>
-              <th className="num">Per tick</th>
-              <th className="num">Per call</th>
-              <th className="num">Calls</th>
-              <th className="num">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {s.cpuProfile.map(p => (
-              <tr key={p.key}>
-                <td>{p.key}</td>
-                <td className="num">{p.perTick === undefined ? "–" : p.perTick.toFixed(2)}</td>
-                <td className="num">{p.perCall.toFixed(3)}</td>
-                <td className="num">{p.calls.toLocaleString()}</td>
-                <td className="num">{p.cpu.toLocaleString()}</td>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Where</th>
+                <th className="num">Per tick</th>
+                <th className="num">Per call</th>
+                <th className="num">Calls</th>
+                <th className="num">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {s.cpuProfile.map(p => (
+                <tr key={p.key}>
+                  <td>{p.key}</td>
+                  <td className="num">{p.perTick === undefined ? "–" : p.perTick.toFixed(2)}</td>
+                  <td className="num">{p.perCall.toFixed(3)}</td>
+                  <td className="num">{p.calls.toLocaleString()}</td>
+                  <td className="num">{p.cpu.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )

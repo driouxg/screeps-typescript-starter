@@ -154,7 +154,7 @@ export default function Dashboard() {
   return (
     <main>
       <header className="top">
-        <h1>Screeps dashboard</h1>
+        <h1>🎮 Screeps dashboard</h1>
         <span>
           <strong>{s.username || "bot"}</strong> <span className="muted">{s.shard || "private server"}</span>
         </span>
