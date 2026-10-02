@@ -19,6 +19,8 @@ const TOP_UP_SHARE = 0.9
 /** Dropped energy at least this big and this close is picked up before harvesting. */
 const PILE_MIN = 50
 const PILE_RANGE = 10
+/** Within this range of a source with every tile next to it taken, a pioneer waits instead of pushing in. */
+const WAIT_RANGE = 3
 
 declare global {
   interface RoomMemory {
@@ -47,18 +49,6 @@ export type ExpanderState = "travel" | "harvest" | "fill" | "build" | "upgrade"
  */
 export default class ExpanderHandler implements ICreepHandler {
   public handle(creep: Creep): void {
-    const t0 = Game.cpu.getUsed()
-    const st0 = (creep.memory as ExpanderMemory).state
-    this.handle2(creep)
-    const p = Memory.cpuProfile
-    if (p) {
-      const k = `exp:${st0}>${(creep.memory as ExpanderMemory).state}`
-      const e = p[k] || (p[k] = { cpu: 0, calls: 0 })
-      e.cpu += Game.cpu.getUsed() - t0
-      e.calls++
-    }
-  }
-  public handle2(creep: Creep): void {
     const memory = creep.memory as ExpanderMemory
     if (!memory.targetRoom) return
     if (creep.room.name !== memory.targetRoom) memory.state = "travel"
@@ -98,7 +88,18 @@ export default class ExpanderHandler implements ICreepHandler {
       source = this.leastBusySource(creep)
       memory.targetSourceId = source?.id
     }
-    if (source && creep.harvest(source) === ERR_NOT_IN_RANGE) smartMove(creep, source, 1)
+    if (!source) return
+    if (creep.pos.isNearTo(source)) {
+      creep.harvest(source)
+      return
+    }
+    // Every tile next to the source is taken: pushing in would repath and shove every tick, for nothing. Get on with
+    // what we carry, or wait nearby for a tile to free up.
+    if (creep.pos.inRangeTo(source, WAIT_RANGE) && freeSlots(source) <= 0) {
+      if (0 < creep.store.energy) this.chooseWork(creep, memory)
+      return
+    }
+    smartMove(creep, source, 1)
   }
 
   private fill(creep: Creep, memory: ExpanderMemory): void {
@@ -198,11 +199,35 @@ export default class ExpanderHandler implements ICreepHandler {
     const others = creep.room.find(FIND_MY_CREEPS, {
       filter: c => c.memory.role === creepRoles.EXPANDER && c.id !== creep.id
     })
-    const load = (s: Source) => others.filter(c => (c.memory as ExpanderMemory).targetSourceId === s.id).length
+    // Pioneers per tile next to the source: a source with one open tile is full with one pioneer.
+    const load = (s: Source) =>
+      others.filter(c => (c.memory as ExpanderMemory).targetSourceId === s.id).length / slots(s)
     const sources = creep.room.find(FIND_SOURCES_ACTIVE)
     sources.sort((a, b) => load(a) - load(b) || creep.pos.getRangeTo(a) - creep.pos.getRangeTo(b))
     return sources[0] ?? null
   }
+}
+
+/** Walkable tiles next to a source, cached (terrain doesn't change). */
+const slotCache = new Map<string, number>()
+function slots(source: Source): number {
+  let n = slotCache.get(source.id)
+  if (n === undefined) {
+    const terrain = source.room.getTerrain()
+    n = 0
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++)
+        if ((dx || dy) && terrain.get(source.pos.x + dx, source.pos.y + dy) !== TERRAIN_MASK_WALL) n++
+    slotCache.set(source.id, Math.max(1, n))
+  }
+  return n || 1
+}
+
+/** Walkable tiles next to a source with no creep on them. */
+function freeSlots(source: Source): number {
+  const { x, y } = source.pos
+  const taken = source.room.lookForAtArea(LOOK_CREEPS, y - 1, x - 1, y + 1, x + 1, true).length
+  return slots(source) - taken
 }
 
 export interface ExpanderMemory extends CreepMemory {
