@@ -8,7 +8,7 @@ const KIND_ICON: Record<EnemySnapshot["rooms"][number]["kind"], string> = {
 }
 
 /** How they compare with us, from the ratio of their strength to ours (see src/defence/strength.ts). */
-function verdict(theirs: StrengthSnapshot | null, ours: StrengthSnapshot | undefined) {
+export function verdict(theirs: StrengthSnapshot | null, ours: StrengthSnapshot | undefined) {
   if (!theirs || !ours || ours.score <= 0)
     return { icon: "❔", label: "unknown: none of their bases seen", tone: "" }
   const ratio = theirs.score / ours.score

@@ -8,6 +8,7 @@ import { ExpansionPanel } from "@/components/ExpansionPanel"
 import { AbandonBase } from "@/components/AbandonBase"
 import { EnemyPanel } from "@/components/EnemyPanel"
 import { ScoutPanel } from "@/components/ScoutPanel"
+import { ContestSection } from "@/components/ContestSection"
 import { Bar, Icon, Stat } from "@/components/ui"
 import {
   CpuPanel,
@@ -267,7 +268,14 @@ export default function Dashboard() {
         onClear={() => command("/api/expansion", { clear: true })}
       />
 
-      <RemotesPanel snapshot={s} />
+      <RemotesPanel snapshot={s}>
+        <ContestSection
+          snapshot={s}
+          busy={saving}
+          onContest={room => command("/api/contest", { room })}
+          onCallOff={room => command("/api/contest", { room, cancel: true })}
+        />
+      </RemotesPanel>
 
       <div className="grid">
         <ThreatsPanel snapshot={s} />

@@ -77,16 +77,22 @@ function parseArgs(argv) {
     // miner there (see addRivalRemote), to check contesting a remote (src/remote/contest.ts).
     rivalRooms: null,
     rivalRemote: null,
+    // Tick the rival reserves --rival-remote and moves its creeps in (default: from the start). Later means it walks
+    // into a remote we already mine.
+    rivalRemoteAt: 0,
     // Our Memory.controls.aggression at the start (passive, defensive, aggressive).
     aggression: null,
     // 0: start with scouting switched off (Memory.controls.scouting).
     scouting: 1,
     // Ask for a room to be scouted at a tick, as the dashboard's Scouting card does (see src/expansion/scoutRequests.ts).
     scoutRequest: null,
-    scoutAt: 1000
+    scoutAt: 1000,
+    // Pick a room to contest at a tick, as the dashboard's remote mining card does (see src/remote/contest.ts).
+    contest: null,
+    contestAt: 1000
   }
   const strings = [
-    "label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms", "rivalRooms", "rivalRemote", "aggression", "scoutRequest"
+    "label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms", "rivalRooms", "rivalRemote", "aggression", "scoutRequest", "contest"
   ]
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase())
@@ -465,7 +471,7 @@ async function main() {
     : null
   if (outpostRoom) await addOutpost(server, enemy, outpostRoom)
   const rival = opts.rivalRooms ? await addNeighbour(server, "rival", opts.rivalRooms.split(","), RIVAL_MAIN, false) : null
-  if (rival && opts.rivalRemote) await addRivalRemote(server, rival, opts.rivalRemote)
+  if (rival && opts.rivalRemote && !opts.rivalRemoteAt) await addRivalRemote(server, rival, opts.rivalRemote)
   const outpostBefore = outpostRoom ? await outpostState(server, enemy.id, outpostRoom) : null
   if (opts.neutralRooms)
     await addNeighbour(server, "neutral", opts.neutralRooms.split(","), opts.neutralTowers ? TOWER_SHOOTER : undefined)
@@ -530,6 +536,14 @@ async function main() {
     if (opts.startRamparts && opts.rampartsAt && tick === opts.rampartsAt) {
       const n = await addPlannedRamparts(server, player, opts.room, opts.startRcl || 3, opts.startRamparts)
       console.log(`tick ${String(tick).padStart(6)}  added ${n} ramparts with ${opts.startRamparts} hits`)
+    }
+    if (rival && opts.rivalRemote && tick === opts.rivalRemoteAt) {
+      await addRivalRemote(server, rival, opts.rivalRemote)
+      console.log(`tick ${String(tick).padStart(6)}  rival reserves ${opts.rivalRemote}`)
+    }
+    if (opts.contest && tick === opts.contestAt) {
+      await player.console(`Memory.contestRequest = { room: "${opts.contest}", requested: Date.now() }`)
+      console.log(`tick ${String(tick).padStart(6)}  contest of ${opts.contest} picked`)
     }
     if (opts.scoutRequest && tick === opts.scoutAt) {
       await player.console(`Memory.scoutRequests = { ${opts.scoutRequest}: { requested: Date.now() } }`)

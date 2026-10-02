@@ -8,7 +8,7 @@ import { upcomingSteps } from "structures/construction/buildOrderConstructor"
 import * as creepRoles from "creeps/roles"
 import { myUsername } from "utils/username"
 import { expansionCandidates } from "expansion/candidates"
-import { enemyReports } from "./enemyReport"
+import { contestReports, enemyReports } from "./enemyReport"
 import {
   DashboardSnapshot,
   DASHBOARD_SEGMENT,
@@ -196,6 +196,15 @@ function build(): DashboardSnapshot {
       const { ours, enemies } = enemyReports()
       return { ourStrength: ours, enemies }
     })(),
+    ...contestReports(),
+    contestRequest: Memory.contestRequest
+      ? {
+          room: Memory.contestRequest.room,
+          cancel: Memory.contestRequest.cancel,
+          status: Memory.contestRequest.status,
+          done: Memory.contestRequest.done
+        }
+      : null,
     scoutRequests: Object.entries(Memory.scoutRequests ?? {}).reduce(
       (all, [room, r]) =>
         r ? all.concat({ room, home: r.home, status: r.status ?? "waiting for the bot", done: !!r.done }) : all,

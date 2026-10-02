@@ -396,6 +396,45 @@ header.top form {
   margin-left: auto;
 }
 
+/* Contesting remotes (see ContestSection). */
+.contest {
+  margin: 12px 0;
+}
+
+td.wrap {
+  white-space: normal;
+  min-width: 16em;
+}
+
+dialog.confirm {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 18px 20px;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 30%);
+}
+
+dialog.confirm::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+dialog.confirm h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+dialog.confirm .considerations li {
+  padding: 4px 0;
+}
+
+dialog.confirm .actions {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
 /* Enemy intel (see EnemyPanel). */
 .enemies {
   display: grid;

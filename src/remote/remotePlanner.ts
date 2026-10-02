@@ -170,6 +170,8 @@ export default class RemotePlanner {
     const stale = !Memory.remotes || Object.values(Memory.remotes).some(r => !r.spot) || !!Memory.remotesReplan
     if (Game.time % PLAN_INTERVAL !== 0 && !stale) return
     delete Memory.remotesReplan
+    // Listed afresh by this plan (see considerContest).
+    Memory.contestCandidates = {}
 
     const remotes: { [id: string]: RemoteSource } = {}
     this.report = []

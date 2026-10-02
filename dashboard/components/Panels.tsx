@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { DashboardSnapshot } from "@bot/snapshot"
 import { Empty, Icon } from "./ui"
 
@@ -5,7 +6,8 @@ type Props = { snapshot: DashboardSnapshot }
 
 const ago = (tick: number, now: number) => `${(now - tick).toLocaleString()} ticks ago`
 
-export function RemotesPanel({ snapshot: s }: Props) {
+/** `children`: more sections for the card, before the planner's reasoning (e.g. ContestSection). */
+export function RemotesPanel({ snapshot: s, children }: Props & { children?: ReactNode }) {
   return (
     <section className="panel span-all">
       <h2>
@@ -58,6 +60,7 @@ export function RemotesPanel({ snapshot: s }: Props) {
           </table>
         </div>
       )}
+      {children}
       <details>
         <summary>Planner reasoning ({s.remoteReport.length} lines)</summary>
         <pre className="report">{s.remoteReport.join("\n")}</pre>

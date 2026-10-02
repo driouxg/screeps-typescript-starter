@@ -1,6 +1,6 @@
-import { ENEMIES } from "config/relations"
+import { ENEMIES, isAlly } from "config/relations"
 import { ourStrength, playerStrength, Strength } from "defence/strength"
-import { EnemySnapshot, StrengthSnapshot } from "./snapshot"
+import { ContestCandidateSnapshot, ContestSnapshot, EnemySnapshot, StrengthSnapshot } from "./snapshot"
 
 /** Rooms listed per enemy, most recently seen first. */
 const ROOMS_PER_ENEMY = 12
@@ -53,6 +53,36 @@ export function enemyReports(): { ours: StrengthSnapshot; enemies: EnemySnapshot
     }
   })
   return { ours: snapshotOf(ourStrength()), enemies }
+}
+
+/** Contests underway, and the rooms the planner could contest (see remote/contest), for the remote mining card. */
+export function contestReports(): { contests: ContestSnapshot[]; contestCandidates: ContestCandidateSnapshot[] } {
+  const contests = Object.entries(Memory.remoteContests ?? {}).map(([room, c]) => ({
+    room,
+    player: c.player,
+    home: c.home,
+    status: c.status,
+    started: c.started,
+    manual: !!c.manual
+  }))
+  const strengths = new Map<string, StrengthSnapshot | null>()
+  const strengthOf = (player: string) => {
+    if (!strengths.has(player)) {
+      const s = playerStrength(player)
+      strengths.set(player, s ? snapshotOf(s) : null)
+    }
+    return strengths.get(player)!
+  }
+  const contestCandidates = Object.entries(Memory.contestCandidates ?? {}).map(([room, c]) => ({
+    room,
+    player: c.player,
+    home: c.home,
+    verdict: c.verdict,
+    ally: isAlly(c.player),
+    strength: strengthOf(c.player),
+    tick: c.tick
+  }))
+  return { contests, contestCandidates }
 }
 
 function snapshotOf(s: Strength): StrengthSnapshot {

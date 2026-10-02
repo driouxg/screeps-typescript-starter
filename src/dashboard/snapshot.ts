@@ -18,6 +18,29 @@ export interface StrengthSnapshot {
   army: number
 }
 
+export interface ContestSnapshot {
+  room: string
+  player: string
+  home: string
+  status: string
+  started: number
+  /** Picked from the dashboard. */
+  manual: boolean
+}
+
+export interface ContestCandidateSnapshot {
+  room: string
+  player: string
+  home: string
+  /** What the planner decided, e.g. "reserved by X: their strength ... vs ours ..., not contested". */
+  verdict: string
+  ally: boolean
+  /** The reserving player's strength; null if none of their bases has been seen. */
+  strength: StrengthSnapshot | null
+  /** Tick the planner looked. */
+  tick: number
+}
+
 export interface EnemySnapshot {
   player: string
   /** Tick they were flagged for attacking us, if they were. */
@@ -166,6 +189,12 @@ export interface DashboardSnapshot {
   retaliation?: RetaliationSnapshot | null
   /** Rooms the player asked to scout (see src/expansion/scoutRequests.ts), and how it's going. */
   scoutRequests?: { room: string; home?: string; status: string; done: boolean }[]
+  /** Remote rooms we're taking from another player (see src/remote/contest.ts). */
+  contests?: ContestSnapshot[]
+  /** Rooms in reach the last plan saw reserved by someone else, and what it decided. */
+  contestCandidates?: ContestCandidateSnapshot[]
+  /** The player's last contest pick (or call-off), and what the bot made of it. */
+  contestRequest?: { room: string; cancel?: boolean; status?: string; done?: boolean } | null
   /** Our strength, to compare with each enemy's (see src/defence/strength.ts). */
   ourStrength?: StrengthSnapshot
   /** What we know about each hostile player (see src/dashboard/enemyReport.ts). */

@@ -2,6 +2,7 @@ import { containerBuilt, isRemoteRoomActive } from "remote/remoteCreeps"
 import { maintainersWanted } from "remote/highway"
 import { haulerBody, maintainerBody, minerBody } from "remote/remoteBodies"
 import * as creepRoles from "../roles"
+import { myUsername } from "utils/username"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 
@@ -9,10 +10,12 @@ import SpawnConfig from "./SpawnConfig"
 const RESERVATION_LOW = 2000
 /** A miner (3 MOVE for 7 other parts) walks about this many ticks per tile off-road: its replacement leaves early. */
 const MINER_TICKS_PER_TILE = 2.5
+const RESERVER_BODY: BodyPartConstant[] = [CLAIM, CLAIM, MOVE, MOVE]
 
 /**
  * Goal: Staff the remote sources RemotePlanner chose for this spawn's room, best first: a miner each (replaced before
- * the old one dies, allowing for its walk); then a reserver for rooms worth reserving whose reservation is running
+ * the old one dies, allowing for its walk), but in a room to reserve that isn't reserved by us yet, its reserver first,
+ * so the room is ours before the miner builds a container in it; then a reserver for rooms worth reserving whose reservation is running
  * low; then the home's highway maintainers, when its roads need them (see maintainersWanted); then haulers (once the
  * miner has built the container) until they have the CARRY parts each source needs. Bodies come from remoteBodies,
  * the same the planner priced.
@@ -38,8 +41,12 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
       const income = (r.reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
       const miner = minerBody(capacity, income, r.roads)
       const minerLead = r.distance * MINER_TICKS_PER_TILE + miner.length * CREEP_SPAWN_TIME
-      if (!serving(creepRoles.REMOTE_MINER, "targetSourceId", r.id).some(m => aliveFor(m, minerLead)))
+      if (!serving(creepRoles.REMOTE_MINER, "targetSourceId", r.id).some(m => aliveFor(m, minerLead))) {
+        const ours = Game.rooms[r.room]?.controller?.reservation?.username === myUsername()
+        if (r.reserve && !ours && serving(creepRoles.RESERVER, "targetRoom", r.room).length <= 0)
+          return this.config(RESERVER_BODY, creepRoles.RESERVER, { targetRoom: r.room })
         return this.config(miner, creepRoles.REMOTE_MINER, { targetSourceId: r.id })
+      }
     }
 
     for (const room of new Set(remotes.filter(r => r.reserve).map(r => r.room))) {
@@ -48,7 +55,7 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
       if (reservers.some(c => aliveFor(c, distance + 20))) continue
       const reserved = Game.rooms[room]?.controller?.reservation?.ticksToEnd ?? 0
       if (RESERVATION_LOW <= reserved) continue
-      return this.config([CLAIM, CLAIM, MOVE, MOVE], creepRoles.RESERVER, { targetRoom: room })
+      return this.config(RESERVER_BODY, creepRoles.RESERVER, { targetRoom: room })
     }
 
     const maintainers = creeps.filter(
