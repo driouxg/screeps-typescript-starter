@@ -15,6 +15,7 @@ import {
   surveyHighways
 } from "./highway"
 import { bodyCost, haulerCostPerCarry, maintainerBody, minerBody } from "./remoteBodies"
+import { assessRemoteThreat, forgetStaleThreats } from "defence/remoteDefence"
 
 /**
  * Goal: Mine sources in nearby rooms when they're worth it, without starving the home room's spawn, and stop when
@@ -42,7 +43,8 @@ import { bodyCost, haulerCostPerCarry, maintainerBody, minerBody } from "./remot
  *     however good the estimate looked: home creeps (replacements, defenders) must not wait behind remote ones.
  *
  * Rooms owned or reserved by anyone else (allies included), source keeper rooms and rooms with an invader core are
- * never mined. A room where hostile fighters show up is paused for PAUSE_TICKS: its creeps go home.
+ * never mined. Where hostiles show up (see watchForThreats), defenders are sent if they can win; if they can't, the
+ * room is paused for PAUSE_TICKS and its creeps go home.
  */
 
 export const MIN_RCL = 3
@@ -63,6 +65,16 @@ const OVERLOADED = 0.95
 /** Spawn use is averaged over about this many ticks. */
 const SPAWN_USE_TICKS = 300
 const PAUSE_TICKS = 1500
+/** While defenders deal with a room, its remote creeps stay out until this long after it's clear. */
+const DEFENDED_PAUSE_TICKS = 10
+/** Creeps that work outside the home room for remote mining: rooms they're in are watched for hostiles. */
+const REMOTE_ROLES = [
+  creepRoles.REMOTE_MINER,
+  creepRoles.REMOTE_HAULER,
+  creepRoles.RESERVER,
+  creepRoles.HIGHWAY_MAINTAINER,
+  creepRoles.REMOTE_DEFENDER
+]
 /** One-off building (containers, roads) is spread over this many ticks when weighing a source. */
 const AMORTIZE_TICKS = 20000
 /** Ticks per hauler round trip beyond walking: withdrawing, delivering, passing other creeps. */
@@ -164,24 +176,35 @@ export default class RemotePlanner {
     }
   }
 
-  /** Remote rooms we can see with hostile fighters or an invader core get paused. */
+  /**
+   * Hostiles where our remote creeps work: remote rooms, and rooms our remote creeps are in (on the way to one). If the
+   * home can send defenders that win (see defence/remoteDefence), they're spawned (RemoteDefenderSpawnHandler) and
+   * the room's remote creeps only stay out until it's clear; if not, the room is paused for PAUSE_TICKS.
+   */
   private watchForThreats(): void {
     const paused = (Memory.remotePaused = Memory.remotePaused ?? {})
     for (const name in paused) if (paused[name] <= Game.time) delete paused[name]
+    forgetStaleThreats()
 
-    const rooms = new Set(Object.values(Memory.remotes ?? {}).map(r => r.room))
-    for (const name of rooms) {
+    const watch = new Map<string, string>()
+    for (const c of Object.values(Game.creeps))
+      if (REMOTE_ROLES.includes(c.memory.role) && c.room.name !== c.memory.room) watch.set(c.room.name, c.memory.room)
+    for (const r of Object.values(Memory.remotes ?? {})) watch.set(r.room, r.home)
+
+    for (const [name, homeName] of watch) {
       const room = Game.rooms[name]
-      if (!room) continue
-      const fighters = room.find(FIND_HOSTILE_CREEPS, {
-        filter: c => isHostile(c) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
-      })
-      const core = room.find(FIND_HOSTILE_STRUCTURES, { filter: s => s.structureType === STRUCTURE_INVADER_CORE })
-      if (fighters.length || core.length) {
-        if (!paused[name]) console.log(`Remote ${name}: hostiles, pausing for ${PAUSE_TICKS} ticks`)
-        paused[name] = Game.time + PAUSE_TICKS
-      }
+      const home = Game.rooms[homeName]
+      if (!room || !home) continue
+      const threat = assessRemoteThreat(room, home)
+      if (!threat || threat.defenders) continue
+      if (!paused[name] || paused[name] < Game.time + DEFENDED_PAUSE_TICKS)
+        console.log(`Remote ${name}: hostiles we can't beat, pausing for ${PAUSE_TICKS} ticks`)
+      paused[name] = Math.max(paused[name] ?? 0, Game.time + PAUSE_TICKS)
     }
+
+    // Rooms being defended: keep the miners and haulers out until the defenders have cleared them.
+    for (const [name, threat] of Object.entries(Memory.remoteThreats ?? {}))
+      if (threat.defenders) paused[name] = Math.max(paused[name] ?? 0, Game.time + DEFENDED_PAUSE_TICKS)
   }
 
   private choose(home: Room, origin: RoomPosition): RemoteSource[] {
@@ -309,7 +332,8 @@ export default class RemotePlanner {
     if (0 < intel.hostileStructures) return "hostile structures"
     if (intel.controller.reservedBy && intel.controller.reservedBy !== myUsername())
       return `reserved by ${intel.controller.reservedBy}`
-    if (Memory.remotePaused?.[roomName]) return "paused for hostiles"
+    // A room being defended stays mined (its creeps just keep out until it's clear); one we can't defend doesn't.
+    if (Memory.remotePaused?.[roomName] && !Memory.remoteThreats?.[roomName]?.defenders) return "paused for hostiles"
     return null
   }
 }
@@ -391,7 +415,8 @@ function spawnBudget(home: Room): number {
     creepRoles.REMOTE_MINER,
     creepRoles.REMOTE_HAULER,
     creepRoles.RESERVER,
-    creepRoles.HIGHWAY_MAINTAINER
+    creepRoles.HIGHWAY_MAINTAINER,
+    creepRoles.REMOTE_DEFENDER
   ]
   const homeLoad = Object.values(Game.creeps)
     .filter(c => c.memory.room === home.name && !remoteRoles.includes(c.memory.role))

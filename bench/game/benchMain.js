@@ -210,17 +210,24 @@ function recordDefence(b, rooms) {
   }
 
   const seen = b.hostiles || (b.hostiles = {})
-  const hostiles = rooms.reduce((all, r) => all.concat(r.find(FIND_HOSTILE_CREEPS)), [])
+  // Hostiles in every room we can see (remote rooms too). One counts as killed if it's gone while we can still see
+  // its room, before its time ran out; out of sight it's left pending.
+  const hostiles = Object.values(Game.rooms).reduce((all, r) => all.concat(r.find(FIND_HOSTILE_CREEPS)), [])
   for (const h of hostiles) {
     if (seen[h.id] === undefined) {
       d.hostilesSeen++
       mark(b, "hostile:arrived")
     }
-    seen[h.id] = h.ticksToLive
+    seen[h.id] = { ttl: h.ticksToLive, room: h.room.name }
   }
   for (const id in seen) {
     if (hostiles.some(h => h.id === id)) continue
-    if (2 < seen[id]) d.hostilesKilled++
+    const last = typeof seen[id] === "number" ? { ttl: seen[id], room: null } : seen[id]
+    if (last.room && !Game.rooms[last.room] && 2 < last.ttl) continue
+    if (2 < last.ttl) {
+      d.hostilesKilled++
+      mark(b, "hostile:killed")
+    }
     delete seen[id]
   }
   if (0 < d.hostilesSeen && hostiles.length === 0) mark(b, "hostile:cleared")

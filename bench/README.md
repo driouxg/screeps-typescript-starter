@@ -80,6 +80,7 @@ npm run bench -- --attack 1200 --attack-count 3 --safe-mode -1 \
 | `--attack` | — | Tick the raiders arrive, at the room edge nearest our spawn ([attack.js](attack.js)) |
 | `--attack-body` | `attack,attack,attack,move,move,move` | Body of each raider |
 | `--attack-count` | 1 | Number of raiders |
+| `--attack-room` | home room | Room the raiders arrive in, e.g. a remote mining room (`--room W1N2 --start-rcl 4 --attack 3000 --attack-room W2N2`); not W1N1, the raider's own room |
 | `--safe-mode` | 1 | `1`: safe mode active, as for a new player. `0`: off, one charge available. `-1`: off, and no charges when the raid starts (each RCL reached grants one) |
 
 Raiders attack the closest creep, then the spawn, then other structures. The summary adds a `defence` line with

@@ -9,6 +9,7 @@ import MinerSpawnHandler from "creeps/spawn/minerSpawnHandler"
 import PullerSpawnHandler from "creeps/spawn/pullerSpawnHandler"
 import RapidFillerSpawnHandler from "creeps/spawn/rapidFillerSpawnHandler"
 import RemoteSpawnHandler from "creeps/spawn/remoteSpawnHandler"
+import RemoteDefenderSpawnHandler from "creeps/spawn/remoteDefenderSpawnHandler"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
@@ -58,6 +59,8 @@ export default class SpawnComposer {
       new MinerSpawnHandler(),
       // Two builders once the sources are staffed: they upgrade until RCL 2, then start on the extensions straight away.
       new BuilderSpawnHandler("first"),
+      // Defending remote mining comes before growing it: a weak raider left alone kills miner after hauler.
+      new RemoteDefenderSpawnHandler(),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
       // Cheap, and once in place they take over filling the rapid fill's spawns and extensions.

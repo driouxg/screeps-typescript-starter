@@ -46,6 +46,8 @@ function parseArgs(argv) {
     attack: null,
     attackBody: "attack,attack,attack,move,move,move",
     attackCount: 1,
+    // Room the raiders arrive in (default: our home room), e.g. a remote mining room.
+    attackRoom: null,
     safeMode: 1,
     // Mid-game start: GCL level for the player, and an RCL to jump the home room to (see fastForwardRcl).
     gcl: 1,
@@ -62,7 +64,7 @@ function parseArgs(argv) {
     neutralRooms: null,
     neutralTowers: 0
   }
-  const strings = ["label", "room", "attackBody", "allyRooms", "hostileRooms", "neutralRooms"]
+  const strings = ["label", "room", "attackBody", "attackRoom", "allyRooms", "hostileRooms", "neutralRooms"]
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase())
     if (!(key in opts)) throw new Error(`Unknown option ${argv[i]}`)
@@ -351,7 +353,7 @@ async function main() {
       const body = opts.attackBody.split(",").map(p => p.trim())
       // Each RCL reached grants a safe mode charge, so "none" has to be enforced when the raid starts.
       if (opts.safeMode === -1) await disableSafeMode(server, opts.room, 0)
-      const at = await spawnRaiders(server, opts.room, raider.id, body, opts.attackCount, opts)
+      const at = await spawnRaiders(server, opts.attackRoom || opts.room, raider.id, body, opts.attackCount, opts)
       console.log(`tick ${String(tick).padStart(6)}  raiders arrive at ${at.join(" ")}: ${body.join(",")}`)
     }
     await server.tick()
