@@ -22,7 +22,7 @@ import { myUsername } from "utils/username"
  *
  * The player can also pick a room to contest from the dashboard (Memory.contestRequest, see runRequest): that goes
  * ahead whatever the aggression and strength (it's their call), as long as the room is a remote someone else (not an
- * ally) reserves, within MANUAL_MAX_ROUTE rooms of one of our bases at MIN_HOME_RCL (or we couldn't mine it after).
+ * ally) reserves, within reach (manualMaxRoute) of one of our bases at MIN_HOME_RCL (or we couldn't mine it after).
  * The dashboard can call any contest off the same way. Every room the planner saw reserved by someone else is listed
  * for the dashboard (Memory.contestCandidates) with what it decided.
  */
@@ -30,16 +30,23 @@ import { myUsername } from "utils/username"
 const STRENGTH_MARGIN = 2
 /** Contests at a time, over all our bases. */
 const MAX_CONTESTS = 1
-/** A home needs this RCL to send attackers worth sending. */
-const MIN_HOME_RCL = 4
+/**
+ * A home needs this RCL to send attackers worth sending (6 ATTACK at RCL 3's 800 energy). Below RCL 4 it can't afford
+ * a reserver that keeps a reservation up (2 CLAIM, 1300): a won room is mined unreserved, and if they reserve it again
+ * we contest it again (see watchRemoteReservations).
+ */
+const MIN_HOME_RCL = 3
 export const CONTEST_ATTACKERS = 2
 const MAX_ATTACKERS_SPAWNED = 6
 const TIMEOUT_TICKS = 6000
 const BLOCK_TICKS = 20000
 /** Strength is compared again this often while a contest lasts. */
 const RECHECK_TICKS = 500
-/** How far a manually picked room may be from the base contesting it: as far as we mine (see MAX_REMOTE_ROUTE). */
-const MANUAL_MAX_ROUTE = 2
+/**
+ * How far a manually picked room may be from the base contesting it: as far as that base mines (see maxRoute in
+ * RemotePlanner), or we couldn't mine it after.
+ */
+const manualMaxRoute = (level: number) => (level < 4 ? 1 : 2)
 
 export interface Contest {
   player: string
@@ -182,7 +189,7 @@ function runRequest(): void {
   const player = Memory.rooms[room].intel!.controller!.reservedBy!
   const home = nearestHome(room)
   if (!home) {
-    request.status = `not contested: no base of ours at RCL ${MIN_HOME_RCL} within ${MANUAL_MAX_ROUTE} rooms (we couldn't mine it after)`
+    request.status = `not contested: no base of ours at RCL ${MIN_HOME_RCL}+ mines that far (1 room away from RCL 3, 2 from RCL 4)`
     return
   }
   const status = `sending ${CONTEST_ATTACKERS} attackers from ${home}`
@@ -213,13 +220,13 @@ function whyNotContestable(room: string): string | null {
   return null
 }
 
-/** Our base at MIN_HOME_RCL with a spawn closest to `room` (by route), within MANUAL_MAX_ROUTE rooms. */
+/** Our base at MIN_HOME_RCL with a spawn closest to `room` (by route), within the rooms it mines (manualMaxRoute). */
 function nearestHome(room: string): string | null {
   let best: { name: string; distance: number } | null = null
   for (const home of Object.values(Game.rooms)) {
     if (!home.controller?.my || home.controller.level < MIN_HOME_RCL || home.find(FIND_MY_SPAWNS).length <= 0) continue
     const route = Game.map.findRoute(home.name, room)
-    if (route === ERR_NO_PATH || MANUAL_MAX_ROUTE < route.length) continue
+    if (route === ERR_NO_PATH || manualMaxRoute(home.controller.level) < route.length) continue
     if (!best || route.length < best.distance) best = { name: home.name, distance: route.length }
   }
   return best?.name ?? null
