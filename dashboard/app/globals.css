@@ -634,3 +634,22 @@ ul.incidents li.incident.bad {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Attack, defence and fight predictions (see EnemyPanel). */
+.power {
+  display: grid;
+  gap: 4px;
+}
+
+.power h4 {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.power p {
+  margin: 0;
+}
+
+ul.predictions li {
+  padding: 4px 0;
+}

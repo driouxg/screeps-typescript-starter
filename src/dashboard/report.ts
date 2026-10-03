@@ -215,8 +215,8 @@ function build(): DashboardSnapshot {
       hostilePlayers: Memory.hostilePlayers ?? {}
     },
     ...(() => {
-      const { ours, enemies } = enemyReports()
-      return { ourStrength: ours, enemies }
+      const { ours, enemies, ourAttack, ourDefences } = enemyReports()
+      return { ourStrength: ours, enemies, ourAttack, ourDefences }
     })(),
     ...contestReports(),
     aggression: aggressionReports(),

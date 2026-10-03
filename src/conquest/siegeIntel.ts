@@ -118,13 +118,24 @@ export function recordSiege(room: Room, force = false): void {
   room.memory.siege = survey(room, owner)
 }
 
+/**
+ * A base's siege intel as an attacker sees it, for any owned room: ours too (see defence/power, which weighs our own
+ * bases' defence against other players' attack). Not stored.
+ */
+export function surveyBase(room: Room): SiegeIntel | null {
+  const owner = room.controller?.owner?.username
+  return owner ? survey(room, owner) : null
+}
+
 function survey(room: Room, owner: string): SiegeIntel {
-  const hostile = room.find(FIND_HOSTILE_STRUCTURES)
-  const towers = hostile.filter(s => s.structureType === STRUCTURE_TOWER) as StructureTower[]
-  const spawns = hostile.filter(s => s.structureType === STRUCTURE_SPAWN) as StructureSpawn[]
+  const owned = room.find(FIND_STRUCTURES, {
+    filter: s => "owner" in s && (s as OwnedStructure).owner?.username === owner
+  }) as OwnedStructure[]
+  const towers = owned.filter(s => s.structureType === STRUCTURE_TOWER) as StructureTower[]
+  const spawns = owned.filter(s => s.structureType === STRUCTURE_SPAWN) as StructureSpawn[]
   const armed = towers.filter(t => TOWER_ENERGY_COST <= t.store.energy || 0 < storedEnergy(room))
 
-  const { hits: barrierHits, blocked, ramparts } = barrierGrid(room)
+  const { hits: barrierHits, blocked, ramparts } = barrierGrid(room, owner)
   const damageAt = (x: number, y: number) =>
     armed.reduce((sum, t) => sum + towerDamageAt(Math.max(Math.abs(t.pos.x - x), Math.abs(t.pos.y - y))), 0)
   const repairAt = (x: number, y: number) =>
@@ -222,7 +233,7 @@ function storedEnergy(room: Room): number {
  * destroyed), and the tiles nothing gets through (sources, minerals, the controller, keeper lairs). Ramparts' hits on
  * their own too, for the core's.
  */
-function barrierGrid(room: Room): {
+function barrierGrid(room: Room, owner: string): {
   hits: Map<number, { hits: number; type: StructureConstant }>
   blocked: Set<number>
   ramparts: Map<number, number>
@@ -238,7 +249,8 @@ function barrierGrid(room: Room): {
     }
     if (s.structureType === STRUCTURE_ROAD || s.structureType === STRUCTURE_CONTAINER) continue
     if (s.structureType === STRUCTURE_RAMPART) {
-      if (s.my || s.isPublic) continue
+      // The owner's ramparts stop an attacker; public ones (and anyone else's) let it through.
+      if (s.isPublic || s.owner?.username !== owner) continue
       ramparts.set(k, s.hits)
     }
     // Walls in novice and respawn areas have no hits: they can't be destroyed.

@@ -1,4 +1,11 @@
-import type { DashboardSnapshot, EnemySnapshot, StrengthSnapshot } from "@bot/snapshot"
+import type {
+  AttackPowerSnapshot,
+  BaseDefenceSnapshot,
+  DashboardSnapshot,
+  EnemySnapshot,
+  FightPredictionSnapshot,
+  StrengthSnapshot
+} from "@bot/snapshot"
 import { Bar, Empty, Icon, Stat } from "./ui"
 
 const KIND_ICON: Record<EnemySnapshot["rooms"][number]["kind"], string> = {
@@ -33,12 +40,18 @@ export function EnemyPanel({ snapshot: s }: { snapshot: DashboardSnapshot }) {
         <Icon>🕵️</Icon>
         Enemy intel <span className="badge">{enemies.length} hostile</span>
       </h2>
+      {s.ourDefences && s.ourDefences.length > 0 && (
+        <details>
+          <summary>🛡️ Our bases&apos; defence (what an attacker has to get through)</summary>
+          <DefenceTable defences={s.ourDefences} />
+        </details>
+      )}
       {enemies.length === 0 ? (
         <Empty>No hostile players. Anyone who attacks us is flagged and shows up here with what we know of them.</Empty>
       ) : (
         <div className="enemies">
           {enemies.map(e => (
-            <EnemyCard key={e.player} enemy={e} ours={s.ourStrength} now={s.tick} />
+            <EnemyCard key={e.player} enemy={e} ours={s.ourStrength} ourAttack={s.ourAttack ?? null} now={s.tick} />
           ))}
         </div>
       )}
@@ -46,7 +59,17 @@ export function EnemyPanel({ snapshot: s }: { snapshot: DashboardSnapshot }) {
   )
 }
 
-function EnemyCard({ enemy: e, ours, now }: { enemy: EnemySnapshot; ours?: StrengthSnapshot; now: number }) {
+function EnemyCard({
+  enemy: e,
+  ours,
+  ourAttack,
+  now
+}: {
+  enemy: EnemySnapshot
+  ours?: StrengthSnapshot
+  ourAttack: AttackPowerSnapshot | null
+  now: number
+}) {
   const v = verdict(e.strength, ours)
   const top = Math.max(e.strength?.score ?? 0, ours?.score ?? 0, 1)
   return (
@@ -85,6 +108,29 @@ function EnemyCard({ enemy: e, ours, now }: { enemy: EnemySnapshot; ours?: Stren
         <Stat label="⚔️ Combat parts" value={e.combatParts} />
         <Stat label="👁️ Last seen" value={e.lastSeen ? ago(e.lastSeen, now) : "never"} />
       </div>
+
+      {(e.attack !== undefined || ourAttack) && (
+        <div className="power">
+          <h4>⚔️ Attack: the squad each side can send</h4>
+          <AttackLine who={e.player} attack={e.attack ?? null} />
+          <AttackLine who="Us" attack={ourAttack} />
+        </div>
+      )}
+
+      {e.defences && e.defences.length > 0 && (
+        <div className="power">
+          <h4>🛡️ Their bases&apos; defence</h4>
+          <DefenceTable defences={e.defences} />
+        </div>
+      )}
+
+      {((e.ourAttack?.length ?? 0) > 0 || (e.theirAttack?.length ?? 0) > 0) && (
+        <div className="power">
+          <h4>🔮 Who&apos;d win</h4>
+          <Predictions title={`We attack ${e.player}`} list={e.ourAttack ?? []} attacker="we" />
+          <Predictions title={`${e.player} attacks us`} list={e.theirAttack ?? []} attacker="they" />
+        </div>
+      )}
 
       {e.rooms.length === 0 ? (
         <Empty>We haven&apos;t seen any room of theirs yet: scouts may find one.</Empty>
@@ -132,5 +178,91 @@ function EnemyCard({ enemy: e, ours, now }: { enemy: EnemySnapshot; ours?: Stren
         </div>
       )}
     </article>
+  )
+}
+
+/** One side's attack (src/defence/power.ts): the squad, what it does a tick, and how many waves it can send. */
+function AttackLine({ who, attack: a }: { who: string; attack: AttackPowerSnapshot | null }) {
+  if (!a)
+    return (
+      <p className="muted">
+        <strong>{who}</strong>: no squad (needs a base at RCL 3)
+      </p>
+    )
+  return (
+    <p>
+      <strong>{who}</strong>: {a.template} ×{a.members} from {a.bases.length} base{a.bases.length === 1 ? "" : "s"} ·{" "}
+      {a.dps} dmg/t · {a.heal} heal/t · {a.siegeRate} hits/t off walls · {a.waves} wave{a.waves === 1 ? "" : "s"} of{" "}
+      {thousands(a.cost)} energy, one every ~{a.waveSpawnTicks} ticks of spawning
+      {a.army > 0 && <span className="muted"> · {a.army} combat parts out now</span>}
+    </p>
+  )
+}
+
+/** Bases' defence (src/defence/power.ts): what an attacker takes and has to break through. */
+function DefenceTable({ defences }: { defences: BaseDefenceSnapshot[] }) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Base</th>
+            <th className="num">Towers</th>
+            <th className="num">Dmg/t in · edge</th>
+            <th>Firing for</th>
+            <th className="num">Walls</th>
+            <th className="num">Core</th>
+            <th className="num">Defenders/t</th>
+            <th>Safe mode</th>
+          </tr>
+        </thead>
+        <tbody>
+          {defences.map(d => (
+            <tr key={d.room}>
+              <td>
+                {d.room} <span className="muted">RCL {d.rcl}</span>
+              </td>
+              <td className="num">{d.towers}</td>
+              <td className="num">
+                {d.towerDamage} · {d.edgeDamage}
+              </td>
+              <td>{d.towerEndurance === null ? "indefinitely" : `${d.towerEndurance.toLocaleString()} ticks`}</td>
+              <td className="num" title={d.wallsAssumed ? "Not mapped yet: assumed from the RCL" : undefined}>
+                {d.wallHits === 0 ? <span className="badge good">backdoor</span> : `${d.wallsAssumed ? "~" : ""}${thousands(d.wallHits)}`}
+              </td>
+              <td className="num">{thousands(d.coreHits)}</td>
+              <td className="num">{d.defenderDps}</td>
+              <td>{d.safeModeActive ? "🛡️ on" : d.safeModes ? `${d.safeModes} charge${d.safeModes === 1 ? "" : "s"}` : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Predicted fights (src/defence/power.ts predictFight): one attack against each base, with the deciding factor. */
+function Predictions({ title, list, attacker }: { title: string; list: FightPredictionSnapshot[]; attacker: "we" | "they" }) {
+  if (list.length === 0) return null
+  return (
+    <div>
+      <strong>{title}</strong>
+      <ul className="plain predictions">
+        {list.map(p => {
+          const good = attacker === "we" ? p.attackerWins : !p.attackerWins
+          return (
+            <li key={p.room}>
+              <span className={`badge ${good ? "good" : "bad"}`}>
+                {p.attackerWins ? (attacker === "we" ? "we win" : "they win") : attacker === "we" ? "they hold" : "we hold"}
+              </span>{" "}
+              <strong>{p.room}</strong>
+              {p.rooms > 0 && <span className="muted"> ({p.rooms} rooms away)</span>}
+              {p.margin > 0 && <span className="muted"> · margin {p.margin < 100 ? p.margin : "100+"}×</span>}
+              <div className="muted">{p.limit}</div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }

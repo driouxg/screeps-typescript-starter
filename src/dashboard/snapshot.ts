@@ -41,8 +41,62 @@ export interface ContestCandidateSnapshot {
   tick: number
 }
 
+/** A player's attack: the squad they'd send and how often (see src/defence/power.ts). */
+export interface AttackPowerSnapshot {
+  bases: string[]
+  spawns: number
+  capacity: number
+  stored: number
+  template: string
+  members: number
+  cost: number
+  waveSpawnTicks: number
+  dps: number
+  heal: number
+  hits: number
+  siegeRate: number
+  waves: number
+  army: number
+}
+
+/** One base's defence (see src/defence/power.ts). */
+export interface BaseDefenceSnapshot {
+  room: string
+  owner: string
+  rcl: number
+  towers: number
+  towerDamage: number
+  edgeDamage: number
+  /** Null: the towers can keep firing indefinitely. */
+  towerEndurance: number | null
+  wallHits: number
+  wallsAssumed: boolean
+  coreHits: number
+  defenderDps: number
+  safeModes: number
+  safeModeActive: boolean
+}
+
+/** Who'd win an attack on one base (see src/defence/power.ts predictFight). */
+export interface FightPredictionSnapshot {
+  /** The base attacked, and how many rooms the attack comes from. */
+  room: string
+  rooms: number
+  attackerWins: boolean
+  /** Work the attack can do / work it needs: above 1 the attacker wins. */
+  margin: number
+  ticks: number | null
+  limit: string
+}
+
 export interface EnemySnapshot {
   player: string
+  /** Their attack (from all their bases we know), and each of their bases' defence. */
+  attack?: AttackPowerSnapshot | null
+  defences?: BaseDefenceSnapshot[]
+  /** Our attack on each of their bases (from our bases within reach of it), and theirs on each of ours. */
+  ourAttack?: FightPredictionSnapshot[]
+  theirAttack?: FightPredictionSnapshot[]
   /** Tick they were flagged for attacking us, if they were. */
   flaggedSince?: number
   /** Declared an enemy (config or Memory.enemies). */
@@ -472,6 +526,9 @@ export interface DashboardSnapshot {
   conquestRequest?: { room: string; action: string; status?: string; done?: boolean } | null
   /** The attack squad meta the dashboard can pick from. */
   conquestTemplates?: ConquestTemplateSnapshot[]
+  /** Our attack (all our bases) and each of our bases' defence (see src/defence/power.ts). */
+  ourAttack?: AttackPowerSnapshot | null
+  ourDefences?: BaseDefenceSnapshot[]
   /** Our strength, to compare with each enemy's (see src/defence/strength.ts). */
   ourStrength?: StrengthSnapshot
   /** What we know about each hostile player (see src/dashboard/enemyReport.ts). */
