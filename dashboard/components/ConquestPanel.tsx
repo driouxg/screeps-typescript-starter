@@ -220,7 +220,7 @@ export function ConquestPanel({
 
       {review && (
         <ReviewConquest
-          c={review}
+          c={candidates.find(x => x.room === review.room) ?? review}
           ours={s.ourStrength}
           templates={s.conquestTemplates ?? []}
           awaiting={active?.room === review.room && active.state === "awaiting"}
@@ -260,16 +260,17 @@ function ScoutButton({
   small?: boolean
 }) {
   const [sent, setSent] = useState(false)
-  const open = !!request && !request.done
+  // Sent and on its way (or not yet picked up by the bot); once it's done, another can be sent.
+  const open = (!!request && !request.done) || (sent && !request)
   return (
     <span className="scout-action">
       <button
         className={small ? "button" : "button primary"}
         type="button"
-        disabled={busy || open || sent}
+        disabled={busy || open}
         onClick={async () => setSent(await onScout(room))}
       >
-        🔭 {open || sent ? "Scout requested" : `Send a scout to ${small ? "it" : room}`}
+        🔭 {open ? "Scout requested" : request?.done ? `Send another scout to ${room}` : `Send a scout to ${room}`}
       </button>{" "}
       {request && <span className="muted">{request.status}</span>}
     </span>
@@ -440,7 +441,7 @@ function ReviewConquest({
           <strong>The bot isn&apos;t sure:</strong> {c.needsDecision}. Weigh it up below.
         </p>
       )}
-      {stale && (
+      {stale ? (
         <div className="notice">
           <p>
             🔭{" "}
@@ -451,6 +452,15 @@ function ReviewConquest({
             plan is redone from it.
           </p>
           <ScoutButton room={c.room} request={scoutRequest} busy={busy} onScout={onScout} />
+        </div>
+      ) : (
+        <div className="row intel-age">
+          <span className="muted">
+            🔭 Intel from {c.intelAge.toLocaleString()} ticks ago
+            {c.siegeAge !== undefined && `, walls mapped ${c.siegeAge.toLocaleString()} ticks ago`}. A fresh look redoes
+            this plan.
+          </span>
+          <ScoutButton room={c.room} request={scoutRequest} busy={busy} onScout={onScout} small />
         </div>
       )}
 

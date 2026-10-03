@@ -589,3 +589,8 @@ ul.incidents li.incident {
 ul.incidents li.incident.bad {
   border-left-color: var(--bad);
 }
+
+.row.intel-age {
+  justify-content: space-between;
+  margin: 4px 0 8px;
+}
