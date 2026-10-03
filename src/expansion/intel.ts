@@ -1,5 +1,6 @@
 import { keeperPosts } from "utils/keeperZones"
 import { isHostile } from "config/relations"
+import { recordSiege } from "conquest/siegeIntel"
 /**
  * Goal: Remember what we've seen of each room, so expansion can pick a target without vision of every candidate.
  *
@@ -96,6 +97,8 @@ export function recordIntel(room: Room, force = false): void {
     combatParts: combatPartsByPlayer(room),
     ...terrainRatios(room.name)
   }
+  // Another player's base: map its walls and towers for conquest (see conquest/siegeIntel).
+  recordSiege(room)
 }
 
 /** Active ATTACK, RANGED_ATTACK and HEAL parts of other players' creeps in the room (not NPCs), by player. */

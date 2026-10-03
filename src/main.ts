@@ -14,6 +14,7 @@ import { recordAggression } from "config/relations"
 import ExpansionPlanner from "expansion/expansionPlanner"
 import { runRetaliation } from "defence/retaliation"
 import { runScoutRequests } from "expansion/scoutRequests"
+import { runConquest } from "conquest/conquest"
 import RemotePlanner from "remote/remotePlanner"
 import { drawHighways } from "remote/highwayVisualizer"
 import { report } from "dashboard/report"
@@ -121,6 +122,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   new ExpansionPlanner().run()
   new RemotePlanner().run()
   runRetaliation()
+  runConquest()
   runScoutRequests()
   // Only a display: a failure here mustn't stop the rest of the tick.
   try {

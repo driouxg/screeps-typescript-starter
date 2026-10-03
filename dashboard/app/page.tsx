@@ -9,6 +9,7 @@ import { AbandonBase } from "@/components/AbandonBase"
 import { EnemyPanel } from "@/components/EnemyPanel"
 import { ScoutPanel } from "@/components/ScoutPanel"
 import { ContestSection } from "@/components/ContestSection"
+import { ConquestPanel } from "@/components/ConquestPanel"
 import { Bar, Icon, Stat } from "@/components/ui"
 import {
   CpuPanel,
@@ -150,7 +151,9 @@ export default function Dashboard() {
     ...s.threats.map(t => `Threat in ${t.room}: ${t.damage} damage/tick — ${t.defenders ? `${t.defenders} defender(s) sent` : "paused, can't win"}`),
     ...s.rooms.filter(r => 0 < r.threat.hostiles).map(r => `${r.threat.hostiles} hostile fighter(s) in home room ${r.name}`),
     ...s.rooms.filter(r => r.ticksToDowngrade < 5000).map(r => `${r.name} controller downgrades in ${r.ticksToDowngrade} ticks`),
-    ...(s.cpu.bucket < 1000 ? [`CPU bucket low: ${s.cpu.bucket}`] : [])
+    ...(s.cpu.bucket < 1000 ? [`CPU bucket low: ${s.cpu.bucket}`] : []),
+    ...(s.conquest?.state === "awaiting" ? [`Conquest of ${s.conquest.room} needs your call: ${s.conquest.status}`] : []),
+    ...(s.conquest?.retreating ? [`Conquest squad pulled back from ${s.conquest.room} to heal`] : [])
   ]
 
   return (
@@ -290,6 +293,13 @@ export default function Dashboard() {
         <HighwaysPanel snapshot={s} />
         <CpuPanel snapshot={s} />
       </div>
+
+      <ConquestPanel
+        snapshot={s}
+        busy={saving}
+        onApprove={(room, options) => command("/api/conquest", { room, ...options })}
+        onCallOff={room => command("/api/conquest", { room, cancel: true })}
+      />
 
       <EnemyPanel snapshot={s} />
     </main>

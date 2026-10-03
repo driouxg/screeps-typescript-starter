@@ -80,6 +80,134 @@ export interface RetaliationSnapshot {
   squad: number
 }
 
+/** A reason for or against a conquest, for the dashboard (see src/conquest/assessment.ts). */
+export interface ConquestConcern {
+  tone: "good" | "warn" | "bad" | "info"
+  text: string
+}
+
+/** The best way into a base from one side of its room. */
+export interface ConquestSideSnapshot {
+  side: string
+  /** The room next to it on that side, where the squad gathers. */
+  staging: string
+  /** Whether we can get to the staging room by a safe route. */
+  reachable: boolean
+  hits: number
+  barriers: number
+  breachDamage: number
+  backdoor: boolean
+}
+
+export interface ConquestBreachSnapshot {
+  side: string
+  /** FIND_EXIT_* of the side. */
+  sideConstant: number
+  entry: { x: number; y: number }
+  staging: string
+  /** Outermost first. */
+  barriers: { x: number; y: number; hits: number; type: string }[]
+  hits: number
+  /** Tower damage per tick where the squad breaks in, and at worst on the way to the core. */
+  breachDamage: number
+  peakDamage: number
+  /** No walls or ramparts between that side and their spawns. */
+  backdoor: boolean
+}
+
+export interface ConquestSquadSnapshot {
+  /** The attack squad meta template (see src/conquest/squadMeta.ts). */
+  template: string
+  members: { kind: string; parts: { [part: string]: number }; cost: number }[]
+  cost: number
+  /** Hits per tick off structures. */
+  siegeRate: number
+  dps: number
+  heal: number
+  hits: number
+  healShort: boolean
+  unaffordable?: string
+}
+
+/** Another player's base, assessed for conquest (see src/conquest/assessment.ts). */
+export interface ConquestCandidateSnapshot {
+  room: string
+  player: string
+  /** Our base that would send the squad, and how many rooms away. */
+  home?: string
+  distance?: number
+  rcl: number
+  sources: number
+  towers: number
+  towerEnergy: number
+  spawns: number
+  safeModeAvailable: number
+  safeModeUntil?: number
+  /** Their combat parts seen in the room. */
+  defenders: number
+  /** Energy in its storage and terminal. */
+  stored: number
+  /** Ticks since we last saw it, and since its walls were mapped. */
+  intelAge: number
+  siegeAge?: number
+  /** The best way in from each side. */
+  sides: ConquestSideSnapshot[]
+  /** The way in the plan uses. */
+  breach?: ConquestBreachSnapshot
+  /** A side with no walls in the way. */
+  backdoor: boolean
+  squad?: ConquestSquadSnapshot
+  /** Damage per tick the squad takes while breaking in: towers and defenders. */
+  incoming: number
+  estimate?: { travelTicks: number; breachTicks: number; razeTicks: number; waves: number; energy: number }
+  /** The owner's strength over all their bases we've seen; null if unknown. */
+  playerStrength: StrengthSnapshot | null
+  reward: number
+  rewardNotes: string[]
+  /** Cost multiplier for what could go wrong (1 = nothing known). */
+  risk: number
+  /** Reward per 1000 energy of risk-adjusted cost; higher is better. */
+  score: number
+  /** Whether the bot thinks it can take it now. */
+  feasible: boolean
+  verdict: string
+  concerns: ConquestConcern[]
+  /** Why the bot isn't sure and would like the player to decide. */
+  needsDecision?: string
+  tick: number
+}
+
+/** The conquest underway, or how the last one ended (see src/conquest/conquest.ts). */
+export interface ConquestSnapshot {
+  room: string
+  player: string
+  home: string
+  staging: string
+  side: string
+  /** scouting, awaiting, staging, rallying, marching, engaged, or over. */
+  state: string
+  /** breach, raze or claim. */
+  phase: string
+  status: string
+  template: string
+  wave: number
+  maxWaves: number
+  approved: number
+  forced: boolean
+  retreating: boolean
+  /** Barriers left on the way in. */
+  barriersLeft?: number
+  squad: { name: string; kind: string; wave: number; ttl: number; hits: number; hitsMax: number; room: string }[]
+  /** How it ended, when over. */
+  result?: string
+}
+
+export interface ConquestTemplateSnapshot {
+  name: string
+  description: string
+  minCapacity: number
+}
+
 export interface ControlsSnapshot {
   aggression: AggressionLevel
   remoteMining: boolean
@@ -195,6 +323,15 @@ export interface DashboardSnapshot {
   contestCandidates?: ContestCandidateSnapshot[]
   /** The player's last contest pick (or call-off), and what the bot made of it. */
   contestRequest?: { room: string; cancel?: boolean; status?: string; done?: boolean } | null
+  /** Other players' bases ranked for conquest, best first (see src/conquest/assessment.ts), and when. */
+  conquestCandidates?: ConquestCandidateSnapshot[]
+  conquestAssessed?: number
+  /** The conquest underway (see src/conquest/conquest.ts), or how the last one ended. */
+  conquest?: ConquestSnapshot | null
+  /** The player's last approval (or call-off), and what the bot made of it. */
+  conquestRequest?: { room: string; action: string; status?: string; done?: boolean } | null
+  /** The attack squad meta the dashboard can pick from. */
+  conquestTemplates?: ConquestTemplateSnapshot[]
   /** Our strength, to compare with each enemy's (see src/defence/strength.ts). */
   ourStrength?: StrengthSnapshot
   /** What we know about each hostile player (see src/dashboard/enemyReport.ts). */

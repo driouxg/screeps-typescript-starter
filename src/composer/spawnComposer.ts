@@ -12,6 +12,8 @@ import RemoteSpawnHandler from "creeps/spawn/remoteSpawnHandler"
 import RemoteDefenderSpawnHandler from "creeps/spawn/remoteDefenderSpawnHandler"
 import RetaliationSpawnHandler from "creeps/spawn/retaliationSpawnHandler"
 import ContestSpawnHandler from "creeps/spawn/contestSpawnHandler"
+import ConquestSpawnHandler from "creeps/spawn/conquestSpawnHandler"
+import { renewingThisTick } from "conquest/conquest"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
@@ -21,7 +23,8 @@ export default class SpawnComposer {
   public compose(): void {
     for (const spawnName in Game.spawns) {
       const spawn: StructureSpawn = Game.spawns[spawnName]
-      if (spawn.spawning) continue
+      // A spawn renewing a conquest squad this tick (see conquest/conquest) can't spawn too.
+      if (spawn.spawning || renewingThisTick(spawn)) continue
 
       for (let spawner of this.spawners()) {
         const spawnConfig = spawner.spawnCreep(spawn)
@@ -66,6 +69,9 @@ export default class SpawnComposer {
       // A strike the player asked for (see defence/retaliation): a one-off, so it goes ahead of growing the economy,
       // or a busy spawn would never get to it.
       new RetaliationSpawnHandler(),
+      // A conquest the player approved (see conquest/conquest): its squad saves up ahead of the economy, or a busy
+      // home would never field it.
+      new ConquestSpawnHandler(),
       // A room the player asked to scout: one MOVE part, right away.
       new ScoutSpawnHandler("requested"),
       // More haulers before more workers: workers can only spend what gets delivered to them.

@@ -1,6 +1,7 @@
 import { isHostile } from "config/relations"
 import { applyCreepCosts } from "creeps/action/common/movement"
 import { isCombatant } from "./threat"
+import * as creepRoles from "creeps/roles"
 
 /**
  * Goal: Keep creeps that can't fight out of reach of hostile fighters instead of letting them be picked off.
@@ -14,8 +15,8 @@ const RANGED_REACH = 4
 
 /** Returns true if the creep is fleeing this tick, in which case its role should not act. */
 export function fleeIfThreatened(creep: Creep): boolean {
-  // Healers stay with the fighters they heal.
-  if (creep.spawning || isCombatant(creep) || 0 < creep.getActiveBodyparts(HEAL) || creep.getActiveBodyparts(MOVE) <= 0)
+  // Healers stay with the fighters they heal; a conquest's squad (dismantlers, claimers too) holds together.
+  if (creep.spawning || creep.memory.role === creepRoles.CONQUEROR || isCombatant(creep) || 0 < creep.getActiveBodyparts(HEAL) || creep.getActiveBodyparts(MOVE) <= 0)
     return false
   const controller = creep.room.controller
   if (controller?.my && controller.safeMode) return false

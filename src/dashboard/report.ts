@@ -9,7 +9,11 @@ import * as creepRoles from "creeps/roles"
 import { myUsername } from "utils/username"
 import { expansionCandidates } from "expansion/candidates"
 import { contestReports, enemyReports } from "./enemyReport"
+import { ConquerorMemory, conquerors } from "conquest/conquest"
+import { sideName } from "conquest/assessment"
+import { TEMPLATES } from "conquest/squadMeta"
 import {
+  ConquestSnapshot,
   DashboardSnapshot,
   DASHBOARD_SEGMENT,
   ExpansionCandidateSnapshot,
@@ -205,6 +209,18 @@ function build(): DashboardSnapshot {
           done: Memory.contestRequest.done
         }
       : null,
+    conquestCandidates: Memory.conquestCandidates ?? [],
+    conquestAssessed: Memory.conquestAssessed,
+    conquest: conquestReport(),
+    conquestRequest: Memory.conquestRequest
+      ? {
+          room: Memory.conquestRequest.room,
+          action: Memory.conquestRequest.action,
+          status: Memory.conquestRequest.status,
+          done: Memory.conquestRequest.done
+        }
+      : null,
+    conquestTemplates: TEMPLATES.map(t => ({ name: t.name, description: t.description, minCapacity: t.minCapacity })),
     scoutRequests: Object.entries(Memory.scoutRequests ?? {}).reduce(
       (all, [room, r]) =>
         r ? all.concat({ room, home: r.home, status: r.status ?? "waiting for the bot", done: !!r.done }) : all,
@@ -243,6 +259,39 @@ function build(): DashboardSnapshot {
       [] as DashboardSnapshot["highways"]
     ),
     cpuProfile: profile
+  }
+}
+
+/** The conquest underway (see conquest/conquest), with its squad, or how the last one ended. */
+function conquestReport(): ConquestSnapshot | null {
+  const c = Memory.conquest
+  if (!c) return null
+  return {
+    room: c.room,
+    player: c.player,
+    home: c.home,
+    staging: c.staging,
+    side: sideName(c.side),
+    state: c.state,
+    phase: c.phase,
+    status: c.status,
+    template: c.template,
+    wave: c.wave,
+    maxWaves: c.maxWaves,
+    approved: c.approved,
+    forced: c.forced,
+    retreating: !!c.retreating,
+    barriersLeft: c.barriersLeft,
+    squad: c.state === "over" ? [] : conquerors(c.room).map(m => ({
+      name: m.name,
+      kind: (m.memory as ConquerorMemory).kind,
+      wave: (m.memory as ConquerorMemory).wave,
+      ttl: m.ticksToLive ?? CREEP_LIFE_TIME,
+      hits: m.hits,
+      hitsMax: m.hitsMax,
+      room: m.room.name
+    })),
+    result: c.result
   }
 }
 

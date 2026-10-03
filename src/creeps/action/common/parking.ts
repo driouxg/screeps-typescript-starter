@@ -49,7 +49,9 @@ export function clearLoiterersFromSpawns(): void {
   for (const name in Game.spawns) {
     const spawn = Game.spawns[name]
     for (const creep of spawn.pos.findInRange(FIND_MY_CREEPS, 1)) {
-      if (creep.spawning || creep.memory.stationary || creep.getActiveBodyparts(MOVE) === 0) continue
+      // Waiting to be renewed (see conquest/conquest) isn't loitering.
+      if (creep.spawning || creep.memory.stationary || creep.memory.renewing || creep.getActiveBodyparts(MOVE) === 0)
+        continue
 
       const key = `${creep.pos.x},${creep.pos.y},${creep.store.getUsedCapacity()}`
       if (creep.memory.loiter?.key !== key) creep.memory.loiter = { key, since: Game.time }

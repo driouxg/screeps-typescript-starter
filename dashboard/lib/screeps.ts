@@ -55,7 +55,8 @@ export async function setControls(controls: ControlsSnapshot): Promise<void> {
 /**
  * Requests the bot acts on: the player's expansion pick and bases to tear down (see src/expansion), which rooms
  * show their build plan and highways in the game (see constructionSiteVisualizer.ts and remote/highwayVisualizer.ts),
- * players forgiven, and a strike on one (see src/defence/retaliation.ts).
+ * players forgiven, a strike on one (see src/defence/retaliation.ts), and conquests approved or called off (see
+ * src/conquest/conquest.ts).
  */
 export type Command =
   | { path: "expansionRequest"; value: { target: string } | { cancel: true } | null }
@@ -65,6 +66,16 @@ export type Command =
   | { path: `scoutRequests.${string}`; value: { requested: number } | null }
   | { path: "contestRequest"; value: { room: string; cancel?: boolean; requested: number } | null }
   | { path: "retaliation"; value: { player: string; requested: number } | null }
+  | {
+      path: "conquestRequest"
+      value: {
+        room: string
+        action: "approve" | "cancel"
+        force?: boolean
+        template?: string
+        requested: number
+      } | null
+    }
 
 /**
  * Write one command into the bot's Memory. A dotted path ("buildPlanOverlay.W1N2") sets just that key of its parent
@@ -162,6 +173,10 @@ async function readSnapshotFile(): Promise<DashboardSnapshot> {
   if ("contestRequest" in commands) {
     const r = commands.contestRequest as { room: string; cancel?: boolean } | null
     snapshot.contestRequest = r ? { room: r.room, cancel: r.cancel, status: "waiting for the bot" } : null
+  }
+  if ("conquestRequest" in commands) {
+    const r = commands.conquestRequest as { room: string; action: string } | null
+    snapshot.conquestRequest = r ? { room: r.room, action: r.action, status: "waiting for the bot" } : null
   }
   if ("retaliation" in commands) {
     const r = commands.retaliation as { player: string } | null
