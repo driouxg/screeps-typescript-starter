@@ -9,6 +9,7 @@ import { applyCreepCosts, smartMove } from "./movement"
 import { buildStagingPos } from "./buildStaging"
 import { rapidFillOf } from "structures/rapidFill"
 import { RAPID_FILLER } from "creeps/roles"
+import * as creepRoles from "creeps/roles"
 import { TOWER_MIN_STOCK } from "structures/action/towerActionHandler"
 import { isUnderAttack } from "defence/threat"
 
@@ -70,6 +71,31 @@ export function canStoreEnergy(creep: Creep): boolean {
 }
 
 /**
+ * Tiles other haulers in the creep's room are delivering to right now (home haulers' offloadTargetPos while working,
+ * remote haulers' offload while delivering), so each picks its own extension.
+ */
+function extensionsClaimed(creep: Creep): Set<number> {
+  const claimed = new Set<number>()
+  for (const other of creep.room.find(FIND_MY_CREEPS)) {
+    if (other.id === creep.id) continue
+    const memory = other.memory as {
+      working?: boolean
+      state?: string
+      offloadTargetPos?: RoomPositionJson
+      offload?: RoomPositionJson
+    }
+    const target =
+      other.memory.role === creepRoles.HAULER && memory.working
+        ? memory.offloadTargetPos
+        : other.memory.role === creepRoles.REMOTE_HAULER && memory.state === "deliver"
+        ? memory.offload
+        : undefined
+    if (target?.roomName === creep.room.name) claimed.add(target.x * 50 + target.y)
+  }
+  return claimed
+}
+
+/**
  * Where to deliver energy, or null when nothing needs it.
  */
 export function findOffloadSpot(creep: Creep): RoomPosition | null {
@@ -84,8 +110,12 @@ export function findOffloadSpot(creep: Creep): RoomPosition | null {
     .sort((a, b) => a.store.energy - b.store.energy)
   if (0 < lowTowers.length && creepCanReachPosition(creep, lowTowers[0].pos)) return lowTowers[0].pos
 
-  // offload to extensions
-  const extensions = findExtensions(creep.room).filter(e => !isFullOfEnergy(e.store) && !covered(e.pos))
+  // offload to extensions: the nearest one no other hauler is already on its way to fill (one is plenty for an
+  // extension; all going to the same one wasted their trips)
+  const claimed = extensionsClaimed(creep)
+  const extensions = findExtensions(creep.room).filter(
+    e => !isFullOfEnergy(e.store) && !covered(e.pos) && !claimed.has(e.pos.x * 50 + e.pos.y)
+  )
   if (0 < extensions.length) {
     extensions.sort(
       (e1, e2) => e1.pos.getRangeTo(creep.pos.x, creep.pos.y) - e2.pos.getRangeTo(creep.pos.x, creep.pos.y)

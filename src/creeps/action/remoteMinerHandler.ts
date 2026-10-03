@@ -9,7 +9,8 @@ import ICreepHandler from "./ICreepHandler"
  *
  * - Walks to its spot (next to the source, where the planner put the container) and places the container's
  *   construction site if there's none. Haulers only come once the container is built (see containerBuilt).
- * - Container not built yet: harvests, and builds it whenever its CARRY is full, except while another player has the
+ * - Container not built yet: picks up energy lying within PILE_RANGE of the source first (quicker than harvesting it),
+ *   otherwise harvests, and builds it whenever its CARRY is full, except while another player has the
  *   room reserved (the container would be theirs to use; see remote/contest for taking it back). Its reserver is sent
  *   first (see RemoteSpawnHandler), so the room is usually ours by then. Not waiting for our own reservation: it lapses
  *   between reservers, and waiting kept the container, and so the haulers, from coming for thousands of ticks.
@@ -20,6 +21,11 @@ import ICreepHandler from "./ICreepHandler"
  * Its spare WORK part (see remoteBodies.minerBody) pays for the ticks spent repairing. Goes home while the room is
  * paused, or if the source is no longer mined.
  */
+/** Energy on the ground this close to the source is picked up for the container (see pickUpForContainer)... */
+const PILE_RANGE = 3
+/** ...when there's more than this of it: not worth leaving the spot for less. */
+const MIN_PILE = 20
+
 export default class RemoteMinerHandler implements ICreepHandler {
   handle(creep: Creep): void {
     const remote = remoteOf(creep)
@@ -27,6 +33,8 @@ export default class RemoteMinerHandler implements ICreepHandler {
 
     const spot = new RoomPosition(remote.spot.x, remote.spot.y, remote.room)
     const source = Game.getObjectById(remote.id as Id<Source>)
+    // Before the spot: picking up a pile means stepping off it.
+    if (source && this.pickUpForContainer(creep, spot, source)) return
     if (!creep.pos.isEqualTo(spot)) {
       // Someone (an old miner) still on the spot: mine from next to the source meanwhile.
       if (source && creep.pos.isNearTo(source) && spot.lookFor(LOOK_CREEPS).length) creep.harvest(source)
@@ -68,6 +76,25 @@ export default class RemoteMinerHandler implements ICreepHandler {
     }
     if (creep.store.getFreeCapacity() <= 0) creep.build(site)
     else creep.harvest(source)
+  }
+
+  /**
+   * While the container isn't built and there's room in the CARRY: energy already lying within PILE_RANGE of the
+   * source (dropped by an earlier miner, or a dead creep's) is quicker than harvesting it, so go and pick it up; then
+   * back to the spot to build (see buildContainer). Returns whether it's doing that.
+   */
+  private pickUpForContainer(creep: Creep, spot: RoomPosition, source: Source): boolean {
+    if (creep.room.name !== spot.roomName || creep.store.getFreeCapacity() <= 0) return false
+    const built = spot.lookFor(LOOK_STRUCTURES).some(s => s.structureType === STRUCTURE_CONTAINER)
+    if (built) return false
+    const pile = creep.pos.findClosestByRange(
+      source.pos.findInRange(FIND_DROPPED_RESOURCES, PILE_RANGE, {
+        filter: r => r.resourceType === RESOURCE_ENERGY && MIN_PILE < r.amount
+      })
+    )
+    if (!pile) return false
+    if (creep.pickup(pile) === ERR_NOT_IN_RANGE) smartMove(creep, pile, 1)
+    return true
   }
 
   /** Repair `target` with energy from the container: take some out when the CARRY is empty, repair otherwise. */

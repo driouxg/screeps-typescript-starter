@@ -1,4 +1,4 @@
-import { CONTEST_ATTACKERS, contesters, MIN_CONTEST_CLAIM } from "remote/contest"
+import { CONTEST_ATTACKERS, contesters } from "remote/contest"
 import * as creepRoles from "../roles"
 import ISpawnHandler from "./ISpawnHandler"
 import { defenderBody } from "./meleeDefenderSpawnHandler"
@@ -22,8 +22,8 @@ const MAX_CLAIM = 5
 /**
  * Goal: Staff the contests this spawn's room sends (see remote/contest): CONTEST_ATTACKERS attackers, a melee one and
  * then ranged ones (they catch creeps that run from the melee one), replaced as they fall; and once they're all out, a
- * reserver with MIN_CONTEST_CLAIM to MAX_CLAIM CLAIM parts to run down the other player's reservation and reserve the
- * room, from the contest's reserverHome when its own base can't afford one.
+ * reserver with as many CLAIM parts as the base can afford (up to MAX_CLAIM; a single one at RCL 3) to run down the
+ * other player's reservation and reserve the room, from the contest's reserverHome when a base nearby can afford 2.
  */
 export default class ContestSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
@@ -51,8 +51,7 @@ export default class ContestSpawnHandler implements ISpawnHandler {
       )
       if (reserving) continue
       const pair = BODYPART_COST[CLAIM] + BODYPART_COST[MOVE]
-      const pairs = Math.min(MAX_CLAIM, Math.floor(home.energyCapacityAvailable / pair))
-      if (pairs < MIN_CONTEST_CLAIM) continue // can't hold the room (see MIN_CONTEST_CLAIM)
+      const pairs = Math.max(1, Math.min(MAX_CLAIM, Math.floor(home.energyCapacityAvailable / pair)))
       return new SpawnConfig(
         [...Array<BodyPartConstant>(pairs).fill(CLAIM), ...Array<BodyPartConstant>(pairs).fill(MOVE)],
         creepRoles.RESERVER,

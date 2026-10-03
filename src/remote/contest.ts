@@ -4,6 +4,7 @@ import * as creepRoles from "creeps/roles"
 import { describe, ourStrength, playerStrength } from "defence/strength"
 import { recordIntel } from "expansion/intel"
 import { myUsername } from "utils/username"
+import { reservingBase } from "./reserving"
 
 /**
  * Goal: Take over remote rooms another player reserves, when we're clearly the stronger (see defence/strength), so we
@@ -35,18 +36,14 @@ const STRENGTH_MARGIN = 2
 /** Contests at a time, over all our bases. */
 const MAX_CONTESTS = 1
 /**
- * A home needs this RCL to send attackers worth sending (6 ATTACK at RCL 3's 800 energy). Below RCL 4 it can't afford
- * the contest's reserver (MIN_CONTEST_CLAIM): a base nearby that can sends it, or there's no contest.
+ * A home needs this RCL to send attackers worth sending (6 ATTACK at RCL 3's 800 energy). The contest's reserver comes
+ * from a base nearby that can afford 2 CLAIM if there is one (see remote/reserving: it then keeps the room reserved
+ * after); otherwise from the contest's own base with what it can afford. At RCL 3 that's a single CLAIM: it still runs
+ * their reservation down (a tick a tick on top of its own decay) and holds ours at a tick, so we mine the room until
+ * the base reaches RCL 4 and reserves it properly, rather than not taking it at all.
  */
 const MIN_HOME_RCL = 3
 export const CONTEST_ATTACKERS = 2
-/**
- * A contest's reserver needs at least this many CLAIM parts: one only makes up for the reservation's own decay, so it
- * can't run theirs down or build ours up (it sat at a tick). So 1300 energy with its MOVE: when the contest's base
- * can't afford that, the nearest base that can within RESERVER_MAX_ROUTE rooms sends it (see reserverHomeFor).
- */
-export const MIN_CONTEST_CLAIM = 2
-const RESERVER_MAX_ROUTE = 3
 const MAX_ATTACKERS_SPAWNED = 6
 const TIMEOUT_TICKS = 6000
 const BLOCK_TICKS = 20000
@@ -70,7 +67,7 @@ export interface Contest {
   attackersSpawned: number
   /** Picked from the dashboard: goes ahead whatever the aggression and strength. */
   manual?: boolean
-  /** The base that sends the reserver, when it isn't `home` (which can't afford MIN_CONTEST_CLAIM). */
+  /** The base that sends the reserver, when it isn't `home` (a base nearby that can afford 2 CLAIM). */
   reserverHome?: string
   /** Reserved by us: the room is mined while the attackers guard it (see HOLD_TICKS). */
   holding?: boolean
@@ -151,9 +148,7 @@ function decide(home: Room, roomName: string, player: string): string {
   if (ours.score < STRENGTH_MARGIN * theirs.score) return `reserved by ${player}: ${versus}, not contested`
   if (MAX_CONTESTS <= Object.keys(Memory.remoteContests ?? {}).length)
     return `reserved by ${player}: ${versus}, another contest is underway`
-  const reserverHome = reserverHomeFor(roomName, home.name)
-  if (!reserverHome)
-    return `reserved by ${player}: ${versus}, but no base within ${RESERVER_MAX_ROUTE} rooms can spawn a ${MIN_CONTEST_CLAIM}-CLAIM reserver`
+  const reserverHome = reservingBase(roomName, home.name) ?? home.name
 
   const status = startStatus(home.name, reserverHome)
   Memory.remoteContests = {
@@ -220,11 +215,7 @@ function runRequest(): void {
     request.status = `not contested: no base of ours at RCL ${MIN_HOME_RCL}+ mines that far (1 room away from RCL 3, 2 from RCL 4)`
     return
   }
-  const reserverHome = reserverHomeFor(room, home)
-  if (!reserverHome) {
-    request.status = `not contested: no base within ${RESERVER_MAX_ROUTE} rooms can spawn a ${MIN_CONTEST_CLAIM}-CLAIM reserver (1300 energy), and one CLAIM can't hold the room`
-    return
-  }
+  const reserverHome = reservingBase(room, home) ?? home
   const status = startStatus(home, reserverHome)
   Memory.remoteContests = {
     ...(Memory.remoteContests ?? {}),
@@ -265,25 +256,6 @@ function startStatus(home: string, reserverHome: string): string {
   return `sending ${CONTEST_ATTACKERS} attackers from ${home}${
     reserverHome !== home ? `, and a reserver from ${reserverHome}` : ""
   }`
-}
-
-/**
- * The base to send a contest's reserver: `home` if it can afford MIN_CONTEST_CLAIM (with their MOVE), otherwise the
- * nearest base that can, within RESERVER_MAX_ROUTE rooms of `room`. Null if none can.
- */
-export function reserverHomeFor(room: string, home: string): string | null {
-  const cost = MIN_CONTEST_CLAIM * (BODYPART_COST[CLAIM] + BODYPART_COST[MOVE])
-  const can = (r: Room | undefined) =>
-    !!r?.controller?.my && cost <= r.energyCapacityAvailable && 0 < r.find(FIND_MY_SPAWNS).length
-  if (can(Game.rooms[home])) return home
-  let best: { name: string; distance: number } | null = null
-  for (const base of Object.values(Game.rooms)) {
-    if (!can(base)) continue
-    const route = Game.map.findRoute(base.name, room)
-    if (route === ERR_NO_PATH || RESERVER_MAX_ROUTE < route.length) continue
-    if (!best || route.length < best.distance) best = { name: base.name, distance: route.length }
-  }
-  return best?.name ?? null
 }
 
 /** Our base at MIN_HOME_RCL with a spawn closest to `room` (by route), within the rooms it mines (manualMaxRoute). */

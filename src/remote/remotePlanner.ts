@@ -1,6 +1,7 @@
 import * as creepRoles from "creeps/roles"
 import { isHostile } from "config/relations"
 import { considerContest, runContests } from "./contest"
+import { RESERVER_BODY, RESERVER_COST, reservingBase } from "./reserving"
 import { myUsername } from "utils/username"
 import { isHostileRoom } from "utils/roomSafety"
 import { controls } from "config/controls"
@@ -27,7 +28,8 @@ import { assessRemoteThreat, forgetStaleThreats } from "defence/remoteDefence"
  * RCL 3, two rooms away from RCL 4, by a route that avoids hostile rooms) is scored by its net energy per tick, with
  * the bodies the room can actually build (see remoteBodies):
  *
- *   income     5/tick, or 10/tick once the room can afford a reserver (a reserved controller doubles the source)
+ *   income     5/tick, or 10/tick once the room, or a base nearby, can afford a reserver (a reserved controller doubles
+ *              the source; see remote/reserving)
  *   miner      its body every 1500 ticks
  *   haulers    CARRY to move `income` over a round trip, with 1 MOVE per 2 CARRY: full, they're twice as fast once
  *              the highway's roads are built (five times on swamp), so far fewer are needed
@@ -35,7 +37,8 @@ import { assessRemoteThreat, forgetStaleThreats } from "defence/remoteDefence"
  *              decay fast; no haulers go before it's built (see RemoteSpawnHandler)
  *   roads      from ROAD_MIN_RCL: built once (amortized over ROAD_AMORTIZE_TICKS) and kept up, plus the highway maintainer's body now and then;
  *              only the road a source adds counts, as routes share roads (see remote/highway)
- *   reserver   2 CLAIM + 2 MOVE every 600 ticks, shared by the room's sources
+ *   reserver   2 CLAIM + 2 MOVE every 600 ticks, shared by the room's sources (counted against this home even when a
+ *              stronger base nearby spawns it)
  *
  * Sources are chosen best first while they net at least MIN_NET and fit the spawn:
  *   - spawn time: what their creeps take (3 ticks per body part per lifetime) must fit in what the home's own creeps
@@ -95,8 +98,6 @@ const TRIP_OVERHEAD = 10
 const HAULER_MARGIN = 1.1
 /** The highway maintainer is needed about this often (roads lose half their hits in ~25000 ticks; new sites sooner). */
 const MAINTAINER_EVERY = 5000
-const RESERVER_BODY: BodyPartConstant[] = [CLAIM, CLAIM, MOVE, MOVE]
-const RESERVER_COST = bodyCost(RESERVER_BODY)
 /** A container outside our rooms loses CONTAINER_DECAY hits every CONTAINER_DECAY_TIME ticks. */
 const CONTAINER_UPKEEP = (CONTAINER_DECAY * REPAIR_COST) / CONTAINER_DECAY_TIME
 
@@ -236,7 +237,8 @@ export default class RemotePlanner {
     const roadsOn = ROAD_MIN_RCL <= level
     const roads = roadsOn && ROADS_BUILT_SHARE <= builtShare(home.name)
     const capacity = home.energyCapacityAvailable
-    const canReserve = RESERVER_COST <= capacity
+    // Reserved by this home if it can afford a reserver, otherwise by a stronger base nearby (see remote/reserving).
+    const canReserve = (room: string) => reservingBase(room, home.name) !== null
     // The room mined is at most `reach` rooms away, but the path there may detour through others (walls between rooms).
     const maxRooms = 2 * reach + 3
 
@@ -255,7 +257,7 @@ export default class RemotePlanner {
           continue
         }
         const c = { source: s, room: roomName, route }
-        candidates.push({ ...c, score: score(c, home.name, capacity, canReserve, roadsOn, roads, route.roadCost) })
+        candidates.push({ ...c, score: score(c, home.name, capacity, canReserve(roomName), roadsOn, roads, route.roadCost) })
       }
     }
     // Spawn time is what limits how many sources a room can mine: best net energy per share of spawn time first.
@@ -285,7 +287,7 @@ export default class RemotePlanner {
       const newRoad = route.tiles
         .filter(t => !shared.has(`${t.roomName}:${t.x * 50 + t.y}`))
         .reduce((sum, t) => sum + roadBuildCost(t), 0)
-      const s = score({ ...c, route }, home.name, capacity, canReserve, roadsOn, roads, newRoad)
+      const s = score({ ...c, route }, home.name, capacity, canReserve(c.room), roadsOn, roads, newRoad)
 
       const reserverShare = s.reserve && !reservedRooms.has(c.room) ? RESERVER_COST / CREEP_CLAIM_LIFE_TIME : 0
       const reserverLoad = reserverShare ? (RESERVER_BODY.length * CREEP_SPAWN_TIME) / CREEP_CLAIM_LIFE_TIME : 0
