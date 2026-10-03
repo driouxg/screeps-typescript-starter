@@ -135,6 +135,8 @@ export interface ConquerorMemory extends CreepMemory {
   /** Its place in the conquest's members. */
   slot: number
   targetId?: Id<Creep | Structure>
+  /** Tick it stepped off an exit tile (see ConquerorHandler): it doesn't move again that tick. */
+  steppedIn?: number
 }
 
 declare global {
@@ -167,6 +169,11 @@ export function squadOf(c: Conquest, wave?: number): Creep[] {
     const memory = m.memory as ConquerorMemory
     return memory.kind !== "claimer" && (wave === undefined || memory.wave === wave)
   })
+}
+
+/** A hold tile at least 2 in from the edge (intel recorded before HOLD_DEPTH was 2 had it right by the edge). */
+function clampHold(hold: { x: number; y: number }): { x: number; y: number } {
+  return { x: Math.max(2, Math.min(47, hold.x)), y: Math.max(2, Math.min(47, hold.y)) }
 }
 
 /** Where the squad gathers in the staging room: across the border from the breach's entry, a few tiles in. */
@@ -334,7 +341,7 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
   c.entry = breach.entry
   c.travel = candidate.estimate?.travelTicks ?? 500
   c.strategy = candidate.estimate?.strategy === "drain" ? "drain" : "assault"
-  c.hold = breach.hold
+  c.hold = breach.hold && clampHold(breach.hold)
   c.raidRemotes = !!candidate.supply?.raidRemotes
   if (c.wave === 1 && c.phase === "breach" && c.strategy === "drain") c.phase = "drain"
   c.maxWaves = Math.max(2, Math.min(MAX_WAVES * 2, (candidate.estimate?.waves ?? 1) + 1))

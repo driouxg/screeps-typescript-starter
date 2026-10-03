@@ -1,6 +1,6 @@
 import { isHostile } from "config/relations"
 import { Conquest, conquest, ConquerorMemory, conquerors, rallyPoint, squadOf } from "conquest/conquest"
-import { smartMove } from "./common/movement"
+import { smartMove as move, stepOffEdge } from "./common/movement"
 import { park } from "./common/parking"
 import ICreepHandler from "./ICreepHandler"
 
@@ -29,6 +29,9 @@ export default class ConquerorHandler implements ICreepHandler {
     if (!c || c.room !== memory.conquest || c.state === "over") return this.retire(creep)
 
     this.heal(creep, c)
+    // On an exit tile (just arrived, or pushed): one step in first, or the next step along the edge bounces it into
+    // the next room. Attacks this tick still happen below; stepOffEdge used this tick's move.
+    if (stepOffEdge(creep)) memory.steppedIn = Game.time
     if (memory.kind === "claimer") return this.claimer(creep, c)
     const veteran = memory.wave < c.wave
     if (!veteran && c.state === "marching") return this.march(creep, c)
@@ -214,6 +217,12 @@ export default class ConquerorHandler implements ICreepHandler {
     if (!spawn) return park(creep)
     if (spawn.recycleCreep(creep) === ERR_NOT_IN_RANGE) smartMove(creep, spawn, 1)
   }
+}
+
+/** smartMove that keeps off exit tiles inside the room it's in, and doesn't override a step off the edge this tick. */
+function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPosition }, range: number): void {
+  if ((creep.memory as ConquerorMemory).steppedIn === Game.time) return
+  move(creep, target, range, { avoidEdges: true })
 }
 
 /** The member the squad forms up on: its first dismantler (or attacker, ranged, healer), lowest slot first. */

@@ -62,7 +62,17 @@ declare global {
 
 export type MoveResult = CreepMoveReturnCode | ERR_NO_PATH | ERR_INVALID_TARGET | ERR_NOT_FOUND
 
-export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPosition }, range = 1): MoveResult {
+/**
+ * @param opts.avoidEdges inside the room it's headed for, never path onto an exit tile: stepping onto one moves the
+ *   creep into the next room, and a creep following another near the edge (or walking along it) bounced between the
+ *   two rooms. Paths into the room still cross the exit on the way in.
+ */
+export function smartMove(
+  creep: Creep,
+  target: RoomPosition | { pos: RoomPosition },
+  range = 1,
+  opts?: { avoidEdges?: boolean }
+): MoveResult {
   const pos = target instanceof RoomPosition ? target : target.pos
 
   if (creep.spawning || creep.memory.shovedTick === Game.time) return ERR_BUSY
@@ -100,8 +110,51 @@ export function smartMove(creep: Creep, target: RoomPosition | { pos: RoomPositi
       (rooms && !rooms.has(roomName)) ||
       (roomName !== pos.roomName && roomName !== creep.room.name && isHostileRoom(roomName))
         ? blockedMatrix()
+        : opts?.avoidEdges && roomName === pos.roomName && roomName === creep.room.name
+        ? blockEdges(applyCreepCosts(roomName, matrix))
         : applyCreepCosts(roomName, matrix)
   })
+}
+
+function blockEdges(matrix: CostMatrix): CostMatrix {
+  for (let i = 0; i < 50; i++) {
+    matrix.set(i, 0, 0xff)
+    matrix.set(i, 49, 0xff)
+    matrix.set(0, i, 0xff)
+    matrix.set(49, i, 0xff)
+  }
+  return matrix
+}
+
+/**
+ * A creep standing on an exit tile (it just arrived, or was pushed there) steps one tile into the room, straight in
+ * or diagonally, onto a free tile. True if it moved. Creeps that mean to stay in a room call this first: left there,
+ * any step along the edge would carry them into the next room. With every tile inward taken, it waits where it is.
+ */
+export function stepOffEdge(creep: Creep): boolean {
+  if (!onExit(creep.pos) || creep.fatigue > 0 || creep.getActiveBodyparts(MOVE) === 0) return false
+  const { x, y } = creep.pos
+  const inward: DirectionConstant[] =
+    y <= 0
+      ? [BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT]
+      : 49 <= y
+      ? [TOP, TOP_LEFT, TOP_RIGHT]
+      : x <= 0
+      ? [RIGHT, TOP_RIGHT, BOTTOM_RIGHT]
+      : [LEFT, TOP_LEFT, BOTTOM_LEFT]
+  const terrain = creep.room.getTerrain()
+  for (const direction of inward) {
+    const [dx, dy] = DIRECTION_OFFSETS[direction]
+    const nx = x + dx
+    const ny = y + dy
+    if (nx < 1 || 48 < nx || ny < 1 || 48 < ny || terrain.get(nx, ny) === TERRAIN_MASK_WALL) continue
+    if (creep.room.lookForAt(LOOK_STRUCTURES, nx, ny).some(isObstacleStructure)) continue
+    // Never swap: that would put the other creep on the exit tile in our place. Standing still on it is harmless.
+    if (creep.room.lookForAt(LOOK_CREEPS, nx, ny).length) continue
+    creep.move(direction)
+    return true
+  }
+  return false
 }
 
 /**

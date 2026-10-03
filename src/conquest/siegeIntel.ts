@@ -24,6 +24,8 @@ const REFRESH_TICKS = 500
 const TOWER_WEIGHT = 0.5
 /** A miner within this range of a tile we can walk to is in reach of our ranged attackers (3, plus its own step). */
 const EXPOSED_RANGE = 4
+/** How far in from the edge the drain's hold tile is. */
+const HOLD_DEPTH = 2
 /** Barriers kept per breach; the path rarely crosses more. */
 const MAX_BARRIERS = 8
 
@@ -401,7 +403,10 @@ function breaches(
   return result.sort((a, b) => dist[key(a.entry.x, a.entry.y)] - dist[key(b.entry.x, b.entry.y)])
 }
 
-/** The tile one step inside the room on `side`, reachable from the exits, where the towers hit least. */
+/**
+ * The tile HOLD_DEPTH in from `side`, reachable from the exits, where the towers hit least. Not right by the edge:
+ * the squad forms up around it, and members next to an exit tile kept stepping onto it and out of the room.
+ */
 function holdTile(
   side: ExitConstant,
   outside: Uint8Array,
@@ -410,7 +415,13 @@ function holdTile(
   let best: { x: number; y: number; damage: number } | null = null
   for (let i = 2; i < 48; i++) {
     const [x, y] =
-      side === FIND_EXIT_TOP ? [i, 1] : side === FIND_EXIT_BOTTOM ? [i, 48] : side === FIND_EXIT_LEFT ? [1, i] : [48, i]
+      side === FIND_EXIT_TOP
+        ? [i, HOLD_DEPTH]
+        : side === FIND_EXIT_BOTTOM
+        ? [i, 49 - HOLD_DEPTH]
+        : side === FIND_EXIT_LEFT
+        ? [HOLD_DEPTH, i]
+        : [49 - HOLD_DEPTH, i]
     if (!outside[key(x, y)]) continue
     const damage = damageAt(x, y)
     if (!best || damage < best.damage) best = { x, y, damage }
