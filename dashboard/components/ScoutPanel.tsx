@@ -49,8 +49,8 @@ export function ScoutPanel({
         </button>
       </form>
       <p className="controls-help">
-        The scout comes from the base closest to it (fewest rooms away, around hostile rooms), even with automatic
-        scouting off.
+        A recon scout (one MOVE part, 50 energy) comes from the base closest to it (fewest rooms away, around hostile
+        rooms). It&apos;s spawned ahead of everything but defence, even with automatic scouting off.
       </p>
       {requests.length === 0 ? (
         <Empty>No rooms asked for.</Empty>

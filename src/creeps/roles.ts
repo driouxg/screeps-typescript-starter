@@ -18,3 +18,5 @@ export const REMOTE_DEFENDER = "REMOTE_DEFENDER"
 export const RETALIATOR = "RETALIATOR"
 export const CONTESTER = "CONTESTER"
 export const CONQUEROR = "CONQUEROR"
+/** A scout sent to a room the player asked for from the dashboard (see ReconHandler); SCOUT does routine scouting. */
+export const RECON = "RECON"

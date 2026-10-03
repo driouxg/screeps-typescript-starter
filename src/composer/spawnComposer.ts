@@ -15,6 +15,7 @@ import ContestSpawnHandler from "creeps/spawn/contestSpawnHandler"
 import ConquestSpawnHandler from "creeps/spawn/conquestSpawnHandler"
 import { renewingThisTick } from "conquest/conquest"
 import ScoutSpawnHandler from "creeps/spawn/scoutSpawnHandler"
+import ReconSpawnHandler from "creeps/spawn/reconSpawnHandler"
 import UpgraderSpawnHandler from "creeps/spawn/upgraderSpawnHandler"
 import WatcherSpawnHandler from "creeps/spawn/watcherSpawnHandler"
 import generateGuid from "utils/guidGenerator"
@@ -56,6 +57,9 @@ export default class SpawnComposer {
     return [
       new MeleeDefenderSpawnHandler(),
       new HealerSpawnHandler(),
+      // A room the player asked to scout (see ReconSpawnHandler): one MOVE part, 50 energy, never saves up. Ahead of
+      // everything but defence: behind the squads that save up for their bodies, it never got its turn.
+      new ReconSpawnHandler(),
       new PullerSpawnHandler(),
       // Miners and one hauler each come first, alternating, so energy is flowing before anything else spawns.
       new HaulerSpawnHandler("minimum"),
@@ -72,8 +76,6 @@ export default class SpawnComposer {
       // A conquest the player approved (see conquest/conquest): its squad saves up ahead of the economy, or a busy
       // home would never field it.
       new ConquestSpawnHandler(),
-      // A room the player asked to scout: one MOVE part, right away.
-      new ScoutSpawnHandler("requested"),
       // More haulers before more workers: workers can only spend what gets delivered to them.
       new HaulerSpawnHandler("backlog"),
       // Cheap, and once in place they take over filling the rapid fill's spawns and extensions.

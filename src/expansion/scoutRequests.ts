@@ -8,9 +8,11 @@ import { isHostileRoom } from "utils/roomSafety"
  * For each request, once a tick:
  *   1. pick the base with a spawn that's the fewest rooms away by a route around hostile rooms (MAX_ROUTE at most),
  *      the bigger one on ties;
- *   2. give the request to a scout of that base that isn't on one already, or have the base spawn one (see
- *      ScoutSpawnHandler "requested");
- *   3. the scout goes straight there (see ScoutHandler), records the room and reports back (completeScoutRequest).
+ *   2. give the request to a recon scout of that base that isn't on one already, or have the base spawn one (see
+ *      ReconSpawnHandler: ahead of everything but defence). Routine scouts aren't used: one wandering rooms away in
+ *      the wrong direction made the player wait;
+ *   3. the recon scout goes straight there (see ReconHandler), records the room and reports back
+ *      (completeScoutRequest).
  * A request not done within TIMEOUT_TICKS of being taken on has failed. Finished ones stay listed for SHOW_TICKS so
  * the dashboard can say how they went.
  */
@@ -105,22 +107,22 @@ function assignHome(room: string, request: ScoutRequest): void {
   console.log(`Scout request ${room}: ${request.status}`)
 }
 
-/** A scout of the home that isn't on another request takes it; otherwise the home spawns one. */
+/** A recon scout of the home that isn't on another request takes it; otherwise the home spawns one. */
 function assignScout(room: string, request: ScoutRequest): void {
   const scouts = Object.values(Game.creeps).filter(
-    c => c.memory.role === creepRoles.SCOUT && c.memory.room === request.home
+    c => c.memory.role === creepRoles.RECON && c.memory.room === request.home
   )
   // One already sent for it (just spawned for this request), else a free one.
   const scout =
     scouts.find(c => (c.memory as { requestRoom?: string }).requestRoom === room) ??
     scouts.find(c => !(c.memory as { requestRoom?: string }).requestRoom)
   if (!scout) {
-    request.status = `spawning a scout in ${request.home}`
+    request.status = `spawning a recon scout in ${request.home}`
     return
   }
   ;(scout.memory as { requestRoom?: string }).requestRoom = room
   request.scout = scout.name
-  request.status = `scout from ${request.home} on its way`
+  request.status = `recon scout from ${request.home} on its way`
 }
 
 function finish(request: ScoutRequest, status: string): void {

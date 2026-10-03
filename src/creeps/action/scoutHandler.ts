@@ -29,8 +29,8 @@ const RETARGET_TICKS = 50
  * - wandering, once it is: on entering each room, records it (at most every so often, see recordIntel) and walks on
  *   to the neighbour seen longest ago, staying within scouting range. No target searches, no route planning.
  *
- * A room the player asked for (see expansion/scoutRequests) comes first: the scout goes straight there, records it and
- * then goes back to the above.
+ * Rooms the player asks for (see expansion/scoutRequests) go to recon scouts (see ReconHandler, which walks there with
+ * request() below). A routine scout still holding a request from before then finishes it first.
  *
  * With scouting switched off (see config/controls) scouts retire, except on a request: the player asked for that.
  */
@@ -62,8 +62,8 @@ export default class ScoutHandler implements ICreepHandler {
     else this.target(creep, memory)
   }
 
-  /** Straight to the room the player asked for, room by room; there, record it and report back. */
-  private request(creep: Creep, memory: ScoutMemory, room: string): void {
+  /** Straight to the room the player asked for, room by room; there, record it and report back (see ReconHandler). */
+  protected request(creep: Creep, memory: ScoutMemory, room: string): void {
     if (creep.room.name === room) {
       this.updateRoomStatus(creep.room)
       recordIntel(creep.room, true)
