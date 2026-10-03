@@ -4,6 +4,7 @@ import { isRoomPositionJson, jsonToRoomPosition } from "utils/jsonMapper"
 import * as creepRoles from "../roles"
 import { containerSpot, freeMiningPosition, minerAt } from "./common/miningPosition"
 import { smartMove } from "./common/movement"
+import { sourceLinkOf } from "structures/links"
 
 /**
  * Goal: If not next to source create Pull Event to get puller to move miner there. Then just mine.
@@ -27,7 +28,10 @@ export default class MinerHandler implements ICreepHandler {
     if (memory.settledAt !== undefined && Game.time - memory.settledAt < SETTLED_RECHECK_TICKS) {
       const source = Game.getObjectById(memory.targetSourceId as Id<Source>)
       const code = source ? creep.harvest(source) : ERR_INVALID_TARGET
-      if (code === OK || code === ERR_NOT_ENOUGH_RESOURCES) return
+      if (code === OK || code === ERR_NOT_ENOUGH_RESOURCES) {
+        if (source) this.feedLink(creep, source)
+        return
+      }
     }
     delete memory.settledAt
 
@@ -67,6 +71,7 @@ export default class MinerHandler implements ICreepHandler {
 
     const code = creep.harvest(source)
     if (code !== ERR_NOT_IN_RANGE) {
+      this.feedLink(creep, source)
       delete memory.waitingSince
       // Already mining: record where, so the spawn handler knows this tile is taken.
       if (!isRoomPositionJson(memory.targetSourcePos)) {
@@ -114,6 +119,19 @@ export default class MinerHandler implements ICreepHandler {
     // A miner with MOVE parts (the room's first) walks; the rest wait for a puller.
     if (0 < creep.getActiveBodyparts(MOVE)) smartMove(creep, tile, 0)
     else creep.room.memory.events.push(new PullRequestEvent(tile, creep.name))
+  }
+
+  /**
+   * A miner with CARRY next to its source's link (see structures/links) puts what it harvests in the link, once one
+   * more harvest wouldn't fit: haulers then needn't come. With the link full it just keeps harvesting, and what doesn't
+   * fit drops into the container below it, as without a link.
+   */
+  private feedLink(creep: Creep, source: Source): void {
+    if (creep.store.getCapacity(RESOURCE_ENERGY) <= 0) return
+    if (creep.getActiveBodyparts(WORK) * HARVEST_POWER < creep.store.getFreeCapacity(RESOURCE_ENERGY)) return
+    const link = sourceLinkOf(creep.room, source)
+    if (link && creep.pos.isNearTo(link) && 0 < link.store.getFreeCapacity(RESOURCE_ENERGY))
+      creep.transfer(link, RESOURCE_ENERGY)
   }
 
   /** Whether a structure creeps can't stand on has been built on the tile. */

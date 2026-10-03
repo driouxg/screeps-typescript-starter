@@ -9,8 +9,14 @@ import { controls } from "config/controls"
  * how many: then spawn them (RemoteDefenderSpawnHandler) instead of abandoning the room for PAUSE_TICKS.
  *
  * A fight is modelled tick by tick at full strength: our defenders win if they'd kill all the hostiles' hits (against
- * the hostiles' healing) with a WIN_MARGIN of their own hits to spare against the hostiles' damage. Boosted hostiles
- * and invader cores aren't modelled: they count as unbeatable, and the room is paused as before.
+ * the hostiles' healing) with a WIN_MARGIN of their own hits to spare against the hostiles' damage (less their own
+ * healing). Boosted hostiles and invader cores aren't modelled: they count as unbeatable, and the room is paused as
+ * before.
+ *
+ * Against other players' hostiles with RANGED_ATTACK (not NPC invaders, which come close), defenders are ranged too
+ * (see remoteDefenderBody): a ranged raider standing on the room's edge shoots from 3 tiles and steps across the exit
+ * and back, in the room only every other tick and seldom next to us, so melee defenders took its fire and never
+ * landed a hit.
  */
 
 /** Most defenders sent to one room. */
@@ -36,6 +42,31 @@ export interface RemoteThreat {
   seen: number
   /** First tick of the current stretch it's been seen without hostiles (see CLEAR_TICKS). */
   clearSince?: number
+  /** The hostiles have RANGED_ATTACK: send ranged defenders (see remoteDefenderBody). */
+  ranged?: boolean
+}
+
+/** Most RANGED_ATTACK parts on a ranged defender (each with a MOVE). */
+const MAX_RANGED_PARTS = 15
+/** A ranged defender gets a HEAL part (with a MOVE) once the home can afford this much: it heals between shots. */
+const HEAL_FROM_ENERGY = 1000
+
+/**
+ * A remote defender's body: against hostiles with RANGED_ATTACK, RANGED_ATTACK and MOVE pairs (and a HEAL from
+ * HEAL_FROM_ENERGY), which reach a raider on the room's edge from 3 tiles; otherwise melee (see defenderBody), which
+ * does three times the damage for the energy against hostiles that have to come close.
+ */
+export function remoteDefenderBody(capacity: number, ranged: boolean): BodyPartConstant[] {
+  if (!ranged) return defenderBody(capacity)
+  const healCost = BODYPART_COST[HEAL] + BODYPART_COST[MOVE]
+  const heal = HEAL_FROM_ENERGY <= capacity ? 1 : 0
+  const pair = BODYPART_COST[RANGED_ATTACK] + BODYPART_COST[MOVE]
+  const pairs = Math.max(1, Math.min(MAX_RANGED_PARTS, Math.floor((capacity - heal * healCost) / pair)))
+  return [
+    ...Array<BodyPartConstant>(pairs).fill(RANGED_ATTACK),
+    ...Array<BodyPartConstant>(heal).fill(HEAL),
+    ...Array<BodyPartConstant>(pairs + heal).fill(MOVE)
+  ]
 }
 
 declare global {
@@ -76,7 +107,10 @@ export function assessRemoteThreat(room: Room, home: Room): RemoteThreat | null 
   const healing = hostiles.reduce((sum, c) => sum + c.getActiveBodyparts(HEAL) * HEAL_POWER, 0)
   const hits = hostiles.reduce((sum, c) => sum + c.hits, 0)
   const boosted = hostiles.some(c => c.body.some(p => p.boost))
-  const needed = core.length || boosted ? 0 : defendersToWin(home.energyCapacityAvailable, damage, healing, hits)
+  // Players' ranged creeps kite and dance on the edge; NPC invaders walk in and fight, and melee hits them harder.
+  const ranged = hostiles.some(c => 0 < c.getActiveBodyparts(RANGED_ATTACK) && c.owner.username !== "Invader")
+  const needed =
+    core.length || boosted ? 0 : defendersToWin(home.energyCapacityAvailable, damage, healing, hits, ranged)
   // While the threat lasts, what it takes only goes up, and a group we can't beat stays unbeatable: raiders stepping
   // across an exit and back would otherwise change the count (and recall defenders) every other tick.
   const previous = threats[room.name]
@@ -86,7 +120,8 @@ export function assessRemoteThreat(room: Room, home: Room): RemoteThreat | null 
     ? 0
     : Math.max(previous.defenders, needed)
 
-  const threat = { home: home.name, defenders, damage, healing, hits, seen: Game.time }
+  // Once ranged hostiles are seen, the defenders stay ranged while the threat lasts.
+  const threat = { home: home.name, defenders, damage, healing, hits, seen: Game.time, ranged: ranged || !!previous?.ranged }
   if (!previous || previous.defenders !== defenders)
     console.log(
       `Remote ${room.name}: ${hostiles.length} hostiles (${damage} damage, ${healing} healing, ${hits} hits): ` +
@@ -103,22 +138,26 @@ export function forgetStaleThreats(): void {
 }
 
 /**
- * Fewest defenders (built with `capacity` energy, see defenderBody) that beat hostiles dealing `damage` per tick,
- * healing `healing` and with `hits` in all; 0 if even MAX_REMOTE_DEFENDERS wouldn't.
+ * Fewest defenders (built with `capacity` energy, see remoteDefenderBody: ranged against `ranged` hostiles) that beat
+ * hostiles dealing `damage` per tick, healing `healing` and with `hits` in all; 0 if even MAX_REMOTE_DEFENDERS
+ * wouldn't.
  */
-export function defendersToWin(capacity: number, damage: number, healing: number, hits: number): number {
+export function defendersToWin(capacity: number, damage: number, healing: number, hits: number, ranged = false): number {
   // Aggression (see config/controls): passive never sends defenders, aggressive fights without a margin.
   const aggression = controls().aggression
   if (aggression === "passive") return 0
   const margin = aggression === "aggressive" ? 1 : WIN_MARGIN
-  const body = defenderBody(capacity)
-  const attack = body.filter(p => p === ATTACK).length * ATTACK_POWER
+  const body = remoteDefenderBody(capacity, ranged)
+  const count = (part: BodyPartConstant) => body.filter(p => p === part).length
+  const attack = count(ATTACK) * ATTACK_POWER + count(RANGED_ATTACK) * RANGED_ATTACK_POWER
+  const selfHeal = count(HEAL) * HEAL_POWER
   if (attack <= 0) return 0
   for (let n = 1; n <= MAX_REMOTE_DEFENDERS; n++) {
     const net = n * attack - healing
     if (net <= 0) continue
     const fightTicks = hits / net
-    const survivalTicks = damage <= 0 ? Infinity : (n * body.length * 100) / damage
+    const taken = damage - n * selfHeal
+    const survivalTicks = taken <= 0 ? Infinity : (n * body.length * 100) / taken
     if (fightTicks * margin <= survivalTicks) return n
   }
   return 0

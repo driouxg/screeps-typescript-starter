@@ -2,6 +2,7 @@ import PullRequestEvent from "room/pullRequestEvent"
 import { isRoomPositionJson, jsonToRoomPosition } from "utils/jsonMapper"
 import { isStandable } from "utils/standable"
 import ICreepHandler from "./ICreepHandler"
+import { roomLinks } from "structures/links"
 import * as creepRoles from "../roles"
 
 /** A settled upgrader (on its spot) only collects and upgrades, and redoes the spot checks below this often. */
@@ -9,7 +10,9 @@ const SETTLED_RECHECK_TICKS = 50
 
 /**
  * Goal: Stand next to the controller container (within upgrade range of the controller), take energy from it and
- * upgrade. Upgraders have no MOVE parts, so a puller brings them to their spot.
+ * upgrade. Upgraders have no MOVE parts, so a puller brings them to their spot. Where there's a controller link (see
+ * structures/links), spots next to it are taken first, and energy comes from the link before the container: it's
+ * sent there through the links, while the container waits for haulers.
  *
  * The spot must be a tile a creep can stand on for good (see isStandable): a structure built, being built or planned
  * there would leave the puller trying forever. The spot is re-picked if that changes, or if another creep holds it.
@@ -78,11 +81,20 @@ export default class UpgraderHandler implements ICreepHandler {
     const candidates = upgraderSpots(room, controller).filter(
       p => !claimed.has(`${p.x},${p.y}`) && this.isGoodSpot(creep, p)
     )
-    return creep.pos.findClosestByRange(candidates)
+    // Next to the controller link first (energy arrives there without haulers), then the closest.
+    const link = roomLinks(room).controller
+    const byLink = link ? candidates.filter(p => p.isNearTo(link)) : []
+    return creep.pos.findClosestByRange(byLink.length ? byLink : candidates)
   }
 
   private collectEnergy(creep: Creep): void {
     const memory = creep.memory as UpgraderMemory
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) <= 0) return
+    const link = roomLinks(creep.room).controller
+    if (link && 0 < link.store.energy && creep.pos.isNearTo(link)) {
+      creep.withdraw(link, RESOURCE_ENERGY)
+      return
+    }
     if (!isRoomPositionJson(memory.containerPos)) return
     const containerPos = jsonToRoomPosition(memory.containerPos)
 

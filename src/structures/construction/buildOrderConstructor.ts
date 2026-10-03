@@ -1,3 +1,4 @@
+import { linkRank } from "structures/links"
 /**
  * Goal: Build structures in a defined order for efficiency.
  *
@@ -21,7 +22,8 @@ const MIN_BUILD_RCL = 2
  * - RCL 2: extensions (spawn capacity means bigger creeps), then containers at sources and the controller (stop
  *   dropped energy decaying), then roads.
  * - RCL 3: a tower first (defence; it also repairs and heals), then the new extensions.
- * - RCL 4: storage right after extensions, to bank surplus. RCL 5: links. RCL 6+: terminal, extractor, labs, ...
+ * - RCL 4: storage right after extensions, to bank surplus. RCL 5: links, the most useful first (see linkRank: the
+ *   game allows only 2 at RCL 5). RCL 6+: terminal, extractor, labs, ...
  *
  * Roads come after everything else: they cost upkeep and matter less than capacity and defence. Ramparts and walls
  * wait for a tower (see NEEDS_TOWER) and RCL 5 (see DEFENCE_MIN_RCL).
@@ -149,6 +151,8 @@ export default function build(room: Room) {
 export function priorityOf(room: Room, pos: RoomPosition, structureType: StructureConstant): number {
   if (isTunnel(room, pos, structureType)) return TUNNEL_PRIORITY
   if (structureType === STRUCTURE_CONTAINER && feedsMinersOrUpgraders(room, pos)) return RESOURCE_CONTAINER_PRIORITY
+  // Links in order of use (see structures/links linkRank), all within the links' own priority.
+  if (structureType === STRUCTURE_LINK) return PRIORITY[STRUCTURE_LINK]! + linkRank(room, pos) / 10
   return PRIORITY[structureType as BuildableStructureConstant] ?? PRIORITY[STRUCTURE_ROAD]! + 0.5
 }
 

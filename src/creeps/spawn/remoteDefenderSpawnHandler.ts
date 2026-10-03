@@ -1,5 +1,5 @@
 import * as creepRoles from "../roles"
-import { defenderBody } from "./meleeDefenderSpawnHandler"
+import { remoteDefenderBody } from "defence/remoteDefence"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import { RemoteDefenderMemory } from "creeps/action/remoteDefenderHandler"
@@ -22,7 +22,7 @@ export default class RemoteDefenderSpawnHandler implements ISpawnHandler {
       const sent = defenders.filter(d => (d.memory as RemoteDefenderMemory).targetRoom === room).length
       const idle = defenders.some(d => !(d.memory as RemoteDefenderMemory).targetRoom)
       if (threat.defenders <= sent || idle) continue
-      return new SpawnConfig(defenderBody(home.energyCapacityAvailable), creepRoles.REMOTE_DEFENDER, {
+      return new SpawnConfig(remoteDefenderBody(home.energyCapacityAvailable, !!threat.ranged), creepRoles.REMOTE_DEFENDER, {
         memory: { targetRoom: room } as RemoteDefenderMemory,
         waitForEnergy: true
       })

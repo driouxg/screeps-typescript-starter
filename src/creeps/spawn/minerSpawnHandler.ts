@@ -1,3 +1,4 @@
+import { sourceLinkOf } from "structures/links"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 import * as creepRoles from "../roles"
@@ -74,7 +75,9 @@ export default class MinerSpawnHandler implements ISpawnHandler {
       if (affordableWork === WORK_PER_SOURCE && spot) {
         const holder = minerAt(spot, miners.filter(onSource))
         if (holder && replaced(holder)) continue
-        return this.config(workBody(WORK_PER_SOURCE), source, spot, true, holder?.name)
+        // With a link by its source, a CARRY part too: the miner puts what it harvests in the link (see MinerHandler).
+        const carry = sourceLinkOf(room, source) && WORK_PER_SOURCE * BODYPART_COST[WORK] + BODYPART_COST[CARRY] <= room.energyCapacityAvailable
+        return this.config([...workBody(WORK_PER_SOURCE), ...(carry ? [CARRY] : [])], source, spot, true, holder?.name)
       }
 
       const pos = freeMiningPosition(room, source, miners)

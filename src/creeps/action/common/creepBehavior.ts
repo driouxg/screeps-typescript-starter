@@ -1,3 +1,4 @@
+import { hubWants, roomLinks } from "structures/links"
 import {
   findCachedStructurePositions,
   findContainers,
@@ -132,6 +133,13 @@ export function findOffloadSpot(creep: Creep): RoomPosition | null {
     .filter(t => t.store.energy < t.store.getCapacity(RESOURCE_ENERGY) / 2)
     .sort((a, b) => a.store.energy - b.store.energy)
   if (0 < hungryTowers.length && creepCanReachPosition(creep, hungryTowers[0].pos)) return hungryTowers[0].pos
+
+  // The hub link next to storage, when the rapid fill and controller links need more than the source links send
+  // (see structures/links hubWants): a short trip that saves the long ones to the rapid fill and the controller.
+  if (0 < hubWants(creep.room)) {
+    const hub = roomLinks(creep.room).hub!
+    if (creepCanReachPosition(creep, hub.pos)) return hub.pos
+  }
 
   // The rapid fill's containers (while fillers are there to use them) and the controller container each get a minimum
   // first, so neither spawning nor upgrading stalls; then towers; then the rapid fill up to its working buffer.
