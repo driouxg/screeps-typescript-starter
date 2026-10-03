@@ -19,7 +19,6 @@ import {
 } from "./highway"
 import { bodyCost, haulerCostPerCarry, maintainerBody, minerBody } from "./remoteBodies"
 import { assessRemoteThreat, forgetStaleThreats } from "defence/remoteDefence"
-import { isRazedMineable } from "./razed"
 
 /**
  * Goal: Mine sources in nearby rooms when they're worth it, without starving the home room's spawn, and stop when
@@ -58,8 +57,8 @@ import { isRazedMineable } from "./razed"
  * nearest the wrong base.
  *
  * Rooms owned or reserved by anyone else (allies included), source keeper rooms and rooms with an invader core are
- * never mined, except a base we razed whose controller is still owned (see remote/razed): its sources regenerate in
- * full without a reserver, but nothing can be built there, so it's mined without a container or road (owned). Where hostiles show up (see watchForThreats), defenders are sent if they can win; if they can't, the
+ * never mined: the game doesn't let us harvest in a room whose controller someone else owns or reserves (a base we
+ * razed too, see remote/razed, until its controller is free). Where hostiles show up (see watchForThreats), defenders are sent if they can win; if they can't, the
  * room is paused for PAUSE_TICKS and its creeps go home.
  */
 
@@ -125,11 +124,6 @@ export interface RemoteSource {
   /** Ticks for a hauler to walk from home to the spot. */
   travel: number
   reserve: boolean
-  /**
-   * Its room's controller is owned by someone else (a base we razed, see remote/razed): full source without a reserver,
-   * and no container or road can be built there, so the miner drops what it mines and haulers pick it up.
-   */
-  owned?: boolean
   /** Whether its route gets a road (see score). */
   road: boolean
   /** Whether haulers travel at road speed (see roundTrip): it gets a road and the highway is mostly built. */
@@ -340,7 +334,7 @@ export default class RemotePlanner {
     const roads = roadsOn && ROADS_BUILT_SHARE <= builtShare(home.name)
     const capacity = home.energyCapacityAvailable
     // Reserved by this home if it can afford a reserver, otherwise by a stronger base nearby (see remote/reserving).
-    const canReserve = (room: string) => !isRazedMineable(room) && reservingBase(room, home.name) !== null
+    const canReserve = (room: string) => reservingBase(room, home.name) !== null
     // The room mined is at most `reach` rooms away, but the path there may detour through others (walls between rooms).
     const maxRooms = 2 * reach + 3
 
@@ -364,7 +358,7 @@ export default class RemotePlanner {
         considered.add(roomName)
         candidates.push({
           ...c,
-          score: score(c, home.name, capacity, canReserve(roomName), roadsOn, roads, route.roadCost, isRazedMineable(roomName))
+          score: score(c, home.name, capacity, canReserve(roomName), roadsOn, roads, route.roadCost)
         })
       }
     }
@@ -407,7 +401,6 @@ export default class RemotePlanner {
         roadsOn,
         roads,
         newRoad,
-        isRazedMineable(c.room),
         connect
       )
       raw.set(s.id, s)
@@ -446,7 +439,7 @@ export default class RemotePlanner {
     if (roadsOn)
       for (let i = 0; i < chosen.length; i++) {
         const x = chosen[i]
-        if (x.road || x.owned || !chosen.some(y => y.room === x.room && y.road)) continue
+        if (x.road || !chosen.some(y => y.room === x.room && y.road)) continue
         const connected = this.connectRoom(home, origin, x, raw.get(x.id)!, shared, highway, capacity, roads, maxRooms)
         if (connected) chosen[i] = connected
       }
@@ -478,7 +471,7 @@ export default class RemotePlanner {
     const branch = route.tiles.filter(t => !shared.has(`${t.roomName}:${t.x * 50 + t.y}`))
     const newRoad = branch.reduce((sum, t) => sum + roadBuildCost(t), 0)
     const source = { id: chosen.id, x: chosen.x, y: chosen.y }
-    const after = score({ source, room: chosen.room, route }, home.name, capacity, chosen.reserve, true, roads, newRoad, false, true)
+    const after = score({ source, room: chosen.room, route }, home.name, capacity, chosen.reserve, true, roads, newRoad, true)
     for (const k of routeKeys(route)) shared.add(k)
     highway.push(...route.tiles)
     this.report.push(
@@ -520,9 +513,9 @@ export default class RemotePlanner {
     if (!intel) return "not scouted yet"
     if (!intel.controller || !intel.sourcePositions?.length) return "no controller or sources"
     if (0 < (intel.keeperLairs ?? 0)) return "source keepers"
-    if (intel.controller.owner && !isRazedMineable(roomName))
+    if (intel.controller.owner)
       return Memory.razedRooms?.[roomName]
-        ? `razed, but not clear of fighters long enough yet`
+        ? `razed ${intel.controller.owner}'s base: the game doesn't allow harvesting while they own the controller; mined once it's free`
         : `owned by ${intel.controller.owner}`
     if (0 < intel.hostileStructures) return "hostile structures"
     if (intel.controller.reservedBy && intel.controller.reservedBy !== myUsername())
@@ -558,17 +551,14 @@ function score(
   roadsOn: boolean,
   roadsBuilt: boolean,
   newRoad: number,
-  owned = false,
   /** Give it a road whether or not it pays for itself (its room is on the highway already, see connectRoom). */
   forceRoad = false
 ): RemoteSource {
-  // An owned controller (a razed base) gives its sources full capacity, like a reserved one; nothing can be built.
-  if (owned) roadsOn = roadsBuilt = false
-  const income = (reserve || owned ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
+  const income = (reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
   const miner = minerBody(capacity, income, roadsOn && roadsBuilt)
   const carryFor = (withRoads: boolean) =>
     Math.ceil((income * (roundTrip(c.route, withRoads) + TRIP_OVERHEAD) * HAULER_MARGIN) / CARRY_CAPACITY)
-  const container = owned ? 0 : CONTAINER_UPKEEP + CONSTRUCTION_COST[STRUCTURE_CONTAINER] / AMORTIZE_TICKS
+  const container = CONTAINER_UPKEEP + CONSTRUCTION_COST[STRUCTURE_CONTAINER] / AMORTIZE_TICKS
 
   const option = (withRoad: boolean) => {
     const carry = carryFor(withRoad)
@@ -600,7 +590,6 @@ function score(
     distance: c.route.length,
     travel: Math.ceil(roundTrip(c.route, roads) / 2),
     reserve,
-    ...(owned ? { owned } : {}),
     road,
     roads,
     workParts: miner.filter(p => p === WORK).length,

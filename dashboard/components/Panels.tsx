@@ -48,7 +48,7 @@ export function RemotesPanel({ snapshot: s, children }: Props & { children?: Rea
                   <td>
                     {r.paused ? <span className="badge bad">paused</span> : <span className="badge good">mining</span>}{" "}
                     {r.reserve && <span className="badge">reserved</span>}{" "}
-                    {r.owned && <span className="badge warn" title="Their controller still: no container, the miner drops what it mines">razed base</span>} {r.road && <span className="badge">road</span>}
+                    {r.road && <span className="badge">road</span>}
                   </td>
                   <td className="num">
                     <MinerTooltip count={r.miners} miners={r.minerDetails} source={`${r.room} ${r.x},${r.y}`} />
@@ -59,9 +59,7 @@ export function RemotesPanel({ snapshot: s, children }: Props & { children?: Rea
                   </td>
                   <td className="num">{Math.round(r.spawnLoad * 100)}%</td>
                   <td>
-                    {r.owned ? (
-                      <span className="muted">none (drop mining)</span>
-                    ) : r.container === null ? (
+                    {r.container === null ? (
                       <span className="muted">not visible</span>
                     ) : r.container ? (
                       "built"

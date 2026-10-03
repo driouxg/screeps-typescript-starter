@@ -50,8 +50,7 @@ export default class RemoteHaulerHandler implements ICreepHandler {
     // The source isn't mined (or its room is paused), or its container is gone (destroyed, or its room lost from view
     // along with the miner): bring home what we carry, or wait at home for it.
     const remote = remoteOf(creep)
-    // A razed base's source (owned) never gets a container: the miner drops what it mines, collect that.
-    if (!remote || (!remote.owned && !containerBuilt(remote))) {
+    if (!remote || !containerBuilt(remote)) {
       if (0 < creep.store.energy) return this.goHome(creep, memory)
       return sendHome(creep)
     }

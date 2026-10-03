@@ -33,8 +33,7 @@ export type RemoteMinerState = "travel" | "build" | "pickup" | "mine" | "repair"
  * happen on state changes, or every CHECK_TICKS:
  *   - building: a pile within PILE_RANGE of the source is looked for each time the CARRY is empty; the container's
  *     site is placed if there's none. No building while another player has the room reserved (the container would be
- *     theirs to use; see remote/contest) or owns it (a base we razed: we can't build there; see remote/razed): just
- *     harvesting, dropping what doesn't fit for the haulers. Its reserver is sent first (see RemoteSpawnHandler), so the
+ *     theirs to use; see remote/contest): just harvesting. Its reserver is sent first (see RemoteSpawnHandler), so the
  *     room is usually ours by then; not waiting for our own reservation, which lapses between reservers.
  *   - mining: every CHECK_TICKS the container's hits (repaired below REPAIR_BELOW); when the source runs dry, the
  *     roads within ROAD_RANGE (repaired until the source has regenerated).
@@ -50,6 +49,16 @@ export default class RemoteMinerHandler implements ICreepHandler {
       memory.state = "travel"
       return sendHome(creep)
     }
+    // In a room another player owns, nothing can be harvested (the game returns ERR_NOT_OWNER): it was planned on
+    // stale intel. Have the remotes re-planned (they drop the room) and go home meanwhile.
+    const owner = creep.room.name === remote.room ? creep.room.controller?.owner?.username : undefined
+    if (owner && owner !== myUsername()) {
+      if (!Memory.remotesReplan) console.log(`Remote ${remote.room}: owned by ${owner}, can't be mined; re-planning`)
+      Memory.remotesReplan = true
+      memory.state = "travel"
+      return sendHome(creep)
+    }
+
     const spot = new RoomPosition(remote.spot.x, remote.spot.y, remote.room)
     const source = Game.getObjectById(remote.id as Id<Source>)
 
@@ -104,9 +113,8 @@ export default class RemoteMinerHandler implements ICreepHandler {
       return
     }
 
-    // Full: build, unless the room is someone else's: reserved by them, or owned (a base we razed, see remote/razed:
-    // no building there until its controller is free). Then just harvest: what doesn't fit drops for the haulers.
-    const holder = creep.room.controller?.reservation?.username ?? creep.room.controller?.owner?.username
+    // Full: build, unless the room is someone else's.
+    const holder = creep.room.controller?.reservation?.username
     if (holder && holder !== myUsername()) return void creep.harvest(source)
     const site = spot.lookFor(LOOK_CONSTRUCTION_SITES)[0]
     if (site) {

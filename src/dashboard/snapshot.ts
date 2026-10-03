@@ -361,8 +361,6 @@ export interface RemoteSnapshot {
   distance: number
   net: number
   reserve: boolean
-  /** In a base we razed whose controller is still theirs: mined without a container. */
-  owned?: boolean
   road: boolean
   workParts: number
   carryParts: number

@@ -1,16 +1,16 @@
 import { isHostilePlayer } from "config/relations"
-import { isRazedMineable } from "remote/razed"
+import { isRazedSafe } from "remote/razed"
 
 /**
  * Rooms our creeps must not path through: owned by a hostile player (see config/relations; their towers shoot on
  * sight). Allies' and neutral players' rooms are fine to cross, and so are source keeper rooms: paths there keep out
  * of the keepers' reach (see keeperZones). Judged from intel, so it works without vision;
  * rooms we know nothing about are assumed passable. A base of theirs we razed and is clear (see remote/razed) is
- * passable too: nothing there shoots any more, and we mine it.
+ * passable too: nothing there shoots any more.
  */
 export function isHostileRoom(roomName: string): boolean {
   const intel = Memory.rooms?.[roomName]?.intel
-  if (!intel || isRazedMineable(roomName)) return false
+  if (!intel || isRazedSafe(roomName)) return false
   return isHostilePlayer(intel.controller?.owner)
 }
 

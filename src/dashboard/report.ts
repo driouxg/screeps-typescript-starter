@@ -171,7 +171,6 @@ function build(): DashboardSnapshot {
       distance: r.distance,
       net: r.net,
       reserve: r.reserve,
-      owned: r.owned,
       road: r.road,
       workParts: r.workParts,
       carryParts: r.carryParts,

@@ -351,7 +351,7 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
     c.phase = "claim"
     c.travel = candidate.estimate.travelTicks
     c.maxWaves = 0
-    // Its sources can be mined meanwhile, once it's been seen clear (see remote/razed).
+    // Safe to cross once it's been seen clear (see remote/razed); its sources can't be mined while it's theirs.
     markRazed(c.room, c.player)
     setState(c, "engaged", `no squad needed: sending claimers from ${c.home} to run ${c.player}'s controller down`)
     return
@@ -625,7 +625,7 @@ function watchTarget(c: Conquest, room: Room): boolean {
   if (c.phase === "breach" && (!breach || breach.barriers.length === 0)) c.phase = "raze"
   if (c.phase === "raze" && core.length === 0) {
     c.phase = "claim"
-    // Nothing there shoots any more: mine its sources while the controller runs down (see remote/razed).
+    // Nothing there shoots any more: safe to cross while the controller runs down (see remote/razed).
     markRazed(c.room, c.player)
     console.log(`Conquest ${c.room}: towers and spawns down; running their controller down`)
   }
