@@ -253,6 +253,27 @@ function needsScout(c: ConquestCandidateSnapshot): boolean {
 
 type ScoutRequest = NonNullable<DashboardSnapshot["scoutRequests"]>[number]
 
+const SAFETY_TONE: Record<string, string> = { safe: "good", unknown: "warn", unsafe: "bad" }
+
+/** Send recon scouts to every room on a way in we haven't seen lately (see src/conquest/assessment.ts wayThere). */
+function RouteRecon({ rooms, busy, onScout }: { rooms: string[]; busy: boolean; onScout: (room: string) => Promise<boolean> }) {
+  const [sent, setSent] = useState(false)
+  return (
+    <button
+      className="button"
+      type="button"
+      disabled={busy || sent}
+      onClick={async () => {
+        let ok = true
+        for (const room of rooms) ok = (await onScout(room)) && ok
+        setSent(ok)
+      }}
+    >
+      🔭 {sent ? "Recon sent" : `Recon ${rooms.join(", ")}`}
+    </button>
+  )
+}
+
 /** Send a scout for a fresh look at a base, or say how the one sent is getting on. */
 function ScoutButton({
   room,
@@ -614,6 +635,7 @@ function ReviewConquest({
                 <th className="num">Barriers</th>
                 <th className="num">Hits</th>
                 <th className="num">Tower dmg/t</th>
+                <th>Way there</th>
                 <th />
               </tr>
             </thead>
@@ -627,6 +649,19 @@ function ReviewConquest({
                   <td className="num">{side.barriers}</td>
                   <td className="num">{thousands(side.hits)}</td>
                   <td className="num">{side.breachDamage}</td>
+                  <td className="wrap">
+                    {side.safety && (
+                      <span className={`badge ${SAFETY_TONE[side.safety] ?? ""}`} title={side.safetyNote}>
+                        {side.safety}
+                      </span>
+                    )}{" "}
+                    {side.safety && side.safety !== "safe" && <span className="muted">{side.safetyNote}</span>}
+                    {side.unseen && side.unseen.length > 0 && (
+                      <div>
+                        <RouteRecon rooms={side.unseen} busy={busy} onScout={onScout} />
+                      </div>
+                    )}
+                  </td>
                   <td>
                     {side.backdoor && <span className="badge good">backdoor</span>}{" "}
                     {!side.reachable && <span className="muted">no safe route</span>}

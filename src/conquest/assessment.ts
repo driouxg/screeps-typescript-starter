@@ -41,7 +41,14 @@ import { planSquad, SquadPlan, TemplateName } from "./squadMeta"
  *   6. effort: ticks to drain, dismantle the breach and then the towers and spawns, at the squad's siege rate
  *      (RETREAT_OVERHEAD more under fire: the squad steps out to heal), over the ticks a squad has left after the trip
  *      there: the waves of squads it takes;
- *   7. the side with a working strategy and the fewest waves (then the least energy) is the plan.
+ *   7. the way there (wayThere): every room on the route from home to the side's staging room, and the staging
+ *      room itself, is safe (seen within STALE_TICKS, no hostile owner or towers, no fighters seen lately, no keepers
+ *      where the squad gathers), unknown (some of them not seen lately), or unsafe;
+ *   8. the plan: a side with a working strategy, not unsafe, and a backdoor (no barriers at all) with a safe way
+ *      there before anything else: walls are what we'd spend the squad's life on, and a backdoor exploits the gap.
+ *      Then the fewest waves, the least energy, a known way over an unknown one, the shortest trip. A backdoor whose
+ *      way there is unknown loses to a known walled side, but the rooms to check are listed (reconRooms): approving
+ *      sends recon scouts there first, and the plan is made again with what they find (see conquest/conquest).
  * Except a base with nothing left to defend it (claimOnly): no spawns, no working towers, no fighters seen, and a
  * controller a creep can walk up to without breaking a wall. No squad then: claimers go straight to running its
  * controller down (strategy "claim", see claimEstimate), as long as one lives long enough to get there.
@@ -152,6 +159,9 @@ interface Option {
   /** Hits per tick their towers can repair on the outermost barrier. */
   repair: number
   strategy: "assault" | "drain" | "none"
+  /** The way from home to the staging room (see wayThere). */
+  safety: Safety
+  unseen: string[]
   drainTicks: number
   breachTicks: number
   razeTicks: number
@@ -387,11 +397,14 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     }
     base.sides.push(side)
     if (!staging || isHostileRoom(staging)) continue
-    const toStaging = staging === home.room.name ? 0 : routeLength(home.room.name, staging)
-    if (toStaging === null) continue
+    const way = wayThere(home.room.name, staging)
+    if (!way) continue
     side.reachable = true
-    const option = evaluate(breach, staging, toStaging + extraTravel / TICKS_PER_ROOM, siege, supply, capacity, stored, defenders, claim.energy, override)
-    if (option) options.push(option)
+    side.safety = way.safety
+    side.safetyNote = way.note
+    side.unseen = way.unseen
+    const option = evaluate(breach, staging, way.rooms + extraTravel / TICKS_PER_ROOM, siege, supply, capacity, stored, defenders, claim.energy, override)
+    if (option) options.push({ ...option, safety: way.safety, unseen: way.unseen })
   }
   if (options.length === 0) {
     const reason = base.sides.length
@@ -400,14 +413,43 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     return finish(base, risk, decisions, reason)
   }
 
+  // See the top of this file (8): what works and isn't unsafe, a safe backdoor first, then the cheapest.
+  const tier = (o: Option) => (o.strategy === "none" ? 2 : o.safety === "unsafe" ? 1 : 0)
+  const safeBackdoor = (o: Option) => o.breach.barriers.length === 0 && o.safety === "safe"
   options.sort(
     (a, b) =>
-      Number(a.strategy === "none") - Number(b.strategy === "none") ||
+      tier(a) - tier(b) ||
+      Number(safeBackdoor(b)) - Number(safeBackdoor(a)) ||
       a.waves - b.waves ||
       a.energy - b.energy ||
+      Number(a.safety === "unknown") - Number(b.safety === "unknown") ||
       a.travel - b.travel
   )
   const best = options[0]
+
+  // Backdoors we can't vouch for the way to: the rooms to look at before settling for walls.
+  if (!safeBackdoor(best)) {
+    const unverified = options.filter(o => o.breach.barriers.length === 0 && o.safety === "unknown" && o.strategy !== "none")
+    const recon = [...new Set(unverified.reduce((all, o) => all.concat(o.unseen), [] as string[]))]
+    if (recon.length) {
+      base.reconRooms = recon
+      concerns.push({
+        tone: "warn",
+        text: `Backdoor${unverified.length === 1 ? "" : "s"} ${unverified
+          .map(o => `from the ${sideName(o.breach.side)} (via ${o.staging})`)
+          .join(", ")}: no walls in the way, but we haven't seen ${recon.join(", ")} lately, so the way there isn't verified. Approving sends recon scouts first, and the plan takes the backdoor if it's safe.`
+      })
+      decisions.push("a backdoor needs recon")
+    }
+  }
+  for (const o of options)
+    if (o.breach.barriers.length === 0 && o.safety === "unsafe")
+      concerns.push({
+        tone: "bad",
+        text: `Backdoor from the ${sideName(o.breach.side)} (via ${o.staging}) isn't safe to gather at: ${
+          base.sides.find(x => x.staging === o.staging)?.safetyNote ?? "danger on the way"
+        }.`
+      })
   base.backdoor = options.some(o => o.breach.barriers.length === 0)
   base.incoming = best.incoming
   base.squad = squadSnapshot(best.squad)
@@ -465,7 +507,7 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
       tone: "good",
       text: `Backdoor: from the ${base.breach.side} (via ${best.staging}) there's a way to their ${
         siege.spawns.length ? "spawns" : siege.towers.length ? "towers" : "controller"
-      } with no wall or rampart in it.`
+      } with no wall or rampart in it${best.safety === "safe" ? ", and every room on the way there has been seen lately and is clear" : ""}.`
     })
   else
     concerns.push({
@@ -719,7 +761,7 @@ function evaluate(
   /** The claimers to run their controller down once the core is down (see claimEstimate). */
   claimEnergy: number,
   override?: TemplateName
-): Option | null {
+): Omit<Option, "safety" | "unseen"> | null {
   const defenderDamage = defenders * DEFENDER_DAMAGE
   const incoming = breach.breachDamage + defenderDamage
   // Dismantlers can't hurt creeps: with miners outside their walls to kill, bring a ranged escort.
@@ -832,6 +874,51 @@ export function nearestHome(room: string): { room: Room; distance: number } | nu
       best = { room: home, distance }
   }
   return best
+}
+
+type Safety = "safe" | "unknown" | "unsafe"
+
+/** Fighters seen in a room on the way this recently make it unsafe. */
+const FIGHTERS_FRESH = 1500
+
+/**
+ * The way from `home` to a side's `staging` room, where the squad gathers (see the top of this file, 7): its length
+ * in rooms, and whether it's safe (every room on it seen within STALE_TICKS and clear), unknown (with the rooms not
+ * seen lately), or unsafe (and why). Our own bases count as seen. Null if there's no route around hostile rooms.
+ */
+export function wayThere(
+  home: string,
+  staging: string
+): { rooms: number; safety: Safety; note: string; unseen: string[] } | null {
+  if (staging === home) return { rooms: 0, safety: "safe", note: "", unseen: [] }
+  const route = Game.map.findRoute(home, staging, {
+    routeCallback: name => (name !== staging && isHostileRoom(name) ? Infinity : 1)
+  })
+  if (route === ERR_NO_PATH) return null
+  const me = myUsername()
+  const unseen: string[] = []
+  const dangers: string[] = []
+  for (const { room: name } of route) {
+    if (Game.rooms[name]?.controller?.my) continue
+    const intel = Memory.rooms[name]?.intel
+    const age = intel ? Game.time - intel.tick : Infinity
+    if (!intel || STALE_TICKS < age) {
+      unseen.push(name)
+      continue
+    }
+    const owner = intel.controller?.owner
+    if (owner && owner !== me && !isAlly(owner) && 0 < (intel.towers ?? 0)) dangers.push(`${name} has ${owner}'s towers`)
+    else if (0 < intel.hostileFighters && age < FIGHTERS_FRESH)
+      dangers.push(`hostile fighters were in ${name} ${age} ticks ago`)
+    else if (name === staging && 0 < (intel.keeperLairs ?? 0)) dangers.push(`${name} has source keepers`)
+  }
+  const safety: Safety = dangers.length ? "unsafe" : unseen.length ? "unknown" : "safe"
+  const note = dangers.length
+    ? dangers.join("; ")
+    : unseen.length
+    ? `not seen lately: ${unseen.join(", ")}`
+    : "every room on the way seen lately and clear"
+  return { rooms: route.length, safety, note, unseen }
 }
 
 /** Rooms from `from` to `to` around hostile rooms (`to` itself may be one); null if there's no way. */

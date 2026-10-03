@@ -130,6 +130,9 @@ export interface Conquest {
   nextRaid?: number
   /** Energy in their towers when last seen. */
   towerEnergy?: number
+  /** Scouting: whether the target itself needs a fresh look, and the rooms on the way to a backdoor to check. */
+  scoutTarget?: boolean
+  recon?: string[]
   result?: string
   ended?: number
 }
@@ -302,7 +305,10 @@ function rescouted(): boolean {
     const stale = c.siegeAge === undefined || STALE_TICKS < c.siegeAge || STALE_TICKS < c.intelAge
     const memory = Memory.rooms[c.room]
     const seen = memory?.siege?.tick ?? memory?.intel?.tick ?? 0
-    const requested = Memory.scoutRequests?.[c.room]?.done ?? 0
+    const requested = Math.max(
+      Memory.scoutRequests?.[c.room]?.done ?? 0,
+      ...(c.reconRooms ?? []).map(name => Memory.scoutRequests?.[name]?.done ?? 0)
+    )
     return (stale && assessed < seen) || assessed < requested
   })
 }
@@ -352,8 +358,10 @@ function runRequest(): void {
     request.status = `not approved: ${candidate.verdict}`
     return
   }
-  const stale =
+  const targetStale =
     candidate.siegeAge === undefined || STALE_TICKS < candidate.siegeAge || STALE_TICKS < candidate.intelAge
+  const recon = candidate.reconRooms ?? []
+  const stale = targetStale || 0 < recon.length
   if (!stale && !candidate.feasible && !request.force) {
     request.status = `not approved: ${candidate.verdict}. Approve with the override to go anyway.`
     return
@@ -391,7 +399,16 @@ function runRequest(): void {
 
   // Approved again after the scout couldn't get there: go on what we know, if we know the way in.
   if (stale && (!current || !candidate.breach)) {
-    setState(c, "scouting", `approved; sending a scout for a fresh look at ${c.room} first`)
+    c.scoutTarget = targetStale
+    c.recon = recon
+    const looks = [...(targetStale ? [c.room] : []), ...recon]
+    setState(
+      c,
+      "scouting",
+      recon.length
+        ? `approved; recon first: ${looks.join(", ")} (${targetStale ? "a fresh look at the base, and " : ""}the way to a backdoor)`
+        : `approved; sending a scout for a fresh look at ${c.room} first`
+    )
     c.approved = Game.time
     request.status = c.status
   } else {
@@ -446,16 +463,30 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
   )
 }
 
+/**
+ * Approved on stale intel, or with a backdoor whose way there we haven't seen lately: recon scouts go to the target
+ * (if it needs a fresh look) and to those rooms, and the plan is made once they've all been seen since the approval.
+ */
 function scouting(c: Conquest): void {
   const memory = Memory.rooms[c.room]
-  const fresh = memory?.intel && c.approved <= memory.intel.tick && memory.siege && c.approved <= memory.siege.tick
-  if (!fresh) {
+  const seenSince = (name: string) => c.approved <= (Memory.rooms[name]?.intel?.tick ?? -Infinity)
+  const targetFresh =
+    c.scoutTarget === false ||
+    (!!memory?.intel && c.approved <= memory.intel.tick && !!memory.siege && c.approved <= memory.siege.tick)
+  const looks = [...(targetFresh ? [] : [c.room]), ...(c.recon ?? []).filter(name => !seenSince(name))]
+  if (looks.length) {
     if (SCOUT_TIMEOUT < Game.time - c.stateSince)
-      return setState(c, "awaiting", `couldn't get a fresh look at ${c.room} in ${SCOUT_TIMEOUT} ticks: approve again to go on what we know`)
+      return setState(
+        c,
+        "awaiting",
+        `couldn't get a look at ${looks.join(", ")} in ${SCOUT_TIMEOUT} ticks: approve again to go on what we know`
+      )
     const requests = (Memory.scoutRequests = Memory.scoutRequests ?? {})
-    const request = requests[c.room]
-    if (!request || request.done) requests[c.room] = { requested: Date.now() }
-    c.status = `waiting for a scout's look at ${c.room}`
+    for (const name of looks) {
+      const request = requests[name]
+      if (!request || request.done) requests[name] = { requested: Date.now() }
+    }
+    c.status = `waiting for recon: ${looks.join(", ")}`
     return
   }
   const candidate = assessRoom(c.room, c.template)

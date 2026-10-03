@@ -143,6 +143,11 @@ export interface ConquestSideSnapshot {
   barriers: number
   breachDamage: number
   backdoor: boolean
+  /** The way there from home (see src/conquest/assessment.ts wayThere): safe, unknown or unsafe, and why. */
+  safety?: string
+  safetyNote?: string
+  /** Rooms on the way not seen lately. */
+  unseen?: string[]
 }
 
 export interface ConquestBreachSnapshot {
@@ -280,6 +285,8 @@ export interface ConquestCandidateSnapshot {
   concerns: ConquestConcern[]
   /** Why the bot isn't sure and would like the player to decide. */
   needsDecision?: string
+  /** Rooms to scout before settling the way in: the way to a backdoor not seen lately (approving scouts them first). */
+  reconRooms?: string[]
   tick: number
 }
 
