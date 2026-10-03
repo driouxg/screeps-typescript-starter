@@ -37,7 +37,9 @@ import { isRazedMineable } from "./razed"
  *   container  built once by the miner (amortized over AMORTIZE_TICKS) and repaired, as containers outside our rooms
  *              decay fast; no haulers go before it's built (see RemoteSpawnHandler)
  *   roads      from ROAD_MIN_RCL: built once (amortized over ROAD_AMORTIZE_TICKS) and kept up, plus the highway maintainer's body now and then;
- *              only the road a source adds counts, as routes share roads (see remote/highway)
+ *              only the road a source adds counts, as routes share roads (see remote/highway). Every source mined in
+ *              a room the highway reaches gets its branch, worth it or not on its own (see connectRoom): haulers of a
+ *              room's second source were left walking the last stretch off-road at half speed or worse
  *   reserver   2 CLAIM + 2 MOVE every 600 ticks, shared by the room's sources (counted against this home even when a
  *              stronger base nearby spawns it)
  *
@@ -386,6 +388,8 @@ export default class RemotePlanner {
     const shared = new Set<string>()
     const highway: RoomPosition[] = []
     const reservedRooms = new Set<string>()
+    /** Each chosen source's score before the shares added below (reserver, maintainer), to re-score in connectRoom. */
+    const raw = new Map<string, RemoteSource>()
     for (const c of candidates) {
       const route =
         (shared.size ? planRoute(origin, new RoomPosition(c.source.x, c.source.y, c.room), shared, maxRooms) : null) ??
@@ -393,7 +397,20 @@ export default class RemotePlanner {
       const newRoad = route.tiles
         .filter(t => !shared.has(`${t.roomName}:${t.x * 50 + t.y}`))
         .reduce((sum, t) => sum + roadBuildCost(t), 0)
-      const s = score({ ...c, route }, home.name, capacity, canReserve(c.room), roadsOn, roads, newRoad, isRazedMineable(c.room))
+      // The highway already reaches this room: this source gets its branch too (see connectRoom).
+      const connect = chosen.some(x => x.room === c.room && x.road)
+      const s = score(
+        { ...c, route },
+        home.name,
+        capacity,
+        canReserve(c.room),
+        roadsOn,
+        roads,
+        newRoad,
+        isRazedMineable(c.room),
+        connect
+      )
+      raw.set(s.id, s)
 
       const reserverShare = s.reserve && !reservedRooms.has(c.room) ? RESERVER_COST / CREEP_CLAIM_LIFE_TIME : 0
       const reserverLoad = reserverShare ? (RESERVER_BODY.length * CREEP_SPAWN_TIME) / CREEP_CLAIM_LIFE_TIME : 0
@@ -425,9 +442,53 @@ export default class RemotePlanner {
       highway.push(...route.tiles)
     }
 
+    // Sources chosen without a road before another in their room got one: connect them now.
+    if (roadsOn)
+      for (let i = 0; i < chosen.length; i++) {
+        const x = chosen[i]
+        if (x.road || x.owned || !chosen.some(y => y.room === x.room && y.road)) continue
+        const connected = this.connectRoom(home, origin, x, raw.get(x.id)!, shared, highway, capacity, roads, maxRooms)
+        if (connected) chosen[i] = connected
+      }
+
     if (0 < highway.length) setHighway(home.name, highway)
     else if (Memory.highways) delete Memory.highways[home.name]
     return { chosen, considered, highway }
+  }
+
+  /**
+   * Give a chosen source without a road its branch off the highway that already reaches its room: its route re-planned
+   * onto the roads chosen (so only the branch is new), re-scored with the road, and its net and spawn load moved by
+   * the difference (the reserver and maintainer shares added when it was chosen stay as they were). Null if there's
+   * no route to it.
+   */
+  private connectRoom(
+    home: Room,
+    origin: RoomPosition,
+    chosen: RemoteSource,
+    before: RemoteSource,
+    shared: Set<string>,
+    highway: RoomPosition[],
+    capacity: number,
+    roads: boolean,
+    maxRooms: number
+  ): RemoteSource | null {
+    const route = planRoute(origin, new RoomPosition(chosen.x, chosen.y, chosen.room), shared, maxRooms)
+    if (!route) return null
+    const branch = route.tiles.filter(t => !shared.has(`${t.roomName}:${t.x * 50 + t.y}`))
+    const newRoad = branch.reduce((sum, t) => sum + roadBuildCost(t), 0)
+    const source = { id: chosen.id, x: chosen.x, y: chosen.y }
+    const after = score({ source, room: chosen.room, route }, home.name, capacity, chosen.reserve, true, roads, newRoad, false, true)
+    for (const k of routeKeys(route)) shared.add(k)
+    highway.push(...route.tiles)
+    this.report.push(
+      `${home.name} -> ${chosen.room} source ${chosen.x},${chosen.y}: road added (${branch.length} new tiles) so the highway reaches every source in the room`
+    )
+    return {
+      ...after,
+      net: +(chosen.net + after.net - before.net).toFixed(2),
+      spawnLoad: +(chosen.spawnLoad + after.spawnLoad - before.spawnLoad).toFixed(3)
+    }
   }
 
   /** Rooms within `range` of home (with their distance in rooms) by a route that avoids hostile rooms. */
@@ -497,7 +558,9 @@ function score(
   roadsOn: boolean,
   roadsBuilt: boolean,
   newRoad: number,
-  owned = false
+  owned = false,
+  /** Give it a road whether or not it pays for itself (its room is on the highway already, see connectRoom). */
+  forceRoad = false
 ): RemoteSource {
   // An owned controller (a razed base) gives its sources full capacity, like a reserved one; nothing can be built.
   if (owned) roadsOn = roadsBuilt = false
@@ -519,7 +582,7 @@ function score(
   }
   const without = option(false)
   const withRoad = roadsOn ? option(true) : null
-  const road = withRoad !== null && without.value < withRoad.value
+  const road = withRoad !== null && (forceRoad || without.value < withRoad.value)
   const chosen = road ? withRoad! : without
 
   const roads = road && roadsBuilt
