@@ -275,14 +275,13 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
 
   // Nothing defends it: claimers alone, no squad.
   const claim = claimEstimate(base.rcl, intel.controller?.ticksToDowngrade, capacity)
-  if (
-    siege &&
-    siege.spawns.length === 0 &&
-    (base.towers === 0 || !towersArmed(intel)) &&
-    defenders === 0 &&
-    intel.hostileFighters === 0 &&
-    siege.controllerOpen
-  ) {
+  const claimBlockers = siege ? claimOnlyBlockers(siege, intel, base.towers, defenders) : ["its walls aren't mapped yet"]
+  if (siege && siege.spawns.length === 0 && claimBlockers.length)
+    concerns.push({
+      tone: "warn",
+      text: `No spawns, but claimers alone (no squad) won't do yet: ${claimBlockers.join("; ")}.`
+    })
+  if (siege && claimBlockers.length === 0) {
     const travel = home.distance * TICKS_PER_ROOM
     base.estimate = {
       strategy: "claim",
@@ -310,6 +309,11 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
         claim.parts
       } CLAIM part(s) each take ${claim.parts * CONTROLLER_CLAIM_DOWNGRADE} ticks off its downgrade timer every ${CONTROLLER_ATTACK_BLOCKED_UPGRADE} ticks: free in ~${claim.ticks.toLocaleString()} ticks.`
     })
+    if (0 < base.safeModeAvailable)
+      concerns.push({
+        tone: "info",
+        text: `Their safe mode charges matter less here: a controller can't switch safe mode on for ${CONTROLLER_ATTACK_BLOCKED_UPGRADE} ticks after each attack, and claimers attack again as soon as it's allowed. Their chance is before our first attack; if they take it, the conquest stops (safe mode ends it).`
+      })
     return finish(
       { ...base, feasible: true },
       risk,
@@ -423,7 +427,9 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
   if (base.breach.backdoor)
     concerns.push({
       tone: "good",
-      text: `Backdoor: from the ${base.breach.side} (via ${best.staging}) there's a way to their spawns with no wall or rampart in it.`
+      text: `Backdoor: from the ${base.breach.side} (via ${best.staging}) there's a way to their ${
+        siege.spawns.length ? "spawns" : siege.towers.length ? "towers" : "controller"
+      } with no wall or rampart in it.`
     })
   else
     concerns.push({
@@ -500,6 +506,25 @@ function finish(
   base.verdict = verdict
   if (decisions.length) base.needsDecision = decisions.join("; ")
   return base
+}
+
+/**
+ * Why a base can't be taken by claimers alone (see the top of this file), or nothing if it can. A map recorded before
+ * siege intel checked the controller (no controllerOpen) is read from its breaches: with no spawns or towers they lead
+ * to the controller, so one with no barriers means a claimer can walk up to it.
+ */
+function claimOnlyBlockers(siege: SiegeIntel, intel: RoomIntel, towers: number, defenders: number): string[] {
+  const why: string[] = []
+  if (siege.spawns.length) why.push(`${siege.spawns.length} spawn(s)`)
+  if (towers && towersArmed(intel)) why.push(`${towers} tower(s) with energy to fire, or stored energy to refill them`)
+  if (defenders) why.push(`${defenders} of their combat parts seen in the room`)
+  else if (intel.hostileFighters)
+    why.push(`${intel.hostileFighters} hostile fighter(s) (invaders, or a player at war with us) seen in the room`)
+  const open =
+    siege.controllerOpen ??
+    (siege.spawns.length === 0 && siege.towers.length === 0 && siege.breaches.some(b => b.barriers.length === 0))
+  if (!open) why.push("walls or ramparts close off the controller")
+  return why
 }
 
 /**

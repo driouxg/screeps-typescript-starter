@@ -116,8 +116,9 @@ export function recordIntel(room: Room, force = false): void {
     combatParts: combatPartsByPlayer(room),
     ...terrainRatios(room.name)
   }
-  // Another player's base: map its walls and towers for conquest (see conquest/siegeIntel).
-  recordSiege(room)
+  // Another player's base: map its walls and towers for conquest (see conquest/siegeIntel). A forced look (a scout
+  // sent for it) maps them afresh too: the map is otherwise kept for a while, and a fresh look must show a fresh plan.
+  recordSiege(room, force)
 }
 
 /** The earlier look to keep for the stored energy trend (see RoomIntel.storedBefore). */

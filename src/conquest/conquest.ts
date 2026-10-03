@@ -236,13 +236,18 @@ export function runConquest(): void {
   }
 }
 
-/** Whether a base ranked on stale intel (or with its walls unmapped) has been seen since: re-rank it straight away. */
+/**
+ * Whether a base needs re-ranking straight away: one ranked on stale intel (or with its walls unmapped) has been seen
+ * since, or a scout the player sent to one has reported back (the dashboard promises a fresh plan from it).
+ */
 function rescouted(): boolean {
   const assessed = Memory.conquestAssessed ?? 0
   return (Memory.conquestCandidates ?? []).some(c => {
     const stale = c.siegeAge === undefined || STALE_TICKS < c.siegeAge || STALE_TICKS < c.intelAge
     const memory = Memory.rooms[c.room]
-    return stale && assessed < (memory?.siege?.tick ?? memory?.intel?.tick ?? 0)
+    const seen = memory?.siege?.tick ?? memory?.intel?.tick ?? 0
+    const requested = Memory.scoutRequests?.[c.room]?.done ?? 0
+    return (stale && assessed < seen) || assessed < requested
   })
 }
 

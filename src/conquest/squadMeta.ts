@@ -13,7 +13,8 @@
  *
  * Healers are added (up to the template's maximum) until the squad heals the damage it will take at the breach with
  * HEAL_MARGIN to spare. Creeps are sized to the home's capacity, scaled down (to no less than MIN_BUDGET_SHARE of it)
- * when the home hasn't stored the energy for the whole squad and a couple of renewals.
+ * when the home hasn't stored the energy for the whole squad and a couple of renewals; a squad of a few spawn fills
+ * (INCOME_FILLS) is paid from income instead.
  */
 
 export type MemberKind = "dismantler" | "healer" | "attacker" | "ranged" | "claimer"
@@ -71,6 +72,11 @@ const HEAL_MARGIN = 1.25
 const MIN_BUDGET_SHARE = 0.5
 /** Stored energy to keep at home for its own needs, on top of the squad. */
 const HOME_RESERVE = 20000
+/**
+ * A squad costing no more than this many fills of the home's spawns and extensions comes out of income as it spawns
+ * (a raid at RCL 4 is under two): it needs nothing stored. Bigger ones are paid for from storage.
+ */
+const INCOME_FILLS = 3
 const MAX_PARTS = MAX_CREEP_SIZE
 
 export interface SquadMember {
@@ -126,7 +132,8 @@ export function planSquad(
   const full = Math.min(capacity, template.maxCreepEnergy)
   let plan = build(template, full, incoming, defenders)
   // Short of energy: smaller creeps, down to MIN_BUDGET_SHARE of the full size.
-  const available = stored === null ? Infinity : Math.max(0, stored - HOME_RESERVE)
+  const fromIncome = (cost: number) => cost <= capacity * INCOME_FILLS
+  const available = stored === null || fromIncome(plan.cost) ? Infinity : Math.max(0, stored - HOME_RESERVE)
   if (available < plan.cost) {
     const budget = Math.max(full * MIN_BUDGET_SHARE, Math.floor((full * available) / plan.cost))
     if (budget < full) plan = build(template, budget, incoming, defenders)
