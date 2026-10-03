@@ -1,3 +1,4 @@
+import type { RemoteSource } from "remote/remotePlanner"
 import { containerBuilt, isRemoteRoomActive } from "remote/remoteCreeps"
 import { maintainersWanted } from "remote/highway"
 import { haulerBody, maintainerBody, minerBody } from "remote/remoteBodies"
@@ -44,7 +45,7 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
     const aliveFor = (c: Creep, ticks: number) => c.spawning || ticks < (c.ticksToLive ?? 0)
 
     for (const r of remotes) {
-      const income = (r.reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
+      const income = (r.reserve || r.owned ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
       const miner = minerBody(capacity, income, r.roads)
       const minerLead = r.distance * MINER_TICKS_PER_TILE + miner.length * CREEP_SPAWN_TIME
       if (!serving(creepRoles.REMOTE_MINER, "targetSourceId", r.id).some(m => aliveFor(m, minerLead))) {
@@ -83,7 +84,8 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
 
     for (const r of remotes) {
       // No haulers until the miner has built the source's container: until then there's nothing for them to collect.
-      if (!containerBuilt(r)) continue
+      // In a razed base (owned: no container can be built) the miner drops what it mines: haulers once it's mining.
+      if (r.owned ? !minerAt(r) : !containerBuilt(r)) continue
       const carry = serving(creepRoles.REMOTE_HAULER, "targetSourceId", r.id)
         .filter(h => aliveFor(h, 2 * r.travel))
         .reduce((sum, h) => sum + h.getActiveBodyparts(CARRY), 0)
@@ -99,4 +101,16 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
   private config(body: BodyPartConstant[], role: string, memory: object): SpawnConfig {
     return new SpawnConfig(body, role, { memory: memory as CreepMemory, waitForEnergy: true })
   }
+}
+
+/** Whether a miner of the remote source is on its spot (mining, for a source without a container). */
+function minerAt(remote: RemoteSource): boolean {
+  return Object.values(Game.creeps).some(
+    c =>
+      c.memory.role === creepRoles.REMOTE_MINER &&
+      (c.memory as { targetSourceId?: string }).targetSourceId === remote.id &&
+      c.pos.roomName === remote.room &&
+      c.pos.x === remote.spot.x &&
+      c.pos.y === remote.spot.y
+  )
 }

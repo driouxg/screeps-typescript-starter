@@ -2,6 +2,7 @@ import { isAlly } from "config/relations"
 import * as creepRoles from "creeps/roles"
 import { recordIntel } from "expansion/intel"
 import { noteFlagged } from "defence/aggressionLog"
+import { markRazed, trackRazedRooms } from "remote/razed"
 import { assessConquests, assessRoom, MAX_WAVES, sideName, STALE_TICKS } from "./assessment"
 import { recordSiege } from "./siegeIntel"
 import { bodyFor, MemberKind, TemplateName, templateNamed } from "./squadMeta"
@@ -202,6 +203,7 @@ export function renewingThisTick(spawn: StructureSpawn): boolean {
 
 /** Advance the conquest, once a tick, and refresh the rankings now and then. */
 export function runConquest(): void {
+  trackRazedRooms()
   runRequest()
   if (ASSESS_TICKS <= Game.time - (Memory.conquestAssessed ?? -Infinity) || rescouted()) assessConquests()
 
@@ -580,6 +582,8 @@ function watchTarget(c: Conquest, room: Room): boolean {
   if (c.phase === "breach" && (!breach || breach.barriers.length === 0)) c.phase = "raze"
   if (c.phase === "raze" && core.length === 0) {
     c.phase = "claim"
+    // Nothing there shoots any more: mine its sources while the controller runs down (see remote/razed).
+    markRazed(c.room, c.player)
     console.log(`Conquest ${c.room}: towers and spawns down; running their controller down`)
   }
   if (c.phase === "claim" && 0 < core.length) c.phase = "raze"

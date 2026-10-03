@@ -50,7 +50,7 @@ export function income(room: Room): number {
   for (const miner of creeps.filter(c => c.memory.role === creepRoles.REMOTE_MINER)) {
     const remote = Memory.remotes?.[(miner.memory as { targetSourceId?: string }).targetSourceId ?? ""]
     if (!remote) continue
-    const regen = (remote.reserve ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
+    const regen = (remote.reserve || remote.owned ? SOURCE_ENERGY_CAPACITY : SOURCE_ENERGY_NEUTRAL_CAPACITY) / ENERGY_REGEN_TIME
     total += Math.min(regen, miner.getActiveBodyparts(WORK) * HARVEST_POWER) * REMOTE_EFFICIENCY
   }
 
