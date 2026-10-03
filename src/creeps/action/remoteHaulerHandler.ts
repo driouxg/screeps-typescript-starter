@@ -18,13 +18,14 @@ const IDLE_RECHECK_TICKS = 5
 export type RemoteHaulerState = "collect" | "return" | "deliver" | "wait"
 
 /**
- * Goal: Carry a remote source's energy home, on its own: nothing but CARRY and MOVE (2 CARRY per MOVE once the
- * highway is built), so all its parts are logistics.
+ * Goal: Carry a remote source's energy home, on its own: nothing but CARRY and MOVE (2 CARRY per MOVE, see
+ * haulerBody), so all its parts are logistics.
  *
  * A state machine (see RemoteHaulerState). Only goes out while the container is built (waits at home otherwise). Takes
  * what's in it and in piles next to it, and drives home once full, or once there's nothing left to take and it carries
- * at least half a load. At home it picks an offload target once (like a home hauler: see findOffloadSpot), walks to
- * it and offloads, and only then picks the next one. Brings what it carries home while the room is paused.
+ * at least half a load. At home it picks an offload target once (the storage if there's room in it, otherwise like a
+ * home hauler: see findOffloadSpot; home haulers take it on from the storage), walks to it and offloads, and only
+ * then picks the next one. Brings what it carries home while the room is paused.
  */
 export default class RemoteHaulerHandler implements ICreepHandler {
   handle(creep: Creep): void {
@@ -138,9 +139,14 @@ export default class RemoteHaulerHandler implements ICreepHandler {
     this.collect(creep, memory)
   }
 
-  /** Pick and memorize where to offload; a structure is offloaded into from next to it, a drop spot from on it. */
+  /**
+   * Pick and memorize where to offload: the storage while it has room, otherwise where a home hauler would. A
+   * structure is offloaded into from next to it, a drop spot from on it.
+   */
   private pickOffload(creep: Creep, memory: RemoteHaulerMemory): boolean {
-    const pos = findOffloadSpot(creep)
+    const storage = creep.room.storage
+    const pos =
+      storage?.my && 0 < storage.store.getFreeCapacity(RESOURCE_ENERGY) ? storage.pos : findOffloadSpot(creep)
     if (!pos) return false
     const structure = creep.room
       .lookForAt(LOOK_STRUCTURES, pos)

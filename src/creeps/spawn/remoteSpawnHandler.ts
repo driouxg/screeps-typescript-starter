@@ -6,8 +6,10 @@ import { myUsername } from "utils/username"
 import ISpawnHandler from "./ISpawnHandler"
 import SpawnConfig from "./SpawnConfig"
 
-/** Reserve again when the reservation drops below this (it lasts at most 5000 ticks). */
+/** Reserve again when the reservation drops below this (it lasts at most 5000 ticks)... */
 const RESERVATION_LOW = 2000
+/** ...and ahead of the maintainers and haulers when it's below this, about to lapse (halving the room's sources). */
+const RESERVATION_URGENT = 500
 /** A miner (3 MOVE for 7 other parts) walks about this many ticks per tile off-road: its replacement leaves early. */
 const MINER_TICKS_PER_TILE = 2.5
 const RESERVER_BODY: BodyPartConstant[] = [CLAIM, CLAIM, MOVE, MOVE]
@@ -15,14 +17,16 @@ const RESERVER_BODY: BodyPartConstant[] = [CLAIM, CLAIM, MOVE, MOVE]
 /**
  * Goal: Staff the remote sources RemotePlanner chose for this spawn's room, best first: a miner each (replaced before
  * the old one dies, allowing for its walk), but in a room to reserve that isn't reserved by us yet, its reserver first,
- * so the room is ours before the miner builds a container in it; then a reserver for rooms worth reserving whose reservation is running
- * low; then the home's highway maintainers, when its roads need them (see maintainersWanted); then haulers (once the
- * miner has built the container) until they have the CARRY parts each source needs. Bodies come from remoteBodies,
- * the same the planner priced.
+ * so the room is ours before the miner builds a container in it; then a reserver for rooms whose reservation is about
+ * to lapse (RESERVATION_URGENT); then the home's highway maintainers, when its roads need them (see maintainersWanted);
+ * then haulers (once the miner has built the container) until they have the CARRY parts each source needs; then a
+ * reserver for rooms whose reservation is running low (RESERVATION_LOW). Bodies come from remoteBodies, the same the
+ * planner priced.
  *
- * Reservers and maintainers go ahead of haulers: until the highway is built, haulers are slow and need far more
- * CARRY, so topping them up never ended. Reservations lapsed (halving the sources), and the maintainer never got its
- * turn, which kept the roads from ever being built.
+ * Maintainers, and reservers about to lapse, go ahead of haulers: until the highway is built, haulers are slow and
+ * need far more CARRY, so topping them up never ended, reservations lapsed (halving the sources) and the maintainer
+ * never got its turn. Routine reserving comes after the haulers: a reserver adds only a tick a tick to the
+ * reservation, so one was nearly always due, and ahead of the haulers it kept them from ever spawning.
  */
 export default class RemoteSpawnHandler implements ISpawnHandler {
   public spawnCreep(spawn: StructureSpawn): SpawnConfig | null {
@@ -49,14 +53,20 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
       }
     }
 
-    for (const room of new Set(remotes.filter(r => r.reserve).map(r => r.room))) {
-      const distance = Math.min(...remotes.filter(r => r.room === room).map(r => r.distance))
-      const reservers = serving(creepRoles.RESERVER, "targetRoom", room)
-      if (reservers.some(c => aliveFor(c, distance + 20))) continue
-      const reserved = Game.rooms[room]?.controller?.reservation?.ticksToEnd ?? 0
-      if (RESERVATION_LOW <= reserved) continue
-      return this.config(RESERVER_BODY, creepRoles.RESERVER, { targetRoom: room })
+    /** A reserver for the first reserved room whose reservation is below `below` and has no reserver on the way. */
+    const reserverFor = (below: number): SpawnConfig | null => {
+      for (const room of new Set(remotes.filter(r => r.reserve).map(r => r.room))) {
+        const distance = Math.min(...remotes.filter(r => r.room === room).map(r => r.distance))
+        const reservers = serving(creepRoles.RESERVER, "targetRoom", room)
+        if (reservers.some(c => aliveFor(c, distance + 20))) continue
+        const reserved = Game.rooms[room]?.controller?.reservation?.ticksToEnd ?? 0
+        if (below <= reserved) continue
+        return this.config(RESERVER_BODY, creepRoles.RESERVER, { targetRoom: room })
+      }
+      return null
     }
+    const urgent = reserverFor(RESERVATION_URGENT)
+    if (urgent) return urgent
 
     const maintainers = creeps.filter(
       c => c.memory.role === creepRoles.HIGHWAY_MAINTAINER && c.memory.room === home.name
@@ -76,7 +86,7 @@ export default class RemoteSpawnHandler implements ISpawnHandler {
         })
     }
 
-    return null
+    return reserverFor(RESERVATION_LOW)
   }
 
   private config(body: BodyPartConstant[], role: string, memory: object): SpawnConfig {

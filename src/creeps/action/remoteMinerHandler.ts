@@ -1,4 +1,3 @@
-import { RemoteSource } from "remote/remotePlanner"
 import { remoteOf, sendHome } from "remote/remoteCreeps"
 import { myUsername } from "utils/username"
 import { smartMove } from "./common/movement"
@@ -10,8 +9,10 @@ import ICreepHandler from "./ICreepHandler"
  *
  * - Walks to its spot (next to the source, where the planner put the container) and places the container's
  *   construction site if there's none. Haulers only come once the container is built (see containerBuilt).
- * - Container not built yet: harvests, and builds it whenever its CARRY is full. In a room we reserve, only once our
- *   reservation is on: otherwise another player can reserve it from under us and the container is theirs to use.
+ * - Container not built yet: harvests, and builds it whenever its CARRY is full, except while another player has the
+ *   room reserved (the container would be theirs to use; see remote/contest for taking it back). Its reserver is sent
+ *   first (see RemoteSpawnHandler), so the room is usually ours by then. Not waiting for our own reservation: it lapses
+ *   between reservers, and waiting kept the container, and so the haulers, from coming for thousands of ticks.
  * - Then harvests: its CARRY fills first, after that energy spills into the container under it.
  * - Container below full hits: repairs it, taking energy out of the container to do so.
  * - Source depleted (waiting to regenerate) and a road within reach below full hits: repairs it the same way.
@@ -37,7 +38,7 @@ export default class RemoteMinerHandler implements ICreepHandler {
     const container = spot.lookFor(LOOK_STRUCTURES).find(s => s.structureType === STRUCTURE_CONTAINER) as
       | StructureContainer
       | undefined
-    if (!container) return this.buildContainer(creep, spot, source, remote)
+    if (!container) return this.buildContainer(creep, spot, source)
 
     if (container.hits < container.hitsMax) return this.repair(creep, container, container)
     if (source.energy <= 0) {
@@ -50,11 +51,12 @@ export default class RemoteMinerHandler implements ICreepHandler {
   }
 
   /**
-   * Harvest until the CARRY is full, then spend it on the container's site (placing the site first if needed). In a
-   * room we reserve, just harvest until our reservation is on.
+   * Harvest until the CARRY is full, then spend it on the container's site (placing the site first if needed). While
+   * another player has the room reserved, just harvest.
    */
-  private buildContainer(creep: Creep, spot: RoomPosition, source: Source, remote: RemoteSource): void {
-    if (remote.reserve && creep.room.controller?.reservation?.username !== myUsername()) {
+  private buildContainer(creep: Creep, spot: RoomPosition, source: Source): void {
+    const holder = creep.room.controller?.reservation?.username
+    if (holder && holder !== myUsername()) {
       creep.harvest(source)
       return
     }

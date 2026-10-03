@@ -13,10 +13,14 @@ import { myUsername } from "utils/username"
  * The RemotePlanner asks (considerContest) about each room in reach that it would mine but someone else reserves. A
  * contest starts if our strength is at least STRENGTH_MARGIN times theirs, and only once we've seen one of their
  * bases (an unknown player could be anything). Then (see ContestSpawnHandler):
- *   1. CONTEST_ATTACKERS attackers go in and kill that player's creeps there, their reserver above all;
- *   2. once they're out, a reserver of ours runs down their reservation (attackController: a tick per CLAIM part a
- *      tick, on top of the reservation's own decay) and reserves the room for us;
- *   3. reserved by us, the room is a remote like any other (the planner re-plans straight away), defended as usual.
+ *   1. clearing: CONTEST_ATTACKERS attackers (one melee, one ranged: see ContesterHandler) go in and kill that
+ *      player's creeps there, their reserver above all; a reserver of ours runs down their reservation
+ *      (attackController: a tick per CLAIM part a tick, on top of the reservation's own decay) and reserves the room;
+ *   2. holding: reserved by us, the room is a remote like any other (the planner re-plans straight away, so our miner
+ *      moves in), while the attackers stay on guard and kill any of their creeps that come back;
+ *   3. won: once the room has been ours and clear of their creeps for HOLD_TICKS, the attackers go home.
+ *   Counting it won as soon as our reservation was on sent the attackers home with their miner, hauler and reserver
+ *   still there, ready to take the room back.
  * A contest is given up (and the room left alone for BLOCK_TICKS) when it takes over TIMEOUT_TICKS, when more than
  * MAX_ATTACKERS_SPAWNED attackers have been spent on it, or when they've grown to within STRENGTH_MARGIN of us.
  *
@@ -32,14 +36,22 @@ const STRENGTH_MARGIN = 2
 const MAX_CONTESTS = 1
 /**
  * A home needs this RCL to send attackers worth sending (6 ATTACK at RCL 3's 800 energy). Below RCL 4 it can't afford
- * a reserver that keeps a reservation up (2 CLAIM, 1300): a won room is mined unreserved, and if they reserve it again
- * we contest it again (see watchRemoteReservations).
+ * the contest's reserver (MIN_CONTEST_CLAIM): a base nearby that can sends it, or there's no contest.
  */
 const MIN_HOME_RCL = 3
 export const CONTEST_ATTACKERS = 2
+/**
+ * A contest's reserver needs at least this many CLAIM parts: one only makes up for the reservation's own decay, so it
+ * can't run theirs down or build ours up (it sat at a tick). So 1300 energy with its MOVE: when the contest's base
+ * can't afford that, the nearest base that can within RESERVER_MAX_ROUTE rooms sends it (see reserverHomeFor).
+ */
+export const MIN_CONTEST_CLAIM = 2
+const RESERVER_MAX_ROUTE = 3
 const MAX_ATTACKERS_SPAWNED = 6
 const TIMEOUT_TICKS = 6000
 const BLOCK_TICKS = 20000
+/** Ticks the room must stay reserved by us and clear of their creeps before the attackers go home. */
+const HOLD_TICKS = 300
 /** Strength is compared again this often while a contest lasts. */
 const RECHECK_TICKS = 500
 /**
@@ -58,6 +70,12 @@ export interface Contest {
   attackersSpawned: number
   /** Picked from the dashboard: goes ahead whatever the aggression and strength. */
   manual?: boolean
+  /** The base that sends the reserver, when it isn't `home` (which can't afford MIN_CONTEST_CLAIM). */
+  reserverHome?: string
+  /** Reserved by us: the room is mined while the attackers guard it (see HOLD_TICKS). */
+  holding?: boolean
+  /** Since when the room has been ours and clear of their creeps. */
+  clearSince?: number
 }
 
 /** From the dashboard: contest a room, or call a contest off. */
@@ -133,11 +151,21 @@ function decide(home: Room, roomName: string, player: string): string {
   if (ours.score < STRENGTH_MARGIN * theirs.score) return `reserved by ${player}: ${versus}, not contested`
   if (MAX_CONTESTS <= Object.keys(Memory.remoteContests ?? {}).length)
     return `reserved by ${player}: ${versus}, another contest is underway`
+  const reserverHome = reserverHomeFor(roomName, home.name)
+  if (!reserverHome)
+    return `reserved by ${player}: ${versus}, but no base within ${RESERVER_MAX_ROUTE} rooms can spawn a ${MIN_CONTEST_CLAIM}-CLAIM reserver`
 
-  const status = `sending ${CONTEST_ATTACKERS} attackers from ${home.name}`
+  const status = startStatus(home.name, reserverHome)
   Memory.remoteContests = {
     ...(Memory.remoteContests ?? {}),
-    [roomName]: { player, home: home.name, started: Game.time, status, attackersSpawned: 0 }
+    [roomName]: {
+      player,
+      home: home.name,
+      started: Game.time,
+      status,
+      attackersSpawned: 0,
+      ...(reserverHome !== home.name ? { reserverHome } : {})
+    }
   }
   console.log(`Contest ${roomName}: taking it from ${player}, ${versus}`)
   return `reserved by ${player}: ${versus}, contesting (${status})`
@@ -192,10 +220,23 @@ function runRequest(): void {
     request.status = `not contested: no base of ours at RCL ${MIN_HOME_RCL}+ mines that far (1 room away from RCL 3, 2 from RCL 4)`
     return
   }
-  const status = `sending ${CONTEST_ATTACKERS} attackers from ${home}`
+  const reserverHome = reserverHomeFor(room, home)
+  if (!reserverHome) {
+    request.status = `not contested: no base within ${RESERVER_MAX_ROUTE} rooms can spawn a ${MIN_CONTEST_CLAIM}-CLAIM reserver (1300 energy), and one CLAIM can't hold the room`
+    return
+  }
+  const status = startStatus(home, reserverHome)
   Memory.remoteContests = {
     ...(Memory.remoteContests ?? {}),
-    [room]: { player, home, started: Game.time, status, attackersSpawned: 0, manual: true }
+    [room]: {
+      player,
+      home,
+      started: Game.time,
+      status,
+      attackersSpawned: 0,
+      manual: true,
+      ...(reserverHome !== home ? { reserverHome } : {})
+    }
   }
   if (Memory.contestBlocked) delete Memory.contestBlocked[room]
   console.log(`Contest ${room}: taking it from ${player}, picked from the dashboard`)
@@ -218,6 +259,31 @@ function whyNotContestable(room: string): string | null {
   if (MAX_CONTESTS <= Object.keys(Memory.remoteContests ?? {}).length)
     return "another contest is underway: call it off first"
   return null
+}
+
+function startStatus(home: string, reserverHome: string): string {
+  return `sending ${CONTEST_ATTACKERS} attackers from ${home}${
+    reserverHome !== home ? `, and a reserver from ${reserverHome}` : ""
+  }`
+}
+
+/**
+ * The base to send a contest's reserver: `home` if it can afford MIN_CONTEST_CLAIM (with their MOVE), otherwise the
+ * nearest base that can, within RESERVER_MAX_ROUTE rooms of `room`. Null if none can.
+ */
+export function reserverHomeFor(room: string, home: string): string | null {
+  const cost = MIN_CONTEST_CLAIM * (BODYPART_COST[CLAIM] + BODYPART_COST[MOVE])
+  const can = (r: Room | undefined) =>
+    !!r?.controller?.my && cost <= r.energyCapacityAvailable && 0 < r.find(FIND_MY_SPAWNS).length
+  if (can(Game.rooms[home])) return home
+  let best: { name: string; distance: number } | null = null
+  for (const base of Object.values(Game.rooms)) {
+    if (!can(base)) continue
+    const route = Game.map.findRoute(base.name, room)
+    if (route === ERR_NO_PATH || RESERVER_MAX_ROUTE < route.length) continue
+    if (!best || route.length < best.distance) best = { name: base.name, distance: route.length }
+  }
+  return best?.name ?? null
 }
 
 /** Our base at MIN_HOME_RCL with a spawn closest to `room` (by route), within the rooms it mines (manualMaxRoute). */
@@ -254,17 +320,29 @@ function update(roomName: string, contest: Contest): void {
   const controller = Game.rooms[roomName]?.controller
   if (!controller) return
   const reservation = controller.reservation
-  if (reservation?.username === myUsername()) {
-    end(roomName, "won: reserved by us", false)
-    // The planner reads the reservation from intel: refresh it, or it would see theirs and contest the room again.
-    recordIntel(controller.room, true)
-    Memory.remotesReplan = true
-    return
-  }
+  const ours = reservation?.username === myUsername()
   const theirs = controller.room
     .find(FIND_HOSTILE_CREEPS, { filter: c => c.owner.username === contest.player })
     .length
-  contest.status = reservation
+
+  if (ours && !contest.holding) {
+    // Ours: mine it now, guarded. The planner reads the reservation from intel: refresh it, or it would see theirs
+    // and contest the room again.
+    contest.holding = true
+    recordIntel(controller.room, true)
+    Memory.remotesReplan = true
+    console.log(`Contest ${roomName}: reserved by us; holding it while it's mined`)
+  }
+  if (ours && theirs <= 0) {
+    contest.clearSince = contest.clearSince ?? Game.time
+    if (HOLD_TICKS <= Game.time - contest.clearSince) return end(roomName, "won: ours, and clear of their creeps", false)
+  } else delete contest.clearSince
+
+  contest.status = ours
+    ? theirs
+      ? `holding: ours, ${theirs} of their creeps still here`
+      : `holding: ours and clear for ${Game.time - (contest.clearSince ?? Game.time)} of ${HOLD_TICKS} ticks`
+    : reservation
     ? `${theirs} of their creeps here, their reservation at ${reservation.ticksToEnd}`
     : `${theirs} of their creeps here, unreserved: reserving`
 }

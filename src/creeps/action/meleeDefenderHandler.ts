@@ -24,7 +24,10 @@ export default class MeleeDefenderHandler implements ICreepHandler {
     }
     stopLoitering(creep)
 
-    if (creep.attack(enemy) === ERR_NOT_IN_RANGE) smartMove(creep, enemy, 1)
+    // Ranged parts (a contest's ranged attacker that came home, see ContesterHandler) shoot from up to 3 tiles away.
+    if (0 < creep.getActiveBodyparts(RANGED_ATTACK)) {
+      if (creep.rangedAttack(enemy) === ERR_NOT_IN_RANGE) smartMove(creep, enemy, 2)
+    } else if (creep.attack(enemy) === ERR_NOT_IN_RANGE) smartMove(creep, enemy, 1)
   }
 }
 

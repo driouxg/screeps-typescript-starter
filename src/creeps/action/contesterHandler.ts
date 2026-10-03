@@ -6,7 +6,9 @@ import ICreepHandler from "./ICreepHandler"
 /**
  * Goal: Clear another player's creeps out of a remote room we're taking from them (see remote/contest): their
  * fighters first, then their reserver (its CLAIM parts keep their reservation up), then the rest. With none left,
- * guard the controller, where our reserver works. Hits anything of theirs next to it on the way.
+ * guard the controller, where our reserver works, and take on any that come back (the contest keeps it there while
+ * the room is held). Hits anything of theirs in reach on the way. Melee ones close in; ranged ones (kind "ranged")
+ * shoot from up to 3 tiles away, which catches creeps that run from the melee one.
  *
  * When the contest is over (won or given up), it goes home and joins the defenders there.
  */
@@ -21,9 +23,12 @@ export default class ContesterHandler implements ICreepHandler {
     }
 
     const theirs = (c: Creep) => c.owner.username === contest.player
-    const adjacent = creep.pos.findInRange(FIND_HOSTILE_CREEPS, 1, { filter: theirs })[0]
+    const ranged = memory.kind === "ranged"
+    const reach = ranged ? 3 : 1
+    const adjacent = creep.pos.findInRange(FIND_HOSTILE_CREEPS, reach, { filter: theirs })[0]
+    const hit = (t: Creep) => (ranged ? creep.rangedAttack(t) : creep.attack(t))
     if (creep.room.name !== memory.targetRoom) {
-      if (adjacent) creep.attack(adjacent)
+      if (adjacent) hit(adjacent)
       const controller = Memory.rooms[memory.targetRoom]?.intel?.controller
       smartMove(creep, new RoomPosition(controller?.x ?? 25, controller?.y ?? 25, memory.targetRoom), 3)
       return
@@ -35,9 +40,9 @@ export default class ContesterHandler implements ICreepHandler {
       memory.targetId = target?.id
     }
     if (target) {
-      if (creep.attack(target) === ERR_NOT_IN_RANGE) {
-        if (adjacent) creep.attack(adjacent)
-        smartMove(creep, target, 1)
+      if (hit(target) === ERR_NOT_IN_RANGE) {
+        if (adjacent) hit(adjacent)
+        smartMove(creep, target, ranged ? 2 : 1)
       }
       return
     }
@@ -73,6 +78,8 @@ export default class ContesterHandler implements ICreepHandler {
 
 export interface ContesterMemory extends CreepMemory {
   targetRoom: string
+  /** Melee (the default) or ranged (see ContestSpawnHandler). */
+  kind?: "melee" | "ranged"
   targetId?: Id<Creep>
   /** Counted against its contest's attackers (see remote/contest). */
   counted?: boolean
