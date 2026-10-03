@@ -299,6 +299,7 @@ export default function Dashboard() {
         busy={saving}
         onApprove={(room, options) => command("/api/conquest", { room, ...options })}
         onCallOff={room => command("/api/conquest", { room, cancel: true })}
+        onScout={room => command("/api/scout", { room })}
       />
 
       <EnemyPanel snapshot={s} />

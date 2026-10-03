@@ -4,8 +4,10 @@ import type {
   ConquestCandidateSnapshot,
   ConquestConcern,
   ConquestSideSnapshot,
-  ConquestSquadSnapshot
+  ConquestSquadSnapshot,
+  ConquestSupplySnapshot
 } from "dashboard/snapshot"
+import type { RoomIntel } from "expansion/intel"
 import { isHostileRoom, sameMapZone } from "utils/roomSafety"
 import { myUsername } from "utils/username"
 import { Breach, SiegeIntel } from "./siegeIntel"
@@ -24,10 +26,18 @@ import { planSquad, SquadPlan, TemplateName } from "./squadMeta"
  *      towers' damage at the breach plus the defenders seen in the room (DEFENDER_DAMAGE per combat part);
  *   3. squad: from the attack squad meta for the home's RCL and stored energy (see squadMeta), with healers for that
  *      damage;
- *   4. effort: ticks to dismantle the breach and then the towers and spawns, at the squad's siege rate (RETREAT_OVERHEAD
- *      more under tower fire: the squad steps out to heal), over the ticks a squad has left after the trip there:
- *      the waves of squads it takes;
- *   5. the side with the fewest waves (then the least energy) is the plan.
+ *   4. their energy (supplyOf): towers burn TOWER_ENERGY_COST a tick each while firing. Against that: the energy in
+ *      their towers, storage and terminal, what their other bases could send by terminal (RCL 6+ on both ends), and
+ *      their income (this room's sources, and their remotes nearby at REMOTE_SHARE). That gives how long they can keep
+ *      firing (null: indefinitely), and how long with the miners we can reach killed: those of sources outside their
+ *      walls (see siegeIntel exposedSources), and their remotes if we can raid them (a home at RAID_RCL+);
+ *   5. strategy (see evaluate): assault if the squad out-heals the towers at the breach (slowed by their repairs on the
+ *      wall while their energy lasts), else drain if it out-heals them at the room's edge and they can't keep firing
+ *      forever; else nothing works;
+ *   6. effort: ticks to drain, dismantle the breach and then the towers and spawns, at the squad's siege rate
+ *      (RETREAT_OVERHEAD more under fire: the squad steps out to heal), over the ticks a squad has left after the trip
+ *      there: the waves of squads it takes;
+ *   7. the side with a working strategy and the fewest waves (then the least energy) is the plan.
  * Then:
  *   reward  REWARD_PER_SOURCE a source, REWARD_PER_RCL a level (what it cost them to build), loot (energy stored /
  *           LOOT_DIVISOR), more against a player who attacked us, and more again for their last base;
@@ -54,6 +64,18 @@ const FORGET_TICKS = 20000
 const MAX_CANDIDATES = 12
 /** A CLAIM body to speed up the downgrade of their controller once the core is down. */
 const CLAIMER_ENERGY = 3250
+/** Their remotes count towards this base's income within this many rooms of it (and no nearer another of theirs). */
+const REMOTE_REACH = 2
+/** Share of a remote's energy that reaches the base (the rest pays for its haulers and decays on the way). */
+const REMOTE_SHARE = 0.7
+/** Terminals come at RCL 6. */
+const TERMINAL_RCL = 6
+/** A stockpile trend needs looks at least this far apart. */
+const TREND_MIN_TICKS = 300
+/** A squad draining towers from the room's edge must heal this much more than they do there. */
+const DRAIN_HEAL_MARGIN = 1.1
+/** Our homes need this RCL to raid their remotes (see defence/retaliation). */
+const RAID_RCL = 4
 
 const REWARD_PER_SOURCE = 1500
 const REWARD_PER_RCL = 500
@@ -100,12 +122,20 @@ export function rank(candidates: ConquestCandidateSnapshot[]): ConquestCandidate
   return candidates.sort((a, b) => Number(b.feasible) - Number(a.feasible) || b.score - a.score)
 }
 
+type Supply = ConquestSupplySnapshot
+
 interface Option {
   breach: Breach
   staging: string
   travel: number
   squad: SquadPlan
   incoming: number
+  /** Damage per tick at the hold tile on the room's edge, defenders included. */
+  edgeDamage: number
+  /** Hits per tick their towers can repair on the outermost barrier. */
+  repair: number
+  strategy: "assault" | "drain" | "none"
+  drainTicks: number
   breachTicks: number
   razeTicks: number
   waves: number
@@ -233,6 +263,11 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
   if (safeModeUntil)
     return finish(base, risk, decisions, `in safe mode until tick ${safeModeUntil}: nothing can hurt it until then`)
 
+  // Their energy: how long their towers can keep firing (see supplyOf).
+  const supply = supplyOf(room, player, intel, siege, RAID_RCL <= (home.room.controller?.level ?? 0))
+  base.supply = supply
+  supplyConcerns(supply, concerns)
+
   // Without the walls mapped, size the squad for the towers at their worst.
   if (!siege || siege.breaches.length === 0) {
     const incoming = towersArmed(intel) ? base.towers * TOWER_POWER_ATTACK : 0
@@ -263,7 +298,7 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     const toStaging = staging === home.room.name ? 0 : routeLength(home.room.name, staging)
     if (toStaging === null) continue
     side.reachable = true
-    const option = evaluate(breach, staging, toStaging, siege, capacity, stored, defenders, override)
+    const option = evaluate(breach, staging, toStaging, siege, supply, capacity, stored, defenders, override)
     if (option) options.push(option)
   }
   if (options.length === 0) {
@@ -275,7 +310,10 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
 
   options.sort(
     (a, b) =>
-      Number(a.squad.healShort) - Number(b.squad.healShort) || a.waves - b.waves || a.energy - b.energy || a.travel - b.travel
+      Number(a.strategy === "none") - Number(b.strategy === "none") ||
+      a.waves - b.waves ||
+      a.energy - b.energy ||
+      a.travel - b.travel
   )
   const best = options[0]
   base.backdoor = options.some(o => o.breach.barriers.length === 0)
@@ -290,15 +328,43 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     hits: best.breach.hits,
     breachDamage: best.breach.breachDamage,
     peakDamage: best.breach.peakDamage,
-    backdoor: best.breach.barriers.length === 0
+    backdoor: best.breach.barriers.length === 0,
+    hold: best.breach.hold
   }
   base.estimate = {
+    strategy: best.strategy,
     travelTicks: best.travel,
-    breachTicks: Math.round(best.breachTicks),
-    razeTicks: Math.round(best.razeTicks),
-    waves: best.waves,
-    energy: best.energy
+    drainTicks: best.drainTicks,
+    breachTicks: Number.isFinite(best.breachTicks) ? Math.round(best.breachTicks) : -1,
+    razeTicks: Number.isFinite(best.razeTicks) ? Math.round(best.razeTicks) : -1,
+    waves: Number.isFinite(best.waves) ? best.waves : -1,
+    energy: Number.isFinite(best.energy) ? best.energy : -1,
+    edgeDamage: best.edgeDamage,
+    breachRepair: best.repair
   }
+  if (best.strategy === "assault" && 0 < best.repair) {
+    const outpaced = best.squad.siegeRate <= best.repair
+    const lasts = supply.endurance === null ? "never, at their income" : `in ~${supply.endurance} ticks`
+    concerns.push({
+      tone: outpaced ? "bad" : "warn",
+      text: `If their towers repair the wall instead of shooting, they restore ${best.repair} hits a tick against the ${
+        best.squad.siegeRate
+      } we take off: ${
+        outpaced
+          ? `we only get through once their energy runs out (${lasts}).`
+          : "we still get through, slower (counted in the estimate)."
+      }`
+    })
+  }
+  if (best.strategy === "drain")
+    concerns.push({
+      tone: "warn",
+      text: `We can't out-heal their towers at the breach (${best.incoming}/tick), but can at the room's edge (${
+        best.edgeDamage
+      }/tick): the squad holds there${
+        supply.exposedSources || supply.raidRemotes ? ", killing the miners it can reach," : ""
+      } until their towers run dry, ~${best.drainTicks} ticks. A bot that stops shooting to save energy would stall this.`
+    })
 
   if (base.breach.backdoor)
     concerns.push({
@@ -312,7 +378,8 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
         base.breach.hits
       )} hits together, under ${base.breach.breachDamage} tower damage a tick.`
     })
-  if (best.squad.heal < best.breach.peakDamage && 0 < best.breach.peakDamage)
+  // (Not when draining: by the time the squad reaches the core, their towers are dry.)
+  if (best.strategy === "assault" && best.squad.heal < best.breach.peakDamage && 0 < best.breach.peakDamage)
     concerns.push({
       tone: "warn",
       text: `Near their core the towers do up to ${best.breach.peakDamage}/tick, more than our ${best.squad.heal} healing: the squad takes the towers down first and steps out to heal when it must.`
@@ -327,16 +394,32 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
   const armed = towersArmed(intel) && 0 < base.towers
   let verdict: string
   let feasible = false
-  if (squad.template === "raid" && armed && 0 < best.breach.breachDamage)
-    verdict = `towers would kill a raid (all our RCL ${home.room.controller!.level} base can build); needs RCL 5 for dismantler duos`
-  else if (squad.healShort)
-    verdict = `towers do ${best.incoming}/tick at the breach; the most healing our ${squad.template} squad can bring is ${squad.heal}/tick`
+  if (best.strategy === "none" && armed) {
+    if (squad.heal < best.edgeDamage * DRAIN_HEAL_MARGIN)
+      verdict = `towers do ${best.incoming}/tick at the breach and ${best.edgeDamage}/tick even at the room's edge; the most our ${squad.template} squad heals is ${squad.heal}/tick`
+    else
+      verdict = `towers do ${best.incoming}/tick at the breach (we heal ${squad.heal}), and they can't be drained: their income (${
+        supply.starvedIncome
+      }/tick after we kill what miners we can reach${
+        supply.networkBases ? `, plus terminal supply from ${supply.networkBases} base(s)` : ""
+      }) keeps up with the ${supply.burn}/tick their towers burn`
+  } else if (best.strategy === "assault" && !Number.isFinite(best.breachTicks))
+    verdict = `their towers repair the wall (${best.repair}/tick) faster than we take it down (${squad.siegeRate}/tick), and their income keeps them going`
+  else if (best.strategy === "none")
+    verdict = `the most healing our ${squad.template} squad can bring (${squad.heal}/tick) can't hold against ${best.incoming}/tick`
   else if (MAX_WAVES < best.waves)
-    verdict = `walls too thick: ${best.waves} squads' lifetimes to break in (we send at most ${MAX_WAVES})`
+    verdict =
+      best.drainTicks > best.breachTicks
+        ? `their energy outlasts us: draining their towers takes ~${best.drainTicks.toLocaleString()} ticks${
+            supply.networkBases ? " (other bases can send them energy by terminal)" : ""
+          }, ${best.waves} squads' lifetimes (we send at most ${MAX_WAVES})`
+        : `walls too thick: ${best.waves} squads' lifetimes to break in (we send at most ${MAX_WAVES})`
   else if (squad.unaffordable) verdict = `can't afford it yet: the squad ${squad.unaffordable}`
   else {
     feasible = true
     verdict = `${best.waves} wave${best.waves === 1 ? "" : "s"} of a ${squad.template} squad, about ${thousands(best.energy)} energy, ${
+      best.strategy === "drain" ? `draining their towers (~${best.drainTicks} ticks) then ` : ""
+    }${
       base.breach.backdoor ? `through the backdoor on the ${base.breach.side}` : `breaking in from the ${base.breach.side}`
     }`
   }
@@ -352,7 +435,12 @@ function finish(
   energy?: number
 ): ConquestCandidateSnapshot {
   if (squad && !base.squad) base.squad = squadSnapshot(squad)
-  const cost = energy ?? (base.squad ? base.squad.cost + CLAIMER_ENERGY : 50000)
+  const cost =
+    energy !== undefined && Number.isFinite(energy)
+      ? energy
+      : base.squad
+      ? base.squad.cost * MAX_WAVES + CLAIMER_ENERGY
+      : 50000
   base.risk = +risk.toFixed(2)
   base.score = Math.round((base.reward * 1000) / Math.max(1, cost * risk))
   base.verdict = verdict
@@ -360,36 +448,189 @@ function finish(
   return base
 }
 
+/** What their energy means for a siege, for the dashboard. */
+function supplyConcerns(s: Supply, concerns: ConquestConcern[]): void {
+  if (s.burn <= 0) return
+  const lasts = (t: number | null) => (t === null ? "indefinitely" : `~${t.toLocaleString()} ticks`)
+  const remotes = s.remoteSources ? `, ${s.remoteSources} in remotes ${s.remoteRooms.join(", ")}` : ""
+  const network = s.networkStored ? `, ${thousands(s.networkStored)} in other bases` : ""
+  concerns.push({
+    tone: s.endurance === null ? "bad" : "info",
+    text: `Firing every tick their towers burn ${s.burn} energy/tick. They have ${thousands(s.reserve)} to burn (${thousands(
+      s.towerEnergy
+    )} in towers, ${thousands(s.stored)} stored${network}) and bring in ~${s.income}/tick (${
+      s.baseSources
+    } source(s) here${remotes}): they can keep firing ${lasts(s.endurance)}.`
+  })
+  if (s.exposedSources || s.raidRemotes) {
+    const how = [
+      s.exposedSources ? `${s.exposedSources} source(s) here are outside their walls, in reach of our squad` : "",
+      s.raidRemotes ? `their remotes (${s.remoteRooms.join(", ")}) get raided while we drain (see retaliation)` : ""
+    ]
+      .filter(Boolean)
+      .join("; ")
+    concerns.push({
+      tone: "good",
+      text: `Their miners can be picked off: ${how}. That cuts their income to ~${s.starvedIncome}/tick: towers last ${lasts(
+        s.enduranceStarved
+      )}.`
+    })
+  } else
+    concerns.push({ tone: "info", text: "Their miners are all behind their walls: we can't starve them by killing miners." })
+  if (s.networkBases)
+    concerns.push({
+      tone: "warn",
+      text: `They have a terminal and ${s.networkBases} other base(s) with terminals (${thousands(
+        s.networkStored
+      )} stored), so energy can be sent in: counted in what they can burn, and starving them takes that much longer.`
+    })
+  if (s.trend !== undefined && Math.abs(s.trend) >= 1)
+    concerns.push({
+      tone: s.trend > 0 ? "warn" : "good",
+      text:
+        s.trend > 0
+          ? `Their stockpile grew ${s.trend}/tick between our last looks: it's being filled (remotes, or sent from another base).`
+          : `Their stockpile shrank ${-s.trend}/tick between our last looks: they're spending more than they bring in.`
+    })
+}
+
+/**
+ * How long their towers can keep firing (see the top of this file): their energy (in the towers, storage and
+ * terminal, plus what their other bases could send by terminal) against what firing every tick burns, less what
+ * their sources and remotes bring in; and the same with the miners we can reach killed.
+ */
+function supplyOf(room: string, player: string, intel: RoomIntel, siege: SiegeIntel | undefined, raidRemotes: boolean): Supply {
+  const towers = intel.towers ?? 0
+  const burn = towers * TOWER_ENERGY_COST
+  const perSource = SOURCE_ENERGY_CAPACITY / ENERGY_REGEN_TIME
+  const baseIncome = intel.sources * perSource
+
+  // Their remotes: rooms they reserve nearer this base than any other of theirs.
+  const bases: string[] = []
+  const remotes: { room: string; sources: number }[] = []
+  for (const [name, memory] of Object.entries(Memory.rooms ?? {})) {
+    const other = memory.intel
+    if (!other || FORGET_TICKS < Game.time - other.tick) continue
+    if (other.controller?.owner === player && name !== room) bases.push(name)
+    if (other.controller?.reservedBy === player && !other.controller.owner) remotes.push({ room: name, sources: other.sources })
+  }
+  const near = (r: string) => {
+    const d = Game.map.getRoomLinearDistance(r, room)
+    return d <= REMOTE_REACH && bases.every(b => d <= Game.map.getRoomLinearDistance(r, b))
+  }
+  const theirRemotes = remotes.filter(r => near(r.room))
+  const remoteSources = theirRemotes.reduce((sum, r) => sum + r.sources, 0)
+  const remoteIncome = remoteSources * perSource * REMOTE_SHARE
+  const income = baseIncome + remoteIncome
+  const exposedSources = siege?.exposedSources ?? 0
+  const exposedIncome = exposedSources * perSource + (raidRemotes ? remoteIncome : 0)
+
+  // Their other bases that can send energy by terminal (RCL 6+), if this one has a terminal.
+  const hasTerminal = intel.terminal ?? (intel.controller?.level ?? 0) >= TERMINAL_RCL
+  const senders = hasTerminal
+    ? bases.filter(b => (Memory.rooms[b].intel?.controller?.level ?? 0) >= TERMINAL_RCL)
+    : []
+  const networkStored = senders.reduce((sum, b) => sum + (Memory.rooms[b].intel?.storedEnergy ?? 0), 0)
+
+  const towerEnergy = intel.towerEnergy ?? 0
+  const stored = intel.storedEnergy ?? 0
+  const reserve = towerEnergy + stored + networkStored
+  const endurance = (gain: number): number | null => (burn <= gain ? null : Math.round(reserve / (burn - gain)))
+
+  let trend: number | undefined
+  const before = intel.storedBefore
+  if (before && TREND_MIN_TICKS <= intel.tick - before.tick)
+    trend = +((stored - before.energy) / (intel.tick - before.tick)).toFixed(1)
+
+  return {
+    towerEnergy,
+    stored,
+    networkStored,
+    networkBases: senders.length,
+    reserve,
+    burn,
+    income: +income.toFixed(1),
+    baseSources: intel.sources,
+    remoteSources,
+    remoteRooms: theirRemotes.map(r => r.room),
+    exposedSources,
+    raidRemotes: raidRemotes && 0 < remoteSources,
+    starvedIncome: +Math.max(0, income - exposedIncome).toFixed(1),
+    endurance: towers ? endurance(income) : 0,
+    enduranceStarved: towers ? endurance(income - exposedIncome) : 0,
+    trend
+  }
+}
+
+/**
+ * The best plan through one breach:
+ *   assault  the squad heals what the towers do at the breach: it dismantles its way in. If the towers repair the
+ *            barrier instead of shooting (the smart answer to a squad they can't hurt), they take breachRepair a tick
+ *            off our rate for as long as their energy lasts (supply.endurance); after that, our full rate.
+ *   drain    it can't heal that, but can heal what they do at the room's edge (the hold tile): it stands there, and
+ *            kills the miners it can reach, until their towers run dry (supply.enduranceStarved), then breaks in.
+ *   none     neither: the towers win.
+ */
 function evaluate(
   breach: Breach,
   staging: string,
   toStaging: number,
   siege: SiegeIntel,
+  supply: Supply,
   capacity: number,
   stored: number | null,
   defenders: number,
   override?: TemplateName
 ): Option | null {
-  const incoming = breach.breachDamage + defenders * DEFENDER_DAMAGE
-  const squad = planSquad(capacity, stored, incoming, defenders, override)
+  const defenderDamage = defenders * DEFENDER_DAMAGE
+  const incoming = breach.breachDamage + defenderDamage
+  // Dismantlers can't hurt creeps: with miners outside their walls to kill, bring a ranged escort.
+  const squad = planSquad(capacity, stored, incoming, Math.max(defenders, supply.exposedSources ? 1 : 0), override)
   if (!squad) return null
   const travel = (toStaging + 1) * TICKS_PER_ROOM
   const rate = Math.max(1, squad.siegeRate)
-  const overhead = 0 < incoming ? RETREAT_OVERHEAD : 1
-  const breachTicks = (breach.hits / rate) * overhead
-  const razeTicks = (siege.coreHits / rate) * overhead
   const lifeForWork = Math.max(100, CREEP_LIFE_TIME - travel - RALLY_TICKS)
-  const waves = Math.max(1, Math.ceil((breachTicks + razeTicks + breach.length) / lifeForWork))
+  const edgeDamage = (breach.edgeDamage ?? breach.breachDamage) + defenderDamage
+  const repair = breach.breachRepair ?? 0
+
+  let strategy: Option["strategy"] = "none"
+  let drainTicks = 0
+  let breachTicks = Infinity
+  let razeTicks = Infinity
+  if (!squad.healShort) {
+    strategy = "assault"
+    const overhead = 0 < incoming ? RETREAT_OVERHEAD : 1
+    const net = rate - repair
+    const lasts = supply.endurance
+    if (repair <= 0 || (0 < net && (lasts === null || breach.hits <= net * lasts))) breachTicks = breach.hits / Math.max(1, net)
+    else if (lasts !== null) breachTicks = lasts + (breach.hits - Math.max(0, net) * lasts) / rate
+    breachTicks *= overhead
+    razeTicks = (siege.coreHits / rate) * overhead
+  } else if (edgeDamage * DRAIN_HEAL_MARGIN <= squad.heal && supply.enduranceStarved !== null) {
+    strategy = "drain"
+    drainTicks = supply.enduranceStarved
+    // Dry towers: only defenders left to heal through.
+    const overhead = 0 < defenderDamage ? RETREAT_OVERHEAD : 1
+    breachTicks = (breach.hits / rate) * overhead
+    razeTicks = (siege.coreHits / rate) * overhead
+  }
+
+  const work = drainTicks + breachTicks + razeTicks + breach.length
+  const waves = Number.isFinite(work) ? Math.max(1, Math.ceil(work / lifeForWork)) : Infinity
   return {
     breach,
     staging,
     travel,
     squad,
     incoming,
+    edgeDamage,
+    repair,
+    strategy,
+    drainTicks,
     breachTicks,
     razeTicks,
     waves,
-    energy: squad.cost * waves + CLAIMER_ENERGY
+    energy: Number.isFinite(waves) ? squad.cost * waves + CLAIMER_ENERGY : Infinity
   }
 }
 

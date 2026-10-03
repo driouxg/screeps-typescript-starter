@@ -84,6 +84,8 @@ export default class ConquerorHandler implements ICreepHandler {
       return
     }
 
+    if (c.phase === "drain") return this.drain(creep, c, leader, enemies)
+
     const focus = c.focus ? Game.getObjectById(c.focus.id as Id<Structure>) : null
     const focusPos = c.focus ? new RoomPosition(c.focus.x, c.focus.y, c.room) : this.corePos(c)
 
@@ -114,6 +116,36 @@ export default class ConquerorHandler implements ICreepHandler {
     if (creep.room.name === c.room && healers.length && healers.every(h => h.room.name !== creep.room.name || 2 < creep.pos.getRangeTo(h)))
       return
     smartMove(creep, focusPos, 1)
+  }
+
+  /**
+   * Draining their towers: hold the edge tile they hit least (the healers follow the leader there); fighters kill
+   * their creeps that come close, and go after miners at sources outside their walls.
+   */
+  private drain(creep: Creep, c: Conquest, leader: Creep | undefined, enemies: (range: number) => Creep[]): void {
+    const memory = creep.memory as ConquerorMemory
+    const hold = new RoomPosition(c.hold?.x ?? c.entry.x, c.hold?.y ?? c.entry.y, c.room)
+    const ranged = memory.kind === "ranged"
+    const target = creep.pos.findClosestByRange(enemies(ranged ? 3 : 1))
+    if (target) {
+      if (ranged) creep.rangedAttack(target)
+      else if (memory.kind === "attacker") creep.attack(target)
+    }
+    if (memory.kind === "dismantler") {
+      if (!leader || leader.id === creep.id) smartMove(creep, hold, 0)
+      else smartMove(creep, leader, 1)
+      return
+    }
+    // Miners at exposed sources.
+    const exposed = Memory.rooms[c.room]?.siege?.exposed ?? []
+    const miner =
+      creep.room.name === c.room
+        ? creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS, {
+            filter: h => h.owner.username === c.player && exposed.some(e => h.pos.inRangeTo(e.x, e.y, 2))
+          })
+        : null
+    if (miner) smartMove(creep, miner, ranged ? 3 : 1)
+    else smartMove(creep, hold, 1)
   }
 
   /** Their spawn (or the controller) from the siege intel, for when there's nothing to focus on. */

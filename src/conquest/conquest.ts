@@ -23,6 +23,10 @@ import { bodyFor, MemberKind, TemplateName, templateNamed } from "./squadMeta"
  *   marching  the squad walks to the staging room (the room next to the side we break in from) as a group and
  *             gathers by the exit.
  *   engaged   it fights (see ConquerorHandler), in phases (Memory.conquest.phase):
+ *               drain   (when the plan is a drain, see conquest/assessment) hold the tile on the room's edge where
+ *                       their towers hit least, out-healing them, and kill the miners of sources outside their
+ *                       walls; their remotes are raided meanwhile (a strike every RAID_INTERVAL, see
+ *                       defence/retaliation). Once their towers are down to TOWER_DRY energy each, on to the breach;
  *               breach  dismantle the barriers on the way in, outermost first (refreshed from the room as it changes);
  *               raze    destroy their towers, then spawns (whatever barrier is in the way first);
  *               claim   claimers run their controller's downgrade timer down (attackController, once every
@@ -58,11 +62,15 @@ const RELIEF_LEAD = 200
 const WORK_OVERHEAD = 1.3
 /** Lifetime a renewal adds is this times CREEP_LIFE_TIME / CREEP_SPAWN_TIME over the body's size (the game's constant). */
 const SPAWN_RENEW_RATIO = 1.2
+/** Towers with less energy than this each are dry: the drain is over. */
+const TOWER_DRY = 50
+/** While draining, their remotes are raided (a retaliation strike) at most this often. */
+const RAID_INTERVAL = 500
 /** The target's siege intel is refreshed this often while we can see it. */
 const SIEGE_REFRESH = 25
 
 export type ConquestState = "scouting" | "awaiting" | "staging" | "rallying" | "marching" | "engaged" | "over"
-export type ConquestPhase = "breach" | "raze" | "claim"
+export type ConquestPhase = "drain" | "breach" | "raze" | "claim"
 
 export interface Conquest {
   room: string
@@ -92,6 +100,15 @@ export interface Conquest {
   barriersLeft?: number
   /** Tick their controller can next be attacked. */
   nextClaimAttack?: number
+  /** assault: break in under fire; drain: run their towers dry from the room's edge first (see conquest/assessment). */
+  strategy?: "assault" | "drain"
+  /** Where the squad holds while draining. */
+  hold?: { x: number; y: number }
+  /** Raid their remotes while draining, and when next. */
+  raidRemotes?: boolean
+  nextRaid?: number
+  /** Energy in their towers when last seen. */
+  towerEnergy?: number
   result?: string
   ended?: number
 }
@@ -178,7 +195,7 @@ export function renewingThisTick(spawn: StructureSpawn): boolean {
 /** Advance the conquest, once a tick, and refresh the rankings now and then. */
 export function runConquest(): void {
   runRequest()
-  if (ASSESS_TICKS <= Game.time - (Memory.conquestAssessed ?? -Infinity)) assessConquests()
+  if (ASSESS_TICKS <= Game.time - (Memory.conquestAssessed ?? -Infinity) || rescouted()) assessConquests()
 
   const c = Memory.conquest
   if (!c || c.state === "over") return
@@ -203,6 +220,16 @@ export function runConquest(): void {
     case "engaged":
       return engaged(c, room)
   }
+}
+
+/** Whether a base ranked on stale intel (or with its walls unmapped) has been seen since: re-rank it straight away. */
+function rescouted(): boolean {
+  const assessed = Memory.conquestAssessed ?? 0
+  return (Memory.conquestCandidates ?? []).some(c => {
+    const stale = c.siegeAge === undefined || STALE_TICKS < c.siegeAge || STALE_TICKS < c.intelAge
+    const memory = Memory.rooms[c.room]
+    return stale && assessed < (memory?.siege?.tick ?? memory?.intel?.tick ?? 0)
+  })
 }
 
 /** Act on the player's approval or call-off from the dashboard, once. */
@@ -306,6 +333,10 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
   c.side = breach.sideConstant as ExitConstant
   c.entry = breach.entry
   c.travel = candidate.estimate?.travelTicks ?? 500
+  c.strategy = candidate.estimate?.strategy === "drain" ? "drain" : "assault"
+  c.hold = breach.hold
+  c.raidRemotes = !!candidate.supply?.raidRemotes
+  if (c.wave === 1 && c.phase === "breach" && c.strategy === "drain") c.phase = "drain"
   c.maxWaves = Math.max(2, Math.min(MAX_WAVES * 2, (candidate.estimate?.waves ?? 1) + 1))
   // Bodies from the plan, rebuilt for the home's capacity now (the plan gives only part counts).
   const energy = Math.max(...candidate.squad.members.map(m => m.cost))
@@ -315,7 +346,7 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
     "staging",
     `wave ${c.wave}/${c.maxWaves}: spawning a ${c.template} squad of ${c.members.length} in ${c.home}, to break in from the ${
       breach.side
-    } via ${c.staging}`
+    } via ${c.staging}${c.strategy === "drain" ? ", draining their towers first" : ""}`
   )
 }
 
@@ -347,7 +378,7 @@ function staging(c: Conquest): void {
   }
   if (STAGING_TIMEOUT < Game.time - c.stateSince) return end(c, `failed: wave ${c.wave} took too long to spawn`)
   c.status = `wave ${c.wave}/${c.maxWaves}: spawned ${ready} of ${c.members.length} in ${c.home}${
-    c.phase === "breach" ? "" : ` (${c.phase} phase)`
+    c.phase === "breach" || c.phase === "drain" ? "" : ` (${c.phase} phase)`
   }`
 }
 
@@ -428,6 +459,16 @@ function engaged(c: Conquest, room: Room | undefined): void {
   if (room) c.focus = pickFocus(c, room, wave)
 
   // Relief: this wave won't live to finish; stage the next in time for it to arrive as this one runs out.
+  // Draining: keep their remotes' miners away too, so their income can't refill the towers.
+  if (c.phase === "drain" && c.raidRemotes && Game.time >= (c.nextRaid ?? 0)) {
+    const strike = Memory.retaliation
+    if (!strike || strike.state === "over") {
+      Memory.retaliation = { player: c.player, requested: Date.now() }
+      console.log(`Conquest ${c.room}: raiding ${c.player}'s remotes to starve their towers`)
+    }
+    c.nextRaid = Game.time + RAID_INTERVAL
+  }
+
   const lowest = Math.min(...wave.map(m => m.ticksToLive ?? CREEP_LIFE_TIME))
   const workLeft = (remainingHits(c) / Math.max(1, siegeRate(wave))) * WORK_OVERHEAD
   if (c.phase !== "claim" && c.wave < c.maxWaves && lowest < workLeft && lowest < reliefLead(c)) {
@@ -437,7 +478,9 @@ function engaged(c: Conquest, room: Room | undefined): void {
   }
 
   const what =
-    c.phase === "breach"
+    c.phase === "drain"
+      ? `draining their towers from the edge: ${c.towerEnergy ?? "?"} energy left in them`
+      : c.phase === "breach"
       ? `breaking in: ${c.barriersLeft ?? "?"} barrier(s) left`
       : c.phase === "raze"
       ? "inside: destroying their towers and spawns"
@@ -449,7 +492,8 @@ function engaged(c: Conquest, room: Room | undefined): void {
 function remainingHits(c: Conquest): number {
   if (c.phase === "claim") return 0
   const siege = Memory.rooms[c.room]?.siege
-  if (!siege) return Infinity
+  // Draining takes as long as their energy lasts: keep the waves coming.
+  if (!siege || c.phase === "drain") return Infinity
   const breach = c.phase === "breach" ? siege.breaches.find(b => b.side === c.side)?.hits ?? 0 : 0
   return breach + siege.coreHits
 }
@@ -499,7 +543,7 @@ function watchTarget(c: Conquest, room: Room): boolean {
     return true
   }
   if (!controller.owner) {
-    if (c.state === "engaged" || c.phase !== "breach") end(c, `won: ${c.player}'s controller is free; ${handOff(c.room)}`)
+    if (c.state === "engaged" || c.phase === "raze" || c.phase === "claim") end(c, `won: ${c.player}'s controller is free; ${handOff(c.room)}`)
     else end(c, `called off: nobody owns ${c.room} any more`)
     return true
   }
@@ -517,6 +561,12 @@ function watchTarget(c: Conquest, room: Room): boolean {
   })
   const breach = room.memory.siege?.breaches.find(b => b.side === c.side)
   c.barriersLeft = breach?.barriers.length
+  const towers = core.filter(s => s.structureType === STRUCTURE_TOWER) as StructureTower[]
+  c.towerEnergy = towers.reduce((sum, t) => sum + t.store.energy, 0)
+  if (c.phase === "drain" && c.towerEnergy < towers.length * TOWER_DRY) {
+    c.phase = "breach"
+    console.log(`Conquest ${c.room}: their towers are dry; breaking in`)
+  }
   if (c.phase === "breach" && (!breach || breach.barriers.length === 0)) c.phase = "raze"
   if (c.phase === "raze" && core.length === 0) {
     c.phase = "claim"
@@ -553,6 +603,7 @@ function pickFocus(c: Conquest, room: Room, wave: Creep[]): Conquest["focus"] {
   }
   const focus = (s: Structure | undefined | null) => (s ? { id: s.id as string, x: s.pos.x, y: s.pos.y } : undefined)
 
+  if (c.phase === "drain") return undefined
   if (c.phase === "breach") {
     const breach = room.memory.siege?.breaches.find(b => b.side === c.side)
     for (const b of breach?.barriers ?? []) {

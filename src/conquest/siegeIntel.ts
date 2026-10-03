@@ -22,6 +22,8 @@ import { myUsername } from "utils/username"
 const REFRESH_TICKS = 500
 /** A barrier's cost grows by this share of its hits for each TOWER_POWER_ATTACK of tower damage on its tile. */
 const TOWER_WEIGHT = 0.5
+/** A miner within this range of a tile we can walk to is in reach of our ranged attackers (3, plus its own step). */
+const EXPOSED_RANGE = 4
 /** Barriers kept per breach; the path rarely crosses more. */
 const MAX_BARRIERS = 8
 
@@ -47,6 +49,14 @@ export interface Breach {
   peakDamage: number
   /** Tiles from the entry to the core. */
   length: number
+  /**
+   * The tile just inside the room on this side where the towers hit least, and their damage there: where a squad
+   * that can't out-heal them at the breach can still stand and drain their energy (see conquest/assessment).
+   */
+  hold: { x: number; y: number }
+  edgeDamage: number
+  /** Hits per tick their towers can repair on the outermost barrier, if they repair instead of shooting. */
+  breachRepair: number
 }
 
 export interface SiegeIntel {
@@ -59,6 +69,11 @@ export interface SiegeIntel {
   coreHits: number
   /** The best way in from each side we could reach the core from, cheapest first. */
   breaches: Breach[]
+  /** Its sources, and those whose miners can be shot from outside their walls (reached without breaking a barrier). */
+  sources: number
+  exposedSources: number
+  /** Where those exposed sources are, so the squad can hunt their miners (see ConquerorHandler). */
+  exposed?: { x: number; y: number }[]
 }
 
 declare global {
@@ -77,6 +92,11 @@ export function towerDamageAt(range: number): number {
     TOWER_POWER_ATTACK *
     (1 - (TOWER_FALLOFF * (range - TOWER_OPTIMAL_RANGE)) / (TOWER_FALLOFF_RANGE - TOWER_OPTIMAL_RANGE))
   )
+}
+
+/** Tower repair per tick at `range`: the same falloff as damage. */
+export function towerRepairAt(range: number): number {
+  return (towerDamageAt(range) / TOWER_POWER_ATTACK) * TOWER_POWER_REPAIR
 }
 
 /** Record the siege intel of a visible room, if it's another (non-allied) player's base. */
@@ -100,6 +120,8 @@ function survey(room: Room, owner: string): SiegeIntel {
   const { hits: barrierHits, blocked, ramparts } = barrierGrid(room)
   const damageAt = (x: number, y: number) =>
     armed.reduce((sum, t) => sum + towerDamageAt(Math.max(Math.abs(t.pos.x - x), Math.abs(t.pos.y - y))), 0)
+  const repairAt = (x: number, y: number) =>
+    armed.reduce((sum, t) => sum + towerRepairAt(Math.max(Math.abs(t.pos.x - x), Math.abs(t.pos.y - y))), 0)
 
   const core: RoomPosition[] =
     spawns.length > 0
@@ -110,6 +132,18 @@ function survey(room: Room, owner: string): SiegeIntel {
       ? [room.controller.pos]
       : []
 
+  const outside = outsideTiles(room, barrierHits, blocked)
+  const sources = room.find(FIND_SOURCES)
+  const exposed = sources.filter(source => {
+    for (let dy = -EXPOSED_RANGE; dy <= EXPOSED_RANGE; dy++)
+      for (let dx = -EXPOSED_RANGE; dx <= EXPOSED_RANGE; dx++) {
+        const x = source.pos.x + dx
+        const y = source.pos.y + dy
+        if (0 <= x && x < 50 && 0 <= y && y < 50 && outside[key(x, y)]) return true
+      }
+    return false
+  })
+
   const coreHits = [...towers, ...spawns].reduce((sum, s) => sum + s.hits + (ramparts.get(key(s.pos.x, s.pos.y)) ?? 0), 0)
 
   return {
@@ -118,8 +152,46 @@ function survey(room: Room, owner: string): SiegeIntel {
     towers: towers.map(t => ({ x: t.pos.x, y: t.pos.y, energy: t.store.energy })),
     spawns: spawns.map(s => ({ x: s.pos.x, y: s.pos.y })),
     coreHits,
-    breaches: core.length ? breaches(room, core, barrierHits, blocked, damageAt) : []
+    breaches: core.length ? breaches(room, core, barrierHits, blocked, damageAt, repairAt, outside) : [],
+    sources: sources.length,
+    exposedSources: exposed.length,
+    exposed: exposed.map(source => ({ x: source.pos.x, y: source.pos.y }))
   }
+}
+
+/** Tiles reached from the room's exits without crossing a barrier: where we can walk without breaking anything. */
+function outsideTiles(
+  room: Room,
+  barrierHits: Map<number, { hits: number; type: StructureConstant }>,
+  blocked: Set<number>
+): Uint8Array {
+  const terrain = room.getTerrain()
+  const open = (k: number) => terrain.get(k % 50, Math.floor(k / 50)) !== TERRAIN_MASK_WALL && !blocked.has(k) && !barrierHits.has(k)
+  const outside = new Uint8Array(2500)
+  const queue: number[] = []
+  for (let i = 0; i < 50; i++)
+    for (const k of [key(i, 0), key(i, 49), key(0, i), key(49, i)])
+      if (!outside[k] && open(k)) {
+        outside[k] = 1
+        queue.push(k)
+      }
+  while (queue.length) {
+    const k = queue.pop()!
+    const x = k % 50
+    const y = (k - x) / 50
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx
+        const ny = y + dy
+        if (nx < 0 || 49 < nx || ny < 0 || 49 < ny) continue
+        const nk = key(nx, ny)
+        if (!outside[nk] && open(nk)) {
+          outside[nk] = 1
+          queue.push(nk)
+        }
+      }
+  }
+  return outside
 }
 
 function storedEnergy(room: Room): number {
@@ -219,7 +291,9 @@ function breaches(
   core: RoomPosition[],
   barrierHits: Map<number, { hits: number; type: StructureConstant }>,
   blocked: Set<number>,
-  damageAt: (x: number, y: number) => number
+  damageAt: (x: number, y: number) => number,
+  repairAt: (x: number, y: number) => number,
+  outside: Uint8Array
 ): Breach[] {
   const terrain = room.getTerrain()
   const weight = new Float64Array(2500)
@@ -310,6 +384,7 @@ function breaches(
     const ex = exit % 50
     const ey = (exit - ex) / 50
     if (barriers.length === 0) breachDamage = damageAt(ex, ey)
+    const hold = holdTile(side, outside, damageAt) ?? { x: ex, y: ey }
     result.push({
       side,
       entry: { x: ex, y: ey },
@@ -317,8 +392,28 @@ function breaches(
       hits: barriers.reduce((sum, b) => sum + b.hits, 0),
       breachDamage: Math.round(breachDamage),
       peakDamage: Math.round(peakDamage),
-      length
+      length,
+      hold,
+      edgeDamage: Math.round(damageAt(hold.x, hold.y)),
+      breachRepair: barriers.length ? Math.round(repairAt(barriers[0].x, barriers[0].y)) : 0
     })
   }
   return result.sort((a, b) => dist[key(a.entry.x, a.entry.y)] - dist[key(b.entry.x, b.entry.y)])
+}
+
+/** The tile one step inside the room on `side`, reachable from the exits, where the towers hit least. */
+function holdTile(
+  side: ExitConstant,
+  outside: Uint8Array,
+  damageAt: (x: number, y: number) => number
+): { x: number; y: number } | null {
+  let best: { x: number; y: number; damage: number } | null = null
+  for (let i = 2; i < 48; i++) {
+    const [x, y] =
+      side === FIND_EXIT_TOP ? [i, 1] : side === FIND_EXIT_BOTTOM ? [i, 48] : side === FIND_EXIT_LEFT ? [1, i] : [48, i]
+    if (!outside[key(x, y)]) continue
+    const damage = damageAt(x, y)
+    if (!best || damage < best.damage) best = { x, y, damage }
+  }
+  return best ? { x: best.x, y: best.y } : null
 }

@@ -34,6 +34,14 @@ export interface RoomIntel {
   safeModeAvailable?: number
   /** Another player's base: energy in its storage and terminal (see defence/strength). */
   storedEnergy?: number
+  /**
+   * Another player's base: its stored energy at an earlier look, at least TREND_TICKS before this one where we have
+   * one, so the conquest assessment can tell a stockpile being filled (from remotes, or by terminal from their other
+   * bases) from one being spent.
+   */
+  storedBefore?: { energy: number; tick: number }
+  /** Another player's base has a terminal: it can be sent energy from their other bases. */
+  terminal?: boolean
   /** Other players' creeps seen here: their ATTACK, RANGED_ATTACK and HEAL parts, by player (see defence/strength). */
   combatParts?: { [username: string]: number }
 }
@@ -46,6 +54,8 @@ declare global {
 
 /** Refresh intel for a visible room at most this often. */
 const REFRESH_TICKS = 100
+/** The earlier look storedBefore keeps is at least this old, so a trend isn't just one refill. */
+const TREND_TICKS = 1000
 
 export function recordIntel(room: Room, force = false): void {
   const previous = room.memory.intel
@@ -66,6 +76,7 @@ export function recordIntel(room: Room, force = false): void {
     filter: c => isHostile(c) && (0 < c.getActiveBodyparts(ATTACK) || 0 < c.getActiveBodyparts(RANGED_ATTACK))
   }).length
 
+  const theirs = !!controller?.owner && !controller.my
   room.memory.intel = {
     tick: Game.time,
     sources: sources.length,
@@ -90,15 +101,21 @@ export function recordIntel(room: Room, force = false): void {
     towerEnergy: towers.reduce((sum, t) => sum + t.store.energy, 0),
     safeModeUntil: controller?.safeMode ? Game.time + controller.safeMode : undefined,
     safeModeAvailable: controller?.owner ? controller.safeModeAvailable : undefined,
-    storedEnergy:
-      controller?.owner && !controller.my
-        ? (room.storage?.store.energy ?? 0) + (room.terminal?.store.energy ?? 0)
-        : undefined,
+    storedEnergy: theirs ? (room.storage?.store.energy ?? 0) + (room.terminal?.store.energy ?? 0) : undefined,
+    storedBefore: theirs ? storedBefore(previous, controller?.owner?.username ?? "") : undefined,
+    terminal: theirs ? !!room.terminal : undefined,
     combatParts: combatPartsByPlayer(room),
     ...terrainRatios(room.name)
   }
   // Another player's base: map its walls and towers for conquest (see conquest/siegeIntel).
   recordSiege(room)
+}
+
+/** The earlier look to keep for the stored energy trend (see RoomIntel.storedBefore). */
+function storedBefore(previous: RoomIntel | undefined, owner: string): RoomIntel["storedBefore"] {
+  if (!previous || previous.controller?.owner !== owner || previous.storedEnergy === undefined) return undefined
+  if (previous.storedBefore && Game.time - previous.storedBefore.tick < TREND_TICKS) return previous.storedBefore
+  return { energy: previous.storedEnergy, tick: previous.tick }
 }
 
 /** Active ATTACK, RANGED_ATTACK and HEAL parts of other players' creeps in the room (not NPCs), by player. */

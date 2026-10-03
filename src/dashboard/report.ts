@@ -274,6 +274,8 @@ function conquestReport(): ConquestSnapshot | null {
     side: sideName(c.side),
     state: c.state,
     phase: c.phase,
+    strategy: c.strategy,
+    towerEnergy: c.towerEnergy,
     status: c.status,
     template: c.template,
     wave: c.wave,

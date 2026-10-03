@@ -113,6 +113,8 @@ export interface ConquestBreachSnapshot {
   peakDamage: number
   /** No walls or ramparts between that side and their spawns. */
   backdoor: boolean
+  /** Where the squad holds to drain their towers (the edge tile they hit least). */
+  hold?: { x: number; y: number }
 }
 
 export interface ConquestSquadSnapshot {
@@ -127,6 +129,39 @@ export interface ConquestSquadSnapshot {
   hits: number
   healShort: boolean
   unaffordable?: string
+}
+
+/**
+ * Their energy against what their towers burn (see supplyOf in src/conquest/assessment.ts): how long they can keep
+ * firing, and how long if we kill the miners we can reach.
+ */
+export interface ConquestSupplySnapshot {
+  towerEnergy: number
+  /** In its storage and terminal. */
+  stored: number
+  /** In their other bases that can send it by terminal, and how many of those. */
+  networkStored: number
+  networkBases: number
+  /** All they can burn. */
+  reserve: number
+  /** Energy per tick their towers use firing every tick. */
+  burn: number
+  /** Energy per tick from this base's sources and its remotes. */
+  income: number
+  baseSources: number
+  remoteSources: number
+  remoteRooms: string[]
+  /** Sources here whose miners we can shoot from outside their walls. */
+  exposedSources: number
+  /** Whether we'd raid their remotes while draining (a home of ours at RCL 4+). */
+  raidRemotes: boolean
+  /** Income with the miners we can reach killed. */
+  starvedIncome: number
+  /** Ticks their towers can keep firing (null: indefinitely, their income keeps up). */
+  endurance: number | null
+  enduranceStarved: number | null
+  /** Stored energy per tick between our last two looks (+ filling, - spending). */
+  trend?: number
 }
 
 /** Another player's base, assessed for conquest (see src/conquest/assessment.ts). */
@@ -159,7 +194,24 @@ export interface ConquestCandidateSnapshot {
   squad?: ConquestSquadSnapshot
   /** Damage per tick the squad takes while breaking in: towers and defenders. */
   incoming: number
-  estimate?: { travelTicks: number; breachTicks: number; razeTicks: number; waves: number; energy: number }
+  /** Their energy and how long their towers can keep firing on it. */
+  supply?: ConquestSupplySnapshot
+  /**
+   * The plan: assault (out-heal the towers and break in) or drain (hold at the edge until their towers run dry, then
+   * break in); none if neither works. Ticks of each part, -1 where it never ends.
+   */
+  estimate?: {
+    strategy: "assault" | "drain" | "none"
+    travelTicks: number
+    drainTicks: number
+    breachTicks: number
+    razeTicks: number
+    waves: number
+    energy: number
+    /** Tower (and defender) damage per tick where the squad holds to drain, and their repair on the wall. */
+    edgeDamage: number
+    breachRepair: number
+  }
   /** The owner's strength over all their bases we've seen; null if unknown. */
   playerStrength: StrengthSnapshot | null
   reward: number
@@ -186,8 +238,12 @@ export interface ConquestSnapshot {
   side: string
   /** scouting, awaiting, staging, rallying, marching, engaged, or over. */
   state: string
-  /** breach, raze or claim. */
+  /** drain, breach, raze or claim. */
   phase: string
+  /** assault, or drain their towers from the edge first. */
+  strategy?: string
+  /** Energy left in their towers when last seen. */
+  towerEnergy?: number
   status: string
   template: string
   wave: number

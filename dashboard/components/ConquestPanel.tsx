@@ -22,6 +22,13 @@ const KIND_ICON: Record<string, string> = {
 /** The order a conquest goes through (see src/conquest/conquest.ts). */
 const STATES = ["scouting", "staging", "rallying", "marching", "engaged"]
 const PHASES = ["breach", "raze", "claim"]
+/** Base intel older than this is stale (src/conquest/assessment.ts STALE_TICKS). */
+const STALE_TICKS = 5000
+const STRATEGY_LABEL: Record<string, string> = {
+  assault: "assault: out-heal their towers and break in",
+  drain: "drain: hold the room's edge until their towers run dry, then break in",
+  none: "no plan works: their towers win"
+}
 const PART_ORDER = ["tough", "work", "attack", "ranged_attack", "heal", "claim", "move"]
 
 function parts(p: { [part: string]: number }): string {
@@ -44,14 +51,18 @@ export function ConquestPanel({
   snapshot: s,
   busy,
   onApprove,
-  onCallOff
+  onCallOff,
+  onScout
 }: {
   snapshot: DashboardSnapshot
   busy: boolean
   onApprove: (room: string, options: ApproveOptions) => Promise<boolean>
   onCallOff: (room: string) => void
+  /** Send a scout to the room (see src/expansion/scoutRequests.ts). */
+  onScout: (room: string) => Promise<boolean>
 }) {
   const [review, setReview] = useState<ConquestCandidateSnapshot | null>(null)
+  const scoutOf = (room: string) => s.scoutRequests?.find(r => r.room === room)
   const candidates = s.conquestCandidates ?? []
   const active = s.conquest && s.conquest.state !== "over" ? s.conquest : null
   const ended = s.conquest && s.conquest.state === "over" ? s.conquest : null
@@ -146,6 +157,7 @@ export function ConquestPanel({
                         <span className="muted">
                           from {c.breach.side}, {c.breach.breachDamage} dmg/t
                         </span>
+                        {c.estimate?.strategy === "drain" && <span className="badge warn">drain first</span>}
                       </>
                     ) : (
                       <span className="muted">not mapped</span>
@@ -180,6 +192,11 @@ export function ConquestPanel({
                         <span className="badge warn">your call: {c.needsDecision}</span>
                       </div>
                     )}
+                    {needsScout(c) && (
+                      <div>
+                        <ScoutButton room={c.room} request={scoutOf(c.room)} busy={busy} onScout={onScout} small />
+                      </div>
+                    )}
                   </td>
                   <td>
                     <button className="button" disabled={busy || (!!active && active.room !== c.room)} onClick={() => setReview(c)}>
@@ -201,6 +218,8 @@ export function ConquestPanel({
           awaiting={active?.room === review.room && active.state === "awaiting"}
           underway={!!active && active.room === review.room && active.state !== "awaiting"}
           busy={busy}
+          scoutRequest={scoutOf(review.room)}
+          onScout={onScout}
           onClose={() => setReview(null)}
           onApprove={async options => {
             if (await onApprove(review.room, options)) setReview(null)
@@ -208,6 +227,44 @@ export function ConquestPanel({
         />
       )}
     </section>
+  )
+}
+
+/** Whether the bot would want a fresh look first: walls never mapped, or intel older than src/conquest STALE_TICKS. */
+function needsScout(c: ConquestCandidateSnapshot): boolean {
+  return c.siegeAge === undefined || STALE_TICKS < c.siegeAge || STALE_TICKS < c.intelAge
+}
+
+type ScoutRequest = NonNullable<DashboardSnapshot["scoutRequests"]>[number]
+
+/** Send a scout for a fresh look at a base, or say how the one sent is getting on. */
+function ScoutButton({
+  room,
+  request,
+  busy,
+  onScout,
+  small
+}: {
+  room: string
+  request?: ScoutRequest
+  busy: boolean
+  onScout: (room: string) => Promise<boolean>
+  small?: boolean
+}) {
+  const [sent, setSent] = useState(false)
+  const open = !!request && !request.done
+  return (
+    <span className="scout-action">
+      <button
+        className={small ? "button" : "button primary"}
+        type="button"
+        disabled={busy || open || sent}
+        onClick={async () => setSent(await onScout(room))}
+      >
+        🔭 {open || sent ? "Scout requested" : `Send a scout to ${small ? "it" : room}`}
+      </button>{" "}
+      {request && <span className="muted">{request.status}</span>}
+    </span>
   )
 }
 
@@ -264,9 +321,13 @@ function ActiveConquest({
           </ol>
           {c.state === "engaged" && (
             <ol className="steps">
-              {PHASES.map((p, i) => (
-                <li key={p} className={i < PHASES.indexOf(c.phase) ? "done" : p === c.phase ? "current" : ""}>
-                  {p === "breach" && c.barriersLeft !== undefined && p === c.phase ? `breach (${c.barriersLeft} left)` : p}
+              {(c.strategy === "drain" ? ["drain", ...PHASES] : PHASES).map((p, i, phases) => (
+                <li key={p} className={i < phases.indexOf(c.phase) ? "done" : p === c.phase ? "current" : ""}>
+                  {p === "breach" && c.barriersLeft !== undefined && p === c.phase
+                    ? `breach (${c.barriersLeft} left)`
+                    : p === "drain" && c.towerEnergy !== undefined && p === c.phase
+                    ? `drain (${thousands(c.towerEnergy)} energy left in their towers)`
+                    : p}
                 </li>
               ))}
             </ol>
@@ -322,6 +383,8 @@ function ReviewConquest({
   awaiting,
   underway,
   busy,
+  scoutRequest,
+  onScout,
   onClose,
   onApprove
 }: {
@@ -331,6 +394,8 @@ function ReviewConquest({
   awaiting: boolean
   underway: boolean
   busy: boolean
+  scoutRequest?: ScoutRequest
+  onScout: (room: string) => Promise<boolean>
   onClose: () => void
   onApprove: (options: ApproveOptions) => void
 }) {
@@ -342,7 +407,9 @@ function ReviewConquest({
   }, [])
   const v = verdict(c.playerStrength, ours)
   const top = Math.max(c.playerStrength?.score ?? 0, ours?.score ?? 0, 1)
-  const stale = c.siegeAge === undefined || 5000 < c.siegeAge || 5000 < c.intelAge
+  const stale = needsScout(c)
+  const supply = c.supply
+  const lasts = (t: number | null) => (t === null ? "indefinitely" : `${t.toLocaleString()} ticks`)
   const canApprove = !underway && !!c.home && !c.safeModeUntil && (c.feasible || force || stale)
 
   return (
@@ -357,6 +424,19 @@ function ReviewConquest({
         <p className="notice">
           <strong>The bot isn&apos;t sure:</strong> {c.needsDecision}. Weigh it up below.
         </p>
+      )}
+      {stale && (
+        <div className="notice">
+          <p>
+            🔭{" "}
+            {c.siegeAge === undefined
+              ? "We haven't mapped its walls and towers yet."
+              : `What we know is ${Math.max(c.intelAge, c.siegeAge).toLocaleString()} ticks old.`}{" "}
+            We advise a scout&apos;s look before deciding: it maps the walls, towers, stored energy and miners, and this plan
+            is redone from it.
+          </p>
+          <ScoutButton room={c.room} request={scoutRequest} busy={busy} onScout={onScout} />
+        </div>
       )}
 
       <h3>Why</h3>
@@ -398,6 +478,79 @@ function ReviewConquest({
           </span>
         </div>
       </div>
+
+      <h3>Their energy: how long can their towers keep firing?</h3>
+      {!supply || supply.burn <= 0 ? (
+        <Empty>{c.towers ? "Not worked out yet." : "No towers: nothing to drain."}</Empty>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <tbody>
+              <tr>
+                <td>🗼 Towers burn, firing every tick</td>
+                <td className="num">{supply.burn}/t</td>
+              </tr>
+              <tr>
+                <td>
+                  📦 Energy they can burn{" "}
+                  <span className="muted">
+                    ({thousands(supply.towerEnergy)} in towers, {thousands(supply.stored)} stored
+                    {supply.networkBases > 0 &&
+                      `, ${thousands(supply.networkStored)} in ${supply.networkBases} other base(s) with terminals`}
+                    )
+                  </span>
+                </td>
+                <td className="num">{thousands(supply.reserve)}</td>
+              </tr>
+              <tr>
+                <td>
+                  ⛏️ Their income{" "}
+                  <span className="muted">
+                    ({supply.baseSources} source(s) here
+                    {supply.remoteSources > 0 && `, ${supply.remoteSources} in remotes ${supply.remoteRooms.join(", ")}`})
+                  </span>
+                </td>
+                <td className="num">{supply.income}/t</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>They keep firing for</strong>
+                </td>
+                <td className={`num ${supply.endurance === null ? "bad-text" : ""}`}>
+                  <strong>{lasts(supply.endurance)}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  🎯 If we kill the miners we can reach{" "}
+                  <span className="muted">
+                    (
+                    {[
+                      supply.exposedSources > 0 && `${supply.exposedSources} source(s) outside their walls`,
+                      supply.raidRemotes && "raiding their remotes"
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "none: their miners are behind walls"}
+                    ): income {supply.starvedIncome}/t
+                  </span>
+                </td>
+                <td className={`num ${supply.enduranceStarved === null ? "bad-text" : ""}`}>
+                  {lasts(supply.enduranceStarved)}
+                </td>
+              </tr>
+              {supply.trend !== undefined && (
+                <tr>
+                  <td>📈 Their stockpile between our last looks</td>
+                  <td className={`num ${supply.trend > 0 ? "bad-text" : ""}`}>
+                    {supply.trend > 0 ? "+" : ""}
+                    {supply.trend}/t
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <h3>Ways in</h3>
       {c.sides.length === 0 ? (
@@ -468,11 +621,27 @@ function ReviewConquest({
         </>
       )}
       {c.estimate && (
-        <p className="muted">
-          Trip ~{c.estimate.travelTicks} ticks · breach ~{c.estimate.breachTicks} · raze ~{c.estimate.razeTicks} ·{" "}
-          {c.estimate.waves} wave(s) · ~{thousands(c.estimate.energy)} energy in all. Each wave is renewed at home until
-          its members have about the same ticks to live, then sets out together.
-        </p>
+        <>
+          <h3>Plan</h3>
+          <p className={`verdict ${c.estimate.strategy === "none" ? "bad" : c.estimate.strategy === "drain" ? "warn" : "good"}`}>
+            {STRATEGY_LABEL[c.estimate.strategy] ?? c.estimate.strategy}
+          </p>
+          <p className="muted">
+            Our heal {c.squad?.heal ?? "?"}/t vs their damage {c.incoming}/t at the breach, {c.estimate.edgeDamage}/t at the
+            room&apos;s edge
+            {c.estimate.breachRepair > 0 &&
+              ` · their towers could repair the wall ${c.estimate.breachRepair}/t against our ${c.squad?.siegeRate ?? "?"}/t`}
+          </p>
+          <p className="muted">
+            Trip ~{c.estimate.travelTicks} ticks
+            {c.estimate.drainTicks > 0 && ` · drain ~${c.estimate.drainTicks.toLocaleString()}`} · breach{" "}
+            {c.estimate.breachTicks < 0 ? "never" : `~${c.estimate.breachTicks}`} · raze{" "}
+            {c.estimate.razeTicks < 0 ? "—" : `~${c.estimate.razeTicks}`} ·{" "}
+            {c.estimate.waves < 0 ? "no number of waves" : `${c.estimate.waves} wave(s)`}
+            {c.estimate.energy >= 0 && ` · ~${thousands(c.estimate.energy)} energy in all`}. Each wave is renewed at home
+            until its members have about the same ticks to live, then sets out together.
+          </p>
+        </>
       )}
 
       <h3>Your decision</h3>
