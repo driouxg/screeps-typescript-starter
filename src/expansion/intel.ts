@@ -13,7 +13,15 @@ export interface RoomIntel {
   sources: number
   /** Average range from the controller to the sources. */
   controllerToSources: number
-  controller?: { x: number; y: number; owner?: string; reservedBy?: string; level: number }
+  controller?: {
+    x: number
+    y: number
+    owner?: string
+    reservedBy?: string
+    level: number
+    /** An owned controller's downgrade timer when seen (see conquest/assessment's claim estimate). */
+    ticksToDowngrade?: number
+  }
   /** Hostile towers, spawns and invader cores: a room we'd have to take by force. */
   hostileStructures: number
   /** Hostile creeps that can fight, when last seen. */
@@ -89,7 +97,8 @@ export function recordIntel(room: Room, force = false): void {
           y: controller.pos.y,
           owner: controller.owner?.username,
           reservedBy: controller.reservation?.username,
-          level: controller.level
+          level: controller.level,
+          ticksToDowngrade: controller.owner ? controller.ticksToDowngrade : undefined
         }
       : undefined,
     hostileStructures,

@@ -27,6 +27,7 @@ const STALE_TICKS = 5000
 const STRATEGY_LABEL: Record<string, string> = {
   assault: "assault: out-heal their towers and break in",
   drain: "drain: hold the room's edge until their towers run dry, then break in",
+  claim: "claim: nothing defends it, so no squad: claimers run its controller down",
   none: "no plan works: their towers win"
 }
 const PART_ORDER = ["tough", "work", "attack", "ranged_attack", "heal", "claim", "move"]
@@ -88,7 +89,8 @@ export function ConquestPanel({
 
       {request?.status && (
         <p className="notice">
-          Your {request.action === "cancel" ? "call-off" : "approval"} of <strong>{request.room}</strong>: {request.status}
+          Your {request.action === "cancel" ? "call-off" : "approval"} of <strong>{request.room}</strong>:{" "}
+          {request.status}
         </p>
       )}
 
@@ -110,8 +112,8 @@ export function ConquestPanel({
 
       {candidates.length === 0 ? (
         <Empty>
-          No other player&apos;s base scouted yet. Scouts map the walls and towers of every base they see; you can send one
-          from the scouting card.
+          No other player&apos;s base scouted yet. Scouts map the walls and towers of every base they see; you can send
+          one from the scouting card.
         </Empty>
       ) : (
         <div className="table-wrap">
@@ -164,7 +166,9 @@ export function ConquestPanel({
                     )}
                   </td>
                   <td>
-                    {c.squad ? (
+                    {c.estimate?.strategy === "claim" ? (
+                      <span className="badge good">claimers only</span>
+                    ) : c.squad ? (
                       <>
                         {c.squad.template} ×{c.squad.members.length}
                         <div className={`muted ${c.squad.healShort ? "bad-text" : ""}`}>
@@ -199,7 +203,11 @@ export function ConquestPanel({
                     )}
                   </td>
                   <td>
-                    <button className="button" disabled={busy || (!!active && active.room !== c.room)} onClick={() => setReview(c)}>
+                    <button
+                      className="button"
+                      disabled={busy || (!!active && active.room !== c.room)}
+                      onClick={() => setReview(c)}
+                    >
                       Review…
                     </button>
                   </td>
@@ -364,7 +372,11 @@ function ActiveConquest({
                   </td>
                   <td>
                     {Math.round((100 * m.hits) / Math.max(1, m.hitsMax))}%
-                    <Bar value={m.hits} max={m.hitsMax} color={m.hits < m.hitsMax * 0.55 ? "var(--bad)" : "var(--good)"} />
+                    <Bar
+                      value={m.hits}
+                      max={m.hitsMax}
+                      color={m.hits < m.hitsMax * 0.55 ? "var(--bad)" : "var(--good)"}
+                    />
                   </td>
                 </tr>
               ))}
@@ -415,7 +427,10 @@ function ReviewConquest({
   return (
     <dialog ref={ref} className="confirm wide" onClose={onClose} aria-labelledby="conquest-title">
       <h2 id="conquest-title">
-        🏰 Conquer {c.room}? <span className="muted">{c.player}&apos;s RCL {c.rcl} base</span>
+        🏰 Conquer {c.room}?{" "}
+        <span className="muted">
+          {c.player}&apos;s RCL {c.rcl} base
+        </span>
       </h2>
       <p className={`verdict ${c.feasible ? "good" : "bad"}`}>
         {c.feasible ? "✅" : "❌"} {c.verdict}
@@ -432,8 +447,8 @@ function ReviewConquest({
             {c.siegeAge === undefined
               ? "We haven't mapped its walls and towers yet."
               : `What we know is ${Math.max(c.intelAge, c.siegeAge).toLocaleString()} ticks old.`}{" "}
-            We advise a scout&apos;s look before deciding: it maps the walls, towers, stored energy and miners, and this plan
-            is redone from it.
+            We advise a scout&apos;s look before deciding: it maps the walls, towers, stored energy and miners, and this
+            plan is redone from it.
           </p>
           <ScoutButton room={c.room} request={scoutRequest} busy={busy} onScout={onScout} />
         </div>
@@ -450,8 +465,8 @@ function ReviewConquest({
           </li>
         ))}
         <li>
-          <span aria-hidden="true">📊</span> Score {c.score.toLocaleString()} (reward per 1000 energy, cost ×{c.risk} for
-          risk).
+          <span aria-hidden="true">📊</span> Score {c.score.toLocaleString()} (reward per 1000 energy, cost ×{c.risk}{" "}
+          for risk).
         </li>
       </ul>
 
@@ -466,7 +481,9 @@ function ReviewConquest({
           <Bar value={c.playerStrength?.score ?? 0} max={top} color="var(--bad)" />
           <span className="muted">
             {c.playerStrength
-              ? `${c.playerStrength.bases} base(s), ${c.playerStrength.towers} towers, ${thousands(c.playerStrength.stored)} stored`
+              ? `${c.playerStrength.bases} base(s), ${c.playerStrength.towers} towers, ${thousands(
+                  c.playerStrength.stored
+                )} stored`
               : "unknown"}
           </span>
         </div>
@@ -507,7 +524,9 @@ function ReviewConquest({
                   ⛏️ Their income{" "}
                   <span className="muted">
                     ({supply.baseSources} source(s) here
-                    {supply.remoteSources > 0 && `, ${supply.remoteSources} in remotes ${supply.remoteRooms.join(", ")}`})
+                    {supply.remoteSources > 0 &&
+                      `, ${supply.remoteSources} in remotes ${supply.remoteRooms.join(", ")}`}
+                    )
                   </span>
                 </td>
                 <td className="num">{supply.income}/t</td>
@@ -623,24 +642,44 @@ function ReviewConquest({
       {c.estimate && (
         <>
           <h3>Plan</h3>
-          <p className={`verdict ${c.estimate.strategy === "none" ? "bad" : c.estimate.strategy === "drain" ? "warn" : "good"}`}>
+          <p
+            className={`verdict ${
+              c.estimate.strategy === "none" ? "bad" : c.estimate.strategy === "drain" ? "warn" : "good"
+            }`}
+          >
             {STRATEGY_LABEL[c.estimate.strategy] ?? c.estimate.strategy}
           </p>
-          <p className="muted">
-            Our heal {c.squad?.heal ?? "?"}/t vs their damage {c.incoming}/t at the breach, {c.estimate.edgeDamage}/t at the
-            room&apos;s edge
-            {c.estimate.breachRepair > 0 &&
-              ` · their towers could repair the wall ${c.estimate.breachRepair}/t against our ${c.squad?.siegeRate ?? "?"}/t`}
-          </p>
-          <p className="muted">
-            Trip ~{c.estimate.travelTicks} ticks
-            {c.estimate.drainTicks > 0 && ` · drain ~${c.estimate.drainTicks.toLocaleString()}`} · breach{" "}
-            {c.estimate.breachTicks < 0 ? "never" : `~${c.estimate.breachTicks}`} · raze{" "}
-            {c.estimate.razeTicks < 0 ? "—" : `~${c.estimate.razeTicks}`} ·{" "}
-            {c.estimate.waves < 0 ? "no number of waves" : `${c.estimate.waves} wave(s)`}
-            {c.estimate.energy >= 0 && ` · ~${thousands(c.estimate.energy)} energy in all`}. Each wave is renewed at home
-            until its members have about the same ticks to live, then sets out together.
-          </p>
+          {c.estimate.strategy === "claim" ? (
+            <p className="muted">
+              Claimer trip ~{c.estimate.travelTicks} ticks · {c.estimate.claimParts} CLAIM part(s) each · their
+              controller free in ~{(c.estimate.claimTicks ?? 0).toLocaleString()} ticks · ~
+              {thousands(c.estimate.energy)} energy of claimers. If a claimer finds a spawn, an armed tower or their
+              fighters, the bot stops and asks you to approve a squad.
+            </p>
+          ) : (
+            <>
+              <p className="muted">
+                Our heal {c.squad?.heal ?? "?"}/t vs their damage {c.incoming}/t at the breach, {c.estimate.edgeDamage}
+                /t at the room&apos;s edge
+                {c.estimate.breachRepair > 0 &&
+                  ` · their towers could repair the wall ${c.estimate.breachRepair}/t against our ${
+                    c.squad?.siegeRate ?? "?"
+                  }/t`}
+              </p>
+              <p className="muted">
+                Trip ~{c.estimate.travelTicks} ticks
+                {c.estimate.drainTicks > 0 && ` · drain ~${c.estimate.drainTicks.toLocaleString()}`} · breach{" "}
+                {c.estimate.breachTicks < 0 ? "never" : `~${c.estimate.breachTicks}`} · raze{" "}
+                {c.estimate.razeTicks < 0 ? "—" : `~${c.estimate.razeTicks}`} ·{" "}
+                {c.estimate.waves < 0 ? "no number of waves" : `${c.estimate.waves} wave(s)`}
+                {c.estimate.energy >= 0 && ` · ~${thousands(c.estimate.energy)} energy in all`}
+                {c.estimate.claimTicks !== undefined &&
+                  ` · then claimers free their controller in ~${c.estimate.claimTicks.toLocaleString()} ticks`}
+                . Each wave is renewed at home until its members have about the same ticks to live, then sets out
+                together.
+              </p>
+            </>
+          )}
         </>
       )}
 
@@ -664,13 +703,13 @@ function ReviewConquest({
       )}
       <ul className="plain considerations">
         <li>
-          <span aria-hidden="true">ℹ️</span> Approving treats {c.player} as hostile from now on: our defence fights their
-          creeps and paths avoid their rooms.
+          <span aria-hidden="true">ℹ️</span> Approving treats {c.player} as hostile from now on: our defence fights
+          their creeps and paths avoid their rooms.
         </li>
         {stale && (
           <li>
-            <span aria-hidden="true">🔭</span> A scout goes first for a fresh look; if the plan doesn&apos;t hold up the bot
-            stops and asks you again.
+            <span aria-hidden="true">🔭</span> A scout goes first for a fresh look; if the plan doesn&apos;t hold up the
+            bot stops and asks you again.
           </li>
         )}
         {underway && (

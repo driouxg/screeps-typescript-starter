@@ -38,6 +38,9 @@ import { planSquad, SquadPlan, TemplateName } from "./squadMeta"
  *      (RETREAT_OVERHEAD more under fire: the squad steps out to heal), over the ticks a squad has left after the trip
  *      there: the waves of squads it takes;
  *   7. the side with a working strategy and the fewest waves (then the least energy) is the plan.
+ * Except a base with nothing left to defend it (claimOnly): no spawns, no working towers, no fighters seen, and a
+ * controller a creep can walk up to without breaking a wall. No squad then: claimers go straight to running its
+ * controller down (strategy "claim", see claimEstimate), as long as one lives long enough to get there.
  * Then:
  *   reward  REWARD_PER_SOURCE a source, REWARD_PER_RCL a level (what it cost them to build), loot (energy stored /
  *           LOOT_DIVISOR), more against a player who attacked us, and more again for their last base;
@@ -62,8 +65,10 @@ export const STALE_TICKS = 5000
 /** Bases not seen for this long aren't assessed. */
 const FORGET_TICKS = 20000
 const MAX_CANDIDATES = 12
-/** A CLAIM body to speed up the downgrade of their controller once the core is down. */
+/** A rough claimer cost, for scoring bases we have no plan for (planned ones count every claimer, see claimEstimate). */
 const CLAIMER_ENERGY = 3250
+/** A claimer must get there with this many ticks of its life to spare (CREEP_CLAIM_LIFE_TIME) to be any use. */
+const CLAIMER_SLACK = 100
 /** Their remotes count towards this base's income within this many rooms of it (and no nearer another of theirs). */
 const REMOTE_REACH = 2
 /** Share of a remote's energy that reaches the base (the rest pays for its haulers and decays on the way). */
@@ -268,6 +273,53 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
   base.supply = supply
   supplyConcerns(supply, concerns)
 
+  // Nothing defends it: claimers alone, no squad.
+  const claim = claimEstimate(base.rcl, intel.controller?.ticksToDowngrade, capacity)
+  if (
+    siege &&
+    siege.spawns.length === 0 &&
+    (base.towers === 0 || !towersArmed(intel)) &&
+    defenders === 0 &&
+    intel.hostileFighters === 0 &&
+    siege.controllerOpen
+  ) {
+    const travel = home.distance * TICKS_PER_ROOM
+    base.estimate = {
+      strategy: "claim",
+      travelTicks: travel,
+      drainTicks: 0,
+      breachTicks: 0,
+      razeTicks: 0,
+      waves: 0,
+      energy: claim.energy,
+      edgeDamage: 0,
+      breachRepair: 0,
+      claimTicks: claim.ticks,
+      claimParts: claim.parts
+    }
+    if (CREEP_CLAIM_LIFE_TIME - CLAIMER_SLACK < travel)
+      return finish(
+        base,
+        risk,
+        decisions,
+        `nothing defends it, but it's ${home.distance} rooms away: a claimer (${CREEP_CLAIM_LIFE_TIME} ticks of life) can't get there`
+      )
+    concerns.push({
+      tone: "good",
+      text: `No spawns, no working towers, no fighters seen, and a claimer can walk up to the controller: no squad needed. Claimers with ${
+        claim.parts
+      } CLAIM part(s) each take ${claim.parts * CONTROLLER_CLAIM_DOWNGRADE} ticks off its downgrade timer every ${CONTROLLER_ATTACK_BLOCKED_UPGRADE} ticks: free in ~${claim.ticks.toLocaleString()} ticks.`
+    })
+    return finish(
+      { ...base, feasible: true },
+      risk,
+      decisions,
+      `no squad needed: claimers run their controller down, ~${claim.ticks.toLocaleString()} ticks and ~${thousands(claim.energy)} energy`,
+      undefined,
+      claim.energy
+    )
+  }
+
   // Without the walls mapped, size the squad for the towers at their worst.
   if (!siege || siege.breaches.length === 0) {
     const incoming = towersArmed(intel) ? base.towers * TOWER_POWER_ATTACK : 0
@@ -298,7 +350,7 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     const toStaging = staging === home.room.name ? 0 : routeLength(home.room.name, staging)
     if (toStaging === null) continue
     side.reachable = true
-    const option = evaluate(breach, staging, toStaging, siege, supply, capacity, stored, defenders, override)
+    const option = evaluate(breach, staging, toStaging, siege, supply, capacity, stored, defenders, claim.energy, override)
     if (option) options.push(option)
   }
   if (options.length === 0) {
@@ -340,7 +392,9 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     waves: Number.isFinite(best.waves) ? best.waves : -1,
     energy: Number.isFinite(best.energy) ? best.energy : -1,
     edgeDamage: best.edgeDamage,
-    breachRepair: best.repair
+    breachRepair: best.repair,
+    claimTicks: claim.ticks,
+    claimParts: claim.parts
   }
   if (best.strategy === "assault" && 0 < best.repair) {
     const outpaced = best.squad.siegeRate <= best.repair
@@ -446,6 +500,27 @@ function finish(
   base.verdict = verdict
   if (decisions.length) base.needsDecision = decisions.join("; ")
   return base
+}
+
+/**
+ * How long claimers from a home with `capacity` take to free a controller at `level` (`ticksToDowngrade` left when
+ * seen, the level's full timer if unknown): its timer runs down a tick a tick, and each attack (one every
+ * CONTROLLER_ATTACK_BLOCKED_UPGRADE ticks, a claimer each: they live CREEP_CLAIM_LIFE_TIME) takes
+ * CONTROLLER_CLAIM_DOWNGRADE more per CLAIM part. A controller that downgrades a level restarts at about half that
+ * level's timer, so the lower levels add half theirs: an estimate, not exact.
+ */
+function claimEstimate(
+  level: number,
+  ticksToDowngrade: number | undefined,
+  capacity: number
+): { ticks: number; parts: number; energy: number } {
+  const pair = BODYPART_COST[CLAIM] + BODYPART_COST[MOVE]
+  const parts = Math.max(1, Math.min(Math.floor(MAX_CREEP_SIZE / 2), Math.floor(capacity / pair)))
+  let total = ticksToDowngrade ?? CONTROLLER_DOWNGRADE[level] ?? 0
+  for (let l = level - 1; 1 <= l; l--) total += (CONTROLLER_DOWNGRADE[l] ?? 0) / 2
+  const ticks = Math.round(total / (1 + (parts * CONTROLLER_CLAIM_DOWNGRADE) / CONTROLLER_ATTACK_BLOCKED_UPGRADE))
+  const claimers = Math.max(1, Math.ceil(ticks / CONTROLLER_ATTACK_BLOCKED_UPGRADE))
+  return { ticks, parts, energy: claimers * parts * pair }
 }
 
 /** What their energy means for a siege, for the dashboard. */
@@ -580,6 +655,8 @@ function evaluate(
   capacity: number,
   stored: number | null,
   defenders: number,
+  /** The claimers to run their controller down once the core is down (see claimEstimate). */
+  claimEnergy: number,
   override?: TemplateName
 ): Option | null {
   const defenderDamage = defenders * DEFENDER_DAMAGE
@@ -630,7 +707,7 @@ function evaluate(
     breachTicks,
     razeTicks,
     waves,
-    energy: Number.isFinite(waves) ? squad.cost * waves + CLAIMER_ENERGY : Infinity
+    energy: Number.isFinite(waves) ? squad.cost * waves + claimEnergy : Infinity
   }
 }
 

@@ -3,6 +3,7 @@ import * as creepRoles from "creeps/roles"
 import { recordIntel } from "expansion/intel"
 import { noteFlagged } from "defence/aggressionLog"
 import { markRazed, trackRazedRooms } from "remote/razed"
+import { isCombatant } from "defence/threat"
 import { assessConquests, assessRoom, MAX_WAVES, sideName, STALE_TICKS } from "./assessment"
 import { recordSiege } from "./siegeIntel"
 import { bodyFor, MemberKind, TemplateName, templateNamed } from "./squadMeta"
@@ -102,8 +103,11 @@ export interface Conquest {
   barriersLeft?: number
   /** Tick their controller can next be attacked. */
   nextClaimAttack?: number
-  /** assault: break in under fire; drain: run their towers dry from the room's edge first (see conquest/assessment). */
-  strategy?: "assault" | "drain"
+  /**
+   * assault: break in under fire; drain: run their towers dry from the room's edge first; claim: nothing defends it,
+   * so no squad, just claimers (see conquest/assessment).
+   */
+  strategy?: "assault" | "drain" | "claim"
   /** Where the squad holds while draining. */
   hold?: { x: number; y: number }
   /** Raid their remotes while draining, and when next. */
@@ -334,6 +338,19 @@ function runRequest(): void {
 
 /** Fill in the plan from an assessment and start staging the first wave. */
 function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>): void {
+  // Nothing defends it: no squad, straight to the claim phase (ConquestSpawnHandler sends the claimers).
+  if (candidate.estimate?.strategy === "claim" && candidate.home) {
+    c.home = candidate.home
+    c.strategy = "claim"
+    c.members = []
+    c.phase = "claim"
+    c.travel = candidate.estimate.travelTicks
+    c.maxWaves = 0
+    // Its sources can be mined meanwhile, once it's been seen clear (see remote/razed).
+    markRazed(c.room, c.player)
+    setState(c, "engaged", `no squad needed: sending claimers from ${c.home} to run ${c.player}'s controller down`)
+    return
+  }
   const home = Game.rooms[candidate.home!]
   const breach = candidate.breach
   if (!breach || !candidate.squad || !home) {
@@ -531,7 +548,11 @@ function reliefLead(c: Conquest): number {
 /** The wave fighting is gone: send the next, or give up. */
 function waveLost(c: Conquest): void {
   if (c.phase === "claim") {
-    c.status = "core down, squad gone: claimers keep running their controller down"
+    const next = c.nextClaimAttack ? ` (next attack at tick ${c.nextClaimAttack})` : ""
+    c.status =
+      c.strategy === "claim"
+        ? `no squad needed: claimers running their controller down${next}`
+        : `core down, squad gone: claimers keep running their controller down${next}`
     return
   }
   if (c.wave < c.maxWaves) {
@@ -571,6 +592,23 @@ function watchTarget(c: Conquest, room: Room): boolean {
   const core = room.find(FIND_HOSTILE_STRUCTURES, {
     filter: s => s.structureType === STRUCTURE_TOWER || s.structureType === STRUCTURE_SPAWN
   })
+  // Claimers only, and it's defended after all (a spawn or armed tower, or their fighters): stop and ask for a squad.
+  if (c.strategy === "claim" && c.state === "engaged") {
+    const armed = core.some(
+      s => s.structureType === STRUCTURE_SPAWN || TOWER_ENERGY_COST <= (s as StructureTower).store.energy
+    )
+    const fighters = room.find(FIND_HOSTILE_CREEPS, {
+      filter: h => h.owner.username === c.player && isCombatant(h)
+    }).length
+    if (armed || fighters) {
+      delete c.strategy
+      setState(
+        c,
+        "awaiting",
+        `claimers found ${armed ? "a spawn or armed tower" : `${fighters} of their fighters`} in ${c.room}: it needs a squad. Approve again to plan one`
+      )
+    }
+  }
   const breach = room.memory.siege?.breaches.find(b => b.side === c.side)
   c.barriersLeft = breach?.barriers.length
   const towers = core.filter(s => s.structureType === STRUCTURE_TOWER) as StructureTower[]
@@ -586,7 +624,8 @@ function watchTarget(c: Conquest, room: Room): boolean {
     markRazed(c.room, c.player)
     console.log(`Conquest ${c.room}: towers and spawns down; running their controller down`)
   }
-  if (c.phase === "claim" && 0 < core.length) c.phase = "raze"
+  // (Not for claimers alone: empty towers are harmless; a spawn, armed tower or fighters stop it, above.)
+  if (c.phase === "claim" && 0 < core.length && c.strategy !== "claim") c.phase = "raze"
   if (controller.upgradeBlocked) c.nextClaimAttack = Game.time + controller.upgradeBlocked
   return false
 }

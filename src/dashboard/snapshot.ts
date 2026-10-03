@@ -243,11 +243,12 @@ export interface ConquestCandidateSnapshot {
   /** Their energy and how long their towers can keep firing on it. */
   supply?: ConquestSupplySnapshot
   /**
-   * The plan: assault (out-heal the towers and break in) or drain (hold at the edge until their towers run dry, then
-   * break in); none if neither works. Ticks of each part, -1 where it never ends.
+   * The plan: assault (out-heal the towers and break in), drain (hold at the edge until their towers run dry, then
+   * break in), or claim (nothing defends it: no squad, claimers run the controller down); none if nothing works. Ticks
+   * of each part, -1 where it never ends.
    */
   estimate?: {
-    strategy: "assault" | "drain" | "none"
+    strategy: "assault" | "drain" | "claim" | "none"
     travelTicks: number
     drainTicks: number
     breachTicks: number
@@ -257,6 +258,9 @@ export interface ConquestCandidateSnapshot {
     /** Tower (and defender) damage per tick where the squad holds to drain, and their repair on the wall. */
     edgeDamage: number
     breachRepair: number
+    /** Ticks for claimers to run their controller down once nothing defends it, and the CLAIM parts each brings. */
+    claimTicks?: number
+    claimParts?: number
   }
   /** The owner's strength over all their bases we've seen; null if unknown. */
   playerStrength: StrengthSnapshot | null
@@ -286,7 +290,7 @@ export interface ConquestSnapshot {
   state: string
   /** drain, breach, raze or claim. */
   phase: string
-  /** assault, or drain their towers from the edge first. */
+  /** assault, drain their towers from the edge first, or claim (no squad needed). */
   strategy?: string
   /** Energy left in their towers when last seen. */
   towerEnergy?: number

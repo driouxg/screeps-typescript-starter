@@ -76,6 +76,11 @@ export interface SiegeIntel {
   exposedSources: number
   /** Where those exposed sources are, so the squad can hunt their miners (see ConquerorHandler). */
   exposed?: { x: number; y: number }[]
+  /**
+   * A tile next to the controller can be reached from the exits without breaking a wall or rampart: a claimer can walk
+   * up to it (see conquest/assessment's claim-only plan).
+   */
+  controllerOpen?: boolean
 }
 
 declare global {
@@ -157,8 +162,20 @@ function survey(room: Room, owner: string): SiegeIntel {
     breaches: core.length ? breaches(room, core, barrierHits, blocked, damageAt, repairAt, outside) : [],
     sources: sources.length,
     exposedSources: exposed.length,
-    exposed: exposed.map(source => ({ x: source.pos.x, y: source.pos.y }))
+    exposed: exposed.map(source => ({ x: source.pos.x, y: source.pos.y })),
+    controllerOpen: !!room.controller && nextTo(room.controller.pos, outside)
   }
+}
+
+/** Whether a tile next to `pos` is one of the `outside` ones. */
+function nextTo(pos: RoomPosition, outside: Uint8Array): boolean {
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      const x = pos.x + dx
+      const y = pos.y + dy
+      if ((dx || dy) && 0 <= x && x < 50 && 0 <= y && y < 50 && outside[key(x, y)]) return true
+    }
+  return false
 }
 
 /** Tiles reached from the room's exits without crossing a barrier: where we can walk without breaking anything. */
