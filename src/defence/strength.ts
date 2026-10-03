@@ -49,14 +49,18 @@ export function playerStrength(player: string): Strength | null {
   return score(bases, basePoints, towers, stored, army)
 }
 
-/** Our strength now. */
-export function ourStrength(): Strength {
+/**
+ * Our strength now: all our bases, or only `rooms` (e.g. the bases within reach of a conquest target, see
+ * conquest/assessment), with the army of creeps belonging to them.
+ */
+export function ourStrength(rooms?: string[]): Strength {
+  const counts = (name: string) => !rooms || rooms.includes(name)
   let bases = 0
   let basePoints = 0
   let towers = 0
   let stored = 0
   for (const room of Object.values(Game.rooms)) {
-    if (!room.controller?.my) continue
+    if (!room.controller?.my || !counts(room.name)) continue
     bases++
     const spawns = room.find(FIND_MY_SPAWNS).length
     basePoints += room.energyCapacityAvailable * Math.max(1, spawns)
@@ -64,9 +68,11 @@ export function ourStrength(): Strength {
     stored += (room.storage?.store.energy ?? 0) + (room.terminal?.store.energy ?? 0)
   }
   let army = 0
-  for (const creep of Object.values(Game.creeps))
+  for (const creep of Object.values(Game.creeps)) {
+    if (!counts(creep.memory.room)) continue
     army +=
       creep.getActiveBodyparts(ATTACK) + creep.getActiveBodyparts(RANGED_ATTACK) + creep.getActiveBodyparts(HEAL)
+  }
   return score(bases, basePoints, towers, stored, army)
 }
 

@@ -11,21 +11,29 @@ import { bodyFor, MemberKind, TemplateName, templateNamed } from "./squadMeta"
 /**
  * Goal: Take another player's base, once the player has approved it from the dashboard: break in where their walls
  * are weakest (see conquest/siegeIntel), destroy their towers and spawns, and run their controller down until it's
- * free to claim (then expansion claims it, see ExpansionPlanner). One conquest at a time, and never on our own: the
- * bot ranks the bases it could take (see conquest/assessment) and waits for the player's sign-off.
+ * free to claim (then expansion claims it, see ExpansionPlanner). Up to MAX_CONQUESTS at a time (Memory.conquests, by
+ * target room), and never on our own: the bot ranks the bases it could take (see conquest/assessment) and waits for
+ * the player's sign-off on each.
  *
- * States of the wave being sent (Memory.conquest.state):
+ * A conquest's waves come from its bases: the nearest (its home, which also sends the claimers) and every other base
+ * of ours within SUPPORT_ROUTE of the target (see conquest/assessment). Each spawns whichever members it can build
+ * (see ConquestSpawnHandler), so a wave is ready in the time the slowest base takes for its share, not one base's
+ * spawn turning out the whole squad.
+ *
+ * States of the wave being sent (Memory.conquests[room].state):
  *   scouting  the intel was stale when approved: a scout goes for a fresh look (see expansion/scoutRequests), then
  *             the plan is made again. If it no longer looks feasible the conquest waits (awaiting) for the player to
  *             approve it again, with the override if they want to go anyway.
- *   staging   the home spawns the wave's squad (see ConquestSpawnHandler); spawned members wait at home.
- *   rallying  all spawned: the members whose lifetimes have run down most are renewed at the home's spawns (a spawn
+ *   staging   the bases spawn the wave's squad between them (see ConquestSpawnHandler); members wait at the base
+ *             that spawned them.
+ *   rallying  all spawned: the members whose lifetimes have run down most are renewed at their base's spawns (a spawn
  *             renewing isn't used for spawning that tick) until every member has at least the trip and MIN_WORK_TICKS
  *             of work left and they're all within TTL_SPREAD ticks of each other, so the squad leaves, fights and
  *             dies together instead of losing members one by one.
- *   marching  the squad walks to the staging room (the room next to the side we break in from) as a group and
- *             gathers by the exit.
- *   engaged   it fights (see ConquerorHandler), in phases (Memory.conquest.phase):
+ *   marching  each member walks from its base to the staging room (the room next to the side we break in from) and
+ *             they gather by the exit. They all set out at once, so they've aged alike by the time the farthest
+ *             arrives.
+ *   engaged   it fights (see ConquerorHandler), in phases (Memory.conquests[room].phase):
  *               drain   (when the plan is a drain, see conquest/assessment) hold the tile on the room's edge where
  *                       their towers hit least, out-healing them, and kill the miners of sources outside their
  *                       walls; their remotes are raided meanwhile (a strike every RAID_INTERVAL, see
@@ -42,11 +50,15 @@ import { bodyFor, MemberKind, TemplateName, templateNamed } from "./squadMeta"
  * wave wiped out is replaced the same way, up to maxWaves.
  * The conquest ends when won, called off from the dashboard, the owner turns out to be an ally, they switch on safe
  * mode, every wave is lost, or it takes longer than TIMEOUT_TICKS (before the claim phase). Its squad then goes home
- * to be recycled.
+ * to be recycled, and it stays listed (state "over") for ENDED_TICKS so the dashboard can say how it went.
  */
 
 /** Rankings are refreshed this often. */
 const ASSESS_TICKS = 500
+/** Conquests underway at once (each needs its bases' spawns and energy). */
+export const MAX_CONQUESTS = 3
+/** An ended conquest stays listed this long. */
+const ENDED_TICKS = 20000
 const MIN_WORK_TICKS = 300
 const TTL_SPREAD = 100
 /** Renewals stop while the home has less energy than this in its spawns and extensions (for its own spawning). */
@@ -78,7 +90,10 @@ export type ConquestPhase = "drain" | "breach" | "raze" | "claim"
 export interface Conquest {
   room: string
   player: string
+  /** The nearest of its bases: sends the claimers. */
   home: string
+  /** The bases that spawn its waves (see conquest/assessment supportBases), home first. */
+  bases?: string[]
   /** The room next to the target on the side we break in from, where the squad gathers. */
   staging: string
   side: ExitConstant
@@ -94,7 +109,7 @@ export interface Conquest {
   /** Tick approved, and whether the player overrode the bot's verdict. */
   approved: number
   forced: boolean
-  /** Ticks to walk from home to the staging room. */
+  /** Ticks to walk to the staging room, from the farthest of its bases. */
   travel: number
   stateSince: number
   retreating?: boolean
@@ -147,7 +162,9 @@ export interface ConquerorMemory extends CreepMemory {
 
 declare global {
   interface Memory {
-    /** The conquest underway, or how the last one ended (see conquest/conquest.ts). */
+    /** Conquests underway, and recently ended ones, by target room (see conquest/conquest.ts). */
+    conquests?: { [room: string]: Conquest }
+    /** Before several conquests at once: the one conquest (moved into conquests, see migrate). */
     conquest?: Conquest | null
     /** The player's approval or call-off from the dashboard. */
     conquestRequest?: ConquestRequest | null
@@ -158,8 +175,32 @@ declare global {
   }
 }
 
-export function conquest(): Conquest | null {
-  return Memory.conquest ?? null
+/** The conquest of `room`, underway or recently ended. */
+export function conquestOf(room: string): Conquest | undefined {
+  return Memory.conquests?.[room]
+}
+
+/** Conquests underway (not over). */
+export function activeConquests(): Conquest[] {
+  return Object.values(Memory.conquests ?? {}).filter(c => c.state !== "over")
+}
+
+/** Every conquest listed: underway, and ended within ENDED_TICKS. */
+export function allConquests(): Conquest[] {
+  return Object.values(Memory.conquests ?? {})
+}
+
+/** The bases that spawn a conquest's waves (older ones only knew their home). */
+export function basesOf(c: Conquest): string[] {
+  return c.bases && c.bases.length ? c.bases : [c.home]
+}
+
+/** Memory from before several conquests at once: the one conquest moves into Memory.conquests. */
+function migrate(): void {
+  const old = Memory.conquest
+  if (old === undefined) return
+  if (old) Memory.conquests = { ...(Memory.conquests ?? {}), [old.room]: old }
+  delete Memory.conquest
 }
 
 /** Our creeps on the conquest of `room` (claimers too). */
@@ -205,14 +246,29 @@ export function renewingThisTick(spawn: StructureSpawn): boolean {
   return renewedTick === Game.time && renewedSpawns.has(spawn.id)
 }
 
-/** Advance the conquest, once a tick, and refresh the rankings now and then. */
+/** Advance every conquest, once a tick, and refresh the rankings now and then. */
 export function runConquest(): void {
+  migrate()
   trackRazedRooms()
   runRequest()
   if (ASSESS_TICKS <= Game.time - (Memory.conquestAssessed ?? -Infinity) || rescouted()) assessConquests()
 
-  const c = Memory.conquest
-  if (!c || c.state === "over") return
+  for (const c of allConquests()) {
+    if (c.state === "over") {
+      if (ENDED_TICKS < Game.time - (c.ended ?? Game.time)) delete Memory.conquests![c.room]
+      continue
+    }
+    // One failing mustn't stop the others.
+    try {
+      advance(c)
+    } catch (e) {
+      console.log(`Conquest ${c.room} failed this tick: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
+    }
+  }
+}
+
+/** Advance one conquest underway. */
+function advance(c: Conquest): void {
   if (isAlly(c.player)) return end(c, `called off: ${c.player} is an ally now`)
 
   const room = Game.rooms[c.room]
@@ -256,10 +312,11 @@ function runRequest(): void {
   const request = Memory.conquestRequest
   if (!request || request.done) return
   request.done = true
-  const current = Memory.conquest && Memory.conquest.state !== "over" ? Memory.conquest : null
+  const existing = conquestOf(request.room)
+  const current = existing && existing.state !== "over" ? existing : null
 
   if (request.action === "cancel") {
-    if (!current || current.room !== request.room) request.status = `${request.room} isn't being conquered`
+    if (!current) request.status = `${request.room} isn't being conquered`
     else {
       end(current, "called off from the dashboard")
       request.status = "called off; the squad is coming home"
@@ -267,8 +324,11 @@ function runRequest(): void {
     return
   }
 
-  if (current && current.room !== request.room) {
-    request.status = `a conquest of ${current.room} is underway: call it off first`
+  const underway = activeConquests()
+  if (!current && MAX_CONQUESTS <= underway.length) {
+    request.status = `${underway.length} conquests are underway (${underway
+      .map(x => x.room)
+      .join(", ")}), the most at once: call one off first`
     return
   }
   if (current && current.state !== "awaiting") {
@@ -322,7 +382,7 @@ function runRequest(): void {
   }
   c.forced = c.forced || !!request.force
   c.template = template
-  Memory.conquest = c
+  Memory.conquests = { ...(Memory.conquests ?? {}), [c.room]: c }
   // At war with them now: our defence treats their creeps as hostile, and paths keep out of their other rooms.
   if (Memory.hostilePlayers?.[c.player] === undefined) {
     Memory.hostilePlayers = { ...(Memory.hostilePlayers ?? {}), [c.player]: Game.time }
@@ -346,6 +406,7 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
   // Nothing defends it: no squad, straight to the claim phase (ConquestSpawnHandler sends the claimers).
   if (candidate.estimate?.strategy === "claim" && candidate.home) {
     c.home = candidate.home
+    c.bases = [candidate.home]
     c.strategy = "claim"
     c.members = []
     c.phase = "claim"
@@ -363,6 +424,7 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
     return
   }
   c.home = candidate.home!
+  c.bases = candidate.supportBases?.map(b => b.room) ?? [c.home]
   c.staging = breach.staging
   c.side = breach.sideConstant as ExitConstant
   c.entry = breach.entry
@@ -378,7 +440,7 @@ function plan(c: Conquest, candidate: NonNullable<ReturnType<typeof assessRoom>>
   setState(
     c,
     "staging",
-    `wave ${c.wave}/${c.maxWaves}: spawning a ${c.template} squad of ${c.members.length} in ${c.home}, to break in from the ${
+    `wave ${c.wave}/${c.maxWaves}: spawning a ${c.template} squad of ${c.members.length} from ${basesOf(c).join(", ")}, to break in from the ${
       breach.side
     } via ${c.staging}${c.strategy === "drain" ? ", draining their towers first" : ""}`
   )
@@ -411,27 +473,33 @@ function staging(c: Conquest): void {
     return
   }
   if (STAGING_TIMEOUT < Game.time - c.stateSince) return end(c, `failed: wave ${c.wave} took too long to spawn`)
-  c.status = `wave ${c.wave}/${c.maxWaves}: spawned ${ready} of ${c.members.length} in ${c.home}${
+  c.status = `wave ${c.wave}/${c.maxWaves}: spawned ${ready} of ${c.members.length} from ${basesOf(c).join(", ")}${
     c.phase === "breach" || c.phase === "drain" ? "" : ` (${c.phase} phase)`
   }`
 }
 
-/** Renew members of `wave` that `needs` says should be, at the home's idle spawns, lowest lifetime first. */
+/**
+ * Renew members of `wave` that `needs` says should be, each at the idle spawns of the base it came from (its
+ * memory.room), lowest lifetime first.
+ */
 function renew(c: Conquest, wave: Creep[], needs: (m: Creep) => boolean): void {
-  const home = Game.rooms[c.home]
   for (const m of wave) m.memory.renewing = !m.spawning && needs(m)
-  if (!home) return
   if (renewedTick !== Game.time) {
     renewedTick = Game.time
     renewedSpawns.clear()
   }
-  const waiting = wave.filter(m => m.memory.renewing && m.room.name === c.home)
-  for (const spawn of home.find(FIND_MY_SPAWNS)) {
-    if (spawn.spawning || home.energyAvailable < RENEW_ENERGY_FLOOR) continue
-    const next = waiting
-      .filter(m => spawn.pos.isNearTo(m))
-      .sort((a, b) => (a.ticksToLive ?? 0) - (b.ticksToLive ?? 0))[0]
-    if (next && spawn.renewCreep(next) === OK) renewedSpawns.add(spawn.id)
+  for (const name of new Set(wave.map(m => m.memory.room))) {
+    const base = Game.rooms[name]
+    if (!base) continue
+    const waiting = wave.filter(m => m.memory.renewing && m.memory.room === name && m.room.name === name)
+    if (waiting.length <= 0) continue
+    for (const spawn of base.find(FIND_MY_SPAWNS)) {
+      if (spawn.spawning || renewedSpawns.has(spawn.id) || base.energyAvailable < RENEW_ENERGY_FLOOR) continue
+      const next = waiting
+        .filter(m => spawn.pos.isNearTo(m))
+        .sort((a, b) => (a.ticksToLive ?? 0) - (b.ticksToLive ?? 0))[0]
+      if (next && spawn.renewCreep(next) === OK) renewedSpawns.add(spawn.id)
+    }
   }
 }
 
@@ -459,7 +527,7 @@ function rallying(c: Conquest): void {
     return
   }
   if (3 * RALLY_TIMEOUT < Game.time - c.stateSince)
-    return end(c, `failed: wave ${c.wave} couldn't be renewed to last the trip (home short of energy?)`)
+    return end(c, `failed: wave ${c.wave} couldn't be renewed to last the trip (bases short of energy?)`)
   c.status = `wave ${c.wave}: renewing (lifetimes ${lowest}-${highest}, want all over ${required} within ${TTL_SPREAD})`
 }
 
@@ -543,9 +611,12 @@ function siegeRate(wave: Creep[]): number {
   )
 }
 
-/** Ticks from deciding to send a wave to its arrival: spawning it (over the home's spawns), rallying, the trip. */
+/** Ticks from deciding to send a wave to its arrival: spawning it (over all its bases' spawns), rallying, the trip. */
 function reliefLead(c: Conquest): number {
-  const spawns = Math.max(1, Game.rooms[c.home]?.find(FIND_MY_SPAWNS).length ?? 1)
+  const spawns = Math.max(
+    1,
+    basesOf(c).reduce((sum, name) => sum + (Game.rooms[name]?.find(FIND_MY_SPAWNS).length ?? 0), 0)
+  )
   const parts = c.members.reduce((sum, m) => sum + m.body.length, 0)
   return (parts * CREEP_SPAWN_TIME) / spawns + RELIEF_LEAD + c.travel
 }

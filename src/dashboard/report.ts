@@ -9,7 +9,7 @@ import * as creepRoles from "creeps/roles"
 import { myUsername } from "utils/username"
 import { expansionCandidates } from "expansion/candidates"
 import { aggressionReports, contestReports, enemyReports } from "./enemyReport"
-import { ConquerorMemory, conquerors } from "conquest/conquest"
+import { allConquests, basesOf, Conquest, ConquerorMemory, conquerors } from "conquest/conquest"
 import { sideName } from "conquest/assessment"
 import { TEMPLATES } from "conquest/squadMeta"
 import {
@@ -230,7 +230,9 @@ function build(): DashboardSnapshot {
       : null,
     conquestCandidates: Memory.conquestCandidates ?? [],
     conquestAssessed: Memory.conquestAssessed,
-    conquest: conquestReport(),
+    conquests: allConquests()
+      .sort((a, b) => Number(a.state === "over") - Number(b.state === "over") || b.approved - a.approved)
+      .map(conquestReport),
     conquestRequest: Memory.conquestRequest
       ? {
           room: Memory.conquestRequest.room,
@@ -281,14 +283,13 @@ function build(): DashboardSnapshot {
   }
 }
 
-/** The conquest underway (see conquest/conquest), with its squad, or how the last one ended. */
-function conquestReport(): ConquestSnapshot | null {
-  const c = Memory.conquest
-  if (!c) return null
+/** A conquest (see conquest/conquest), with its squad, or how it ended. */
+function conquestReport(c: Conquest): ConquestSnapshot {
   return {
     room: c.room,
     player: c.player,
     home: c.home,
+    bases: basesOf(c),
     staging: c.staging,
     side: sideName(c.side),
     state: c.state,

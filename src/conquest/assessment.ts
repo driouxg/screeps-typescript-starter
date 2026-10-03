@@ -20,7 +20,11 @@ import { planSquad, SquadPlan, TemplateName } from "./squadMeta"
  * player approves it (see conquest/conquest).
  *
  * For each base (from its intel, and the siege intel that maps its walls, see conquest/siegeIntel):
- *   1. home: our base with a spawn at MIN_HOME_RCL+ nearest it by a route around hostile rooms (MAX_ROUTE at most);
+ *   1. home: our base with a spawn at MIN_HOME_RCL+ nearest it by a route around hostile rooms (MAX_ROUTE at most),
+ *      and the support bases: every base of ours like it within SUPPORT_ROUTE of the target (see supportBases), which
+ *      spawn the waves' members between them. The squad is sized for the biggest of them, paid for from what they
+ *      have stored between them, and compared against the target's owner with only their strength (see
+ *      defence/strength), not that of bases too far away to help;
  *   2. way in: for each side of the room with a breach, the room next to it on that side is where the squad gathers
  *      (staging); sides whose staging room we can't reach safely are skipped. The incoming damage there is the
  *      towers' damage at the breach plus the defenders seen in the room (DEFENDER_DAMAGE per combat part);
@@ -52,6 +56,14 @@ import { planSquad, SquadPlan, TemplateName } from "./squadMeta"
 
 const MIN_HOME_RCL = 3
 const MAX_ROUTE = 8
+/**
+ * Our bases within this many rooms of a target (by a safe route) help with its conquest: they spawn wave members and
+ * count towards our strength there. A wave sets out together once it's all spawned and renewed, and gathers by the
+ * target, so every member ages while the farthest one walks: about TICKS_PER_ROOM a room, from a creep's
+ * CREEP_LIFE_TIME of 1500. From 6 rooms that's ~300 ticks, leaving 1000+ to fight after rallying; further out a
+ * quarter or more of each wave's life would go on walking, and the base is worth more defending itself.
+ */
+export const SUPPORT_ROUTE = 6
 /** Squads travel about a room per this many ticks (full speed, a MOVE per part). */
 const TICKS_PER_ROOM = 50
 /** Ticks a squad loses gathering and lining up its lifetimes (see conquest/conquest rallying). */
@@ -162,7 +174,6 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
   const decisions: string[] = []
 
   const theirs = playerStrength(player)
-  const ours = ourStrength()
   const base: ConquestCandidateSnapshot = {
     room,
     player,
@@ -220,10 +231,34 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
   if (!home) return { ...base, verdict: `no base of ours at RCL ${MIN_HOME_RCL}+ within ${MAX_ROUTE} rooms by a safe route` }
   base.home = home.room.name
   base.distance = home.distance
-  const capacity = home.room.energyCapacityAvailable
-  const stored = home.room.storage
-    ? home.room.storage.store.energy + (home.room.terminal?.store.energy ?? 0)
+  // The bases that spawn the waves between them (see SUPPORT_ROUTE): the squad is sized for the biggest, paid for from
+  // what they've stored together (null: none has storage yet, so it's spawned from income), and walks as far as the
+  // farthest of them.
+  const support = supportBases(room, home)
+  base.supportBases = support.map(b => ({
+    room: b.room.name,
+    distance: b.distance,
+    spawns: b.room.find(FIND_MY_SPAWNS).length,
+    capacity: b.room.energyCapacityAvailable
+  }))
+  const capacity = Math.max(...support.map(b => b.room.energyCapacityAvailable))
+  const withStorage = support.filter(b => b.room.storage)
+  const stored = withStorage.length
+    ? withStorage.reduce((sum, b) => sum + b.room.storage!.store.energy + (b.room.terminal?.store.energy ?? 0), 0)
     : null
+  const extraTravel = (Math.max(...support.map(b => b.distance)) - home.distance) * TICKS_PER_ROOM
+  const ours = ourStrength(support.map(b => b.room.name))
+  base.ourStrength = { score: Math.round(ours.score), bases: ours.bases, towers: ours.towers, stored: Math.round(ours.stored), army: ours.army }
+  const spawns = base.supportBases.reduce((sum, b) => sum + b.spawns, 0)
+  concerns.push({
+    tone: "info",
+    text:
+      support.length > 1
+        ? `Waves spawn across ${support.length} of our bases within ${SUPPORT_ROUTE} rooms (${spawns} spawns): ${base.supportBases
+            .map(b => `${b.room} (${b.distance} rooms, ${b.spawns} spawn${b.spawns === 1 ? "" : "s"})`)
+            .join(", ")}.`
+        : `Only ${home.room.name} is within ${SUPPORT_ROUTE} rooms to spawn waves (${spawns} spawn${spawns === 1 ? "" : "s"}).`
+  })
 
   // Risk, from what we know of the player and the room.
   let risk = 1
@@ -241,13 +276,13 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     if (0.8 < ratio) {
       concerns.push({
         tone: "bad",
-        text: `Across their ${theirs.bases} base(s) we've seen they're ${ratio.toFixed(1)}× as strong as us: expect them to hit back.`
+        text: `Across their ${theirs.bases} base(s) we've seen they're ${ratio.toFixed(1)}× as strong as our ${ours.bases} base(s) within ${SUPPORT_ROUTE} rooms of it: expect them to hit back.`
       })
       decisions.push("they're about as strong as us overall")
     } else
       concerns.push({
         tone: "good",
-        text: `Across their ${theirs.bases} base(s) we've seen they're ${ratio.toFixed(2)}× as strong as us.`
+        text: `Across their ${theirs.bases} base(s) we've seen they're ${ratio.toFixed(2)}× as strong as our ${ours.bases} base(s) within ${SUPPORT_ROUTE} rooms of it.`
       })
   }
   if (0 < defenders) {
@@ -274,7 +309,8 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
   supplyConcerns(supply, concerns)
 
   // Nothing defends it: claimers alone, no squad.
-  const claim = claimEstimate(base.rcl, intel.controller?.ticksToDowngrade, capacity)
+  // Claimers come from the home alone (the nearest base: they live CREEP_CLAIM_LIFE_TIME).
+  const claim = claimEstimate(base.rcl, intel.controller?.ticksToDowngrade, home.room.energyCapacityAvailable)
   const claimBlockers = siege ? claimOnlyBlockers(siege, intel, base.towers, defenders) : ["its walls aren't mapped yet"]
   if (siege && siege.spawns.length === 0 && claimBlockers.length)
     concerns.push({
@@ -354,7 +390,7 @@ export function assessRoom(room: string, override?: TemplateName): ConquestCandi
     const toStaging = staging === home.room.name ? 0 : routeLength(home.room.name, staging)
     if (toStaging === null) continue
     side.reachable = true
-    const option = evaluate(breach, staging, toStaging, siege, supply, capacity, stored, defenders, claim.energy, override)
+    const option = evaluate(breach, staging, toStaging + extraTravel / TICKS_PER_ROOM, siege, supply, capacity, stored, defenders, claim.energy, override)
     if (option) options.push(option)
   }
   if (options.length === 0) {
@@ -758,6 +794,25 @@ function squadSnapshot(plan: SquadPlan): ConquestSquadSnapshot {
     healShort: plan.healShort,
     unaffordable: plan.unaffordable
   }
+}
+
+/**
+ * The bases that help conquer `room` (see SUPPORT_ROUTE): `home`, and every other base of ours at MIN_HOME_RCL+ with
+ * a spawn within SUPPORT_ROUTE of it by a safe route; nearest first.
+ */
+export function supportBases(
+  room: string,
+  home: { room: Room; distance: number }
+): { room: Room; distance: number }[] {
+  const bases = [home]
+  for (const base of Object.values(Game.rooms)) {
+    if (base.name === home.room.name || !base.controller?.my || base.controller.level < MIN_HOME_RCL) continue
+    if (base.find(FIND_MY_SPAWNS).length <= 0 || !sameMapZone(base.name, room)) continue
+    if (Game.map.getRoomLinearDistance(base.name, room) > SUPPORT_ROUTE) continue
+    const distance = routeLength(base.name, room)
+    if (distance !== null && distance <= SUPPORT_ROUTE) bases.push({ room: base, distance })
+  }
+  return bases.sort((a, b) => a.distance - b.distance)
 }
 
 /** Our base at MIN_HOME_RCL+ with a spawn nearest `room` by a safe route, the bigger one on ties. */

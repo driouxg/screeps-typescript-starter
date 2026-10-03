@@ -1,13 +1,11 @@
 import { isHostile } from "config/relations"
-import { Conquest, conquest, ConquerorMemory, conquerors, rallyPoint, squadOf } from "conquest/conquest"
+import { Conquest, conquestOf, ConquerorMemory, conquerors, rallyPoint, squadOf } from "conquest/conquest"
 import { smartMove as move, stepOffEdge } from "./common/movement"
 import { park } from "./common/parking"
 import ICreepHandler from "./ICreepHandler"
 
 /** Attackers go for their creeps within this range (in the target room) before the squad's focus. */
 const ATTACKER_REACH = 3
-/** Squad members out of this range of the leader hold the march up. */
-const MARCH_SPREAD = 3
 /** The order squads form up in: the leader is the first of these it has. */
 const LEAD_ORDER = ["dismantler", "attacker", "ranged", "healer"]
 
@@ -19,16 +17,17 @@ const LEAD_ORDER = ["dismantler", "attacker", "ranged", "healer"]
  *   healer      follows the leader and heals the most hurt of the squad in reach (or pre-heals the leader under fire);
  *   claimer     runs their controller's downgrade timer down once their towers and spawns are gone.
  *
- * Its wave waiting at home: renewing at a spawn when told to (rallying), otherwise parked. Marching: the leader (a
- * dismantler, or whatever fighter the squad has) walks to the staging room and waits for anyone more than MARCH_SPREAD
- * behind; the others follow it. Engaged (and any older wave still alive): fight, or pull back to the staging room with
+ * Its wave waiting at the base that spawned it (a conquest's members come from all its bases, see
+ * ConquestSpawnHandler): renewing at a spawn there when told to (rallying), otherwise parked. Marching: each walks
+ * straight to the gathering point by the target, where the wave forms up. Engaged (and any older wave still alive):
+ * fight around the leader (a dismantler, or whatever fighter the squad has), or pull back to the staging room with
  * the whole squad while it heals. When the conquest is over, it walks home and is recycled.
  */
 export default class ConquerorHandler implements ICreepHandler {
   public handle(creep: Creep): void {
     const memory = creep.memory as ConquerorMemory
-    const c = conquest()
-    if (!c || c.room !== memory.conquest || c.state === "over") return this.retire(creep)
+    const c = conquestOf(memory.conquest)
+    if (!c || c.state === "over") return this.retire(creep)
 
     this.heal(creep, c)
     // On an exit tile (just arrived, or pushed): one step in first, or the next step along the edge bounces it into
@@ -37,14 +36,15 @@ export default class ConquerorHandler implements ICreepHandler {
     if (memory.kind === "claimer") return this.claimer(creep, c)
     const veteran = memory.wave < c.wave
     if (!veteran && c.state === "marching") return this.march(creep, c)
-    if (!veteran && c.state !== "engaged") return this.wait(creep, c)
+    if (!veteran && c.state !== "engaged") return this.wait(creep)
     this.fight(creep, c)
   }
 
-  /** At home while the wave spawns and rallies: renew when told to, otherwise out of the way. */
-  private wait(creep: Creep, c: Conquest): void {
-    if (creep.room.name !== c.home) {
-      smartMove(creep, new RoomPosition(25, 25, c.home), 20)
+  /** At the base that spawned it while the wave spawns and rallies: renew when told to, otherwise out of the way. */
+  private wait(creep: Creep): void {
+    const base = creep.memory.room
+    if (creep.room.name !== base) {
+      smartMove(creep, new RoomPosition(25, 25, base), 20)
       return
     }
     if (creep.memory.renewing) {
@@ -55,18 +55,13 @@ export default class ConquerorHandler implements ICreepHandler {
     park(creep)
   }
 
+  /**
+   * Straight from its base to the gathering point by the target, on its own: members come from different bases, so
+   * waiting for each other on the way would never end. The wave gathers there before it goes in (see
+   * conquest/conquest marching).
+   */
   private march(creep: Creep, c: Conquest): void {
     this.hitAdjacent(creep, c)
-    const wave = squadOf(c, (creep.memory as ConquerorMemory).wave)
-    const leader = leaderOf(wave)
-    if (!leader || leader.id !== creep.id) {
-      if (leader) smartMove(creep, leader, 1)
-      return
-    }
-    const onBorder = creep.pos.x <= 0 || 49 <= creep.pos.x || creep.pos.y <= 0 || 49 <= creep.pos.y
-    const behind = wave.some(m => m.id !== creep.id && (m.room.name !== creep.room.name || MARCH_SPREAD < creep.pos.getRangeTo(m)))
-    // Wait for stragglers, but never on an exit tile: it would bounce back into the last room.
-    if (behind && !onBorder) return
     smartMove(creep, rallyPoint(c), 2)
   }
 

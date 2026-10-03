@@ -214,9 +214,13 @@ export interface ConquestSupplySnapshot {
 export interface ConquestCandidateSnapshot {
   room: string
   player: string
-  /** Our base that would send the squad, and how many rooms away. */
+  /** Our base that would send the squad (and the claimers), and how many rooms away. */
   home?: string
   distance?: number
+  /** Our bases within reach that spawn the waves between them (see src/conquest/assessment.ts SUPPORT_ROUTE). */
+  supportBases?: { room: string; distance: number; spawns: number; capacity: number }[]
+  /** Our strength from those bases alone, to compare with the owner's. */
+  ourStrength?: StrengthSnapshot
   rcl: number
   sources: number
   towers: number
@@ -283,7 +287,9 @@ export interface ConquestCandidateSnapshot {
 export interface ConquestSnapshot {
   room: string
   player: string
+  /** The nearest of its bases (sends the claimers), and every base that spawns its waves. */
   home: string
+  bases: string[]
   staging: string
   side: string
   /** scouting, awaiting, staging, rallying, marching, engaged, or over. */
@@ -453,8 +459,8 @@ export interface DashboardSnapshot {
   /** Other players' bases ranked for conquest, best first (see src/conquest/assessment.ts), and when. */
   conquestCandidates?: ConquestCandidateSnapshot[]
   conquestAssessed?: number
-  /** The conquest underway (see src/conquest/conquest.ts), or how the last one ended. */
-  conquest?: ConquestSnapshot | null
+  /** Conquests underway, and recently ended ones (see src/conquest/conquest.ts), underway first. */
+  conquests?: ConquestSnapshot[]
   /** The player's last approval (or call-off), and what the bot made of it. */
   conquestRequest?: { room: string; action: string; status?: string; done?: boolean } | null
   /** The attack squad meta the dashboard can pick from. */

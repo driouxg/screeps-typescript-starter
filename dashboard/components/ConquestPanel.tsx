@@ -46,7 +46,8 @@ export interface ApproveOptions {
 
 /**
  * Conquest (see src/conquest/): the other players' bases the bot has ranked for taking, best first, with how it would
- * break in and what squad it would send; the conquest underway; and the player's sign-off, which every conquest needs.
+ * break in and what squad it would send; the conquests underway (several at once) and recently ended; and the player's
+ * sign-off, which every conquest needs.
  */
 export function ConquestPanel({
   snapshot: s,
@@ -65,8 +66,10 @@ export function ConquestPanel({
   const [review, setReview] = useState<ConquestCandidateSnapshot | null>(null)
   const scoutOf = (room: string) => s.scoutRequests?.find(r => r.room === room)
   const candidates = s.conquestCandidates ?? []
-  const active = s.conquest && s.conquest.state !== "over" ? s.conquest : null
-  const ended = s.conquest && s.conquest.state === "over" ? s.conquest : null
+  const conquests = s.conquests ?? []
+  const active = conquests.filter(c => c.state !== "over")
+  const ended = conquests.filter(c => c.state === "over")
+  const activeFor = (room: string) => active.find(c => c.room === room)
   const request = s.conquestRequest
   const feasible = candidates.filter(c => c.feasible).length
   const undecided = candidates.filter(c => c.needsDecision).length
@@ -78,7 +81,7 @@ export function ConquestPanel({
         Conquest <span className="badge">{candidates.length} bases assessed</span>
         {feasible > 0 && <span className="badge good">{feasible} we could take</span>}
         {undecided > 0 && <span className="badge warn">{undecided} need your call</span>}
-        {active && <span className="badge bad">underway: {active.room}</span>}
+        {active.length > 0 && <span className="badge bad">underway: {active.map(c => c.room).join(", ")}</span>}
       </h2>
       <p className="controls-help">
         The bot never attacks a base on its own: it ranks what it could take and waits for you to approve one.
@@ -94,20 +97,25 @@ export function ConquestPanel({
         </p>
       )}
 
-      {active && (
+      {active.map(c => (
         <ActiveConquest
-          c={active}
+          key={c.room}
+          c={c}
           tick={s.tick}
           busy={busy}
-          candidate={candidates.find(x => x.room === active.room)}
+          candidate={candidates.find(x => x.room === c.room)}
           onReview={setReview}
           onCallOff={onCallOff}
         />
-      )}
-      {ended?.result && (
-        <p className="muted">
-          Last conquest, {ended.room} ({ended.player}): {ended.result}
-        </p>
+      ))}
+      {ended.length > 0 && (
+        <ul className="plain muted">
+          {ended.map(c => (
+            <li key={c.room}>
+              Ended: {c.room} ({c.player}): {c.result}
+            </li>
+          ))}
+        </ul>
       )}
 
       {candidates.length === 0 ? (
@@ -205,7 +213,7 @@ export function ConquestPanel({
                   <td>
                     <button
                       className="button"
-                      disabled={busy || (!!active && active.room !== c.room)}
+                      disabled={busy}
                       onClick={() => setReview(c)}
                     >
                       Review…
@@ -221,10 +229,10 @@ export function ConquestPanel({
       {review && (
         <ReviewConquest
           c={candidates.find(x => x.room === review.room) ?? review}
-          ours={s.ourStrength}
+          ours={(candidates.find(x => x.room === review.room) ?? review).ourStrength ?? s.ourStrength}
           templates={s.conquestTemplates ?? []}
-          awaiting={active?.room === review.room && active.state === "awaiting"}
-          underway={!!active && active.room === review.room && active.state !== "awaiting"}
+          awaiting={activeFor(review.room)?.state === "awaiting"}
+          underway={!!activeFor(review.room) && activeFor(review.room)?.state !== "awaiting"}
           busy={busy}
           scoutRequest={scoutOf(review.room)}
           onScout={onScout}
@@ -299,7 +307,8 @@ function ActiveConquest({
         <span>
           ⚔️ <strong>{c.room}</strong> from {c.player}{" "}
           <span className="muted">
-            ({c.template} squad from {c.home}, via {c.staging} on the {c.side}; approved{" "}
+            ({c.template} squad from {c.bases.length > 1 ? c.bases.join(", ") : c.home}, via {c.staging} on the{" "}
+            {c.side}; approved{" "}
             {(tick - c.approved).toLocaleString()} ticks ago)
           </span>{" "}
           {c.forced && <span className="badge warn">overridden</span>}
@@ -480,7 +489,18 @@ function ReviewConquest({
         </li>
       </ul>
 
-      <h3>{c.player} overall vs us</h3>
+      <h3>
+        {c.player} overall vs {c.supportBases ? `our bases within reach (${c.supportBases.length})` : "us"}
+      </h3>
+      {c.supportBases && (
+        <p className="muted">
+          Waves spawn from{" "}
+          {c.supportBases
+            .map(b => `${b.room} (${b.distance} rooms, ${b.spawns} spawn${b.spawns === 1 ? "" : "s"}, ${b.capacity} energy)`)
+            .join(", ")}
+          ; only these count towards our strength here.
+        </p>
+      )}
       <p className={`verdict ${v.tone}`}>
         {v.icon} {v.label}
       </p>
@@ -498,7 +518,7 @@ function ReviewConquest({
           </span>
         </div>
         <div>
-          <span className="muted">Us</span> <strong>{ours ? ours.score.toLocaleString() : "?"}</strong>
+          <span className="muted">{c.supportBases ? "Us (in reach)" : "Us"}</span> <strong>{ours ? ours.score.toLocaleString() : "?"}</strong>
           <Bar value={ours?.score ?? 0} max={top} color="var(--good)" />
           <span className="muted">
             {ours ? `${ours.bases} base(s), ${ours.towers} towers, ${thousands(ours.stored)} stored` : ""}

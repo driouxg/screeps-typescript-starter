@@ -152,8 +152,10 @@ export default function Dashboard() {
     ...s.rooms.filter(r => 0 < r.threat.hostiles).map(r => `${r.threat.hostiles} hostile fighter(s) in home room ${r.name}`),
     ...s.rooms.filter(r => r.ticksToDowngrade < 5000).map(r => `${r.name} controller downgrades in ${r.ticksToDowngrade} ticks`),
     ...(s.cpu.bucket < 1000 ? [`CPU bucket low: ${s.cpu.bucket}`] : []),
-    ...(s.conquest?.state === "awaiting" ? [`Conquest of ${s.conquest.room} needs your call: ${s.conquest.status}`] : []),
-    ...(s.conquest?.retreating ? [`Conquest squad pulled back from ${s.conquest.room} to heal`] : [])
+    ...(s.conquests ?? [])
+      .filter(c => c.state === "awaiting")
+      .map(c => `Conquest of ${c.room} needs your call: ${c.status}`),
+    ...(s.conquests ?? []).filter(c => c.retreating).map(c => `Conquest squad pulled back from ${c.room} to heal`)
   ]
 
   return (
