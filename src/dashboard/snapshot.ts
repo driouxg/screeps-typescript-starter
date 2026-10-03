@@ -372,6 +372,25 @@ export interface RemoteSnapshot {
   paused: boolean
   miners: number
   haulers: number
+  /** Each miner of this source, for the dashboard's tooltip on the miner count. */
+  minerDetails?: RemoteMinerSnapshot[]
+}
+
+export interface RemoteMinerSnapshot {
+  name: string
+  id: string
+  /** Room it's in now, and where. */
+  room: string
+  x: number
+  y: number
+  /** Ticks to live; undefined while spawning. */
+  ttl?: number
+  spawning: boolean
+  /** travel, build, pickup, mine or repair (see RemoteMinerHandler). */
+  state?: string
+  workParts: number
+  /** Standing on the source's mining spot. */
+  onSpot: boolean
 }
 
 export interface ThreatSnapshot {

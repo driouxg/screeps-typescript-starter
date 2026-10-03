@@ -179,6 +179,24 @@ function build(): DashboardSnapshot {
       container: Game.rooms[r.room] ? containerBuilt(r) : null,
       paused: !!paused[r.room],
       miners: serving(creepRoles.REMOTE_MINER, r.id),
+      minerDetails: creeps
+        .filter(
+          cr =>
+            cr.memory.role === creepRoles.REMOTE_MINER &&
+            (cr.memory as { targetSourceId?: string }).targetSourceId === r.id
+        )
+        .map(cr => ({
+          name: cr.name,
+          id: cr.id,
+          room: cr.pos.roomName,
+          x: cr.pos.x,
+          y: cr.pos.y,
+          ttl: cr.ticksToLive,
+          spawning: cr.spawning,
+          state: (cr.memory as { state?: string }).state,
+          workParts: cr.getActiveBodyparts(WORK),
+          onSpot: cr.pos.roomName === r.room && cr.pos.x === r.spot?.x && cr.pos.y === r.spot?.y
+        })),
       haulers: serving(creepRoles.REMOTE_HAULER, r.id)
     })),
     remoteReport: (Memory.remoteReport ?? []).slice(0, REMOTE_REPORT_LINES),

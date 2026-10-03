@@ -594,3 +594,43 @@ ul.incidents li.incident.bad {
   justify-content: space-between;
   margin: 4px 0 8px;
 }
+
+/* Hover / focus tooltips (see MinerTooltip). */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  outline: none;
+}
+
+.tooltip-anchor {
+  border-bottom: 1px dotted var(--muted);
+}
+
+.tooltip-body {
+  display: grid;
+  gap: 6px;
+  position: fixed;
+  z-index: 100;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+  text-align: left;
+  white-space: normal;
+  font-weight: normal;
+}
+
+.tooltip-row {
+  display: grid;
+  gap: 1px;
+}
+
+.tooltip:focus-visible .tooltip-anchor {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

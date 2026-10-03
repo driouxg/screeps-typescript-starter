@@ -1,5 +1,6 @@
-import type { ReactNode } from "react"
-import type { DashboardSnapshot } from "@bot/snapshot"
+import { useState } from "react"
+import type { CSSProperties, ReactNode } from "react"
+import type { DashboardSnapshot, RemoteMinerSnapshot } from "@bot/snapshot"
 import { Empty, Icon } from "./ui"
 import { AggressionReport } from "./AggressionReport"
 
@@ -49,7 +50,9 @@ export function RemotesPanel({ snapshot: s, children }: Props & { children?: Rea
                     {r.reserve && <span className="badge">reserved</span>}{" "}
                     {r.owned && <span className="badge warn" title="Their controller still: no container, the miner drops what it mines">razed base</span>} {r.road && <span className="badge">road</span>}
                   </td>
-                  <td className="num">{r.miners}</td>
+                  <td className="num">
+                    <MinerTooltip count={r.miners} miners={r.minerDetails} source={`${r.room} ${r.x},${r.y}`} />
+                  </td>
                   <td className="num">{r.haulers}</td>
                   <td className="num">
                     {r.workParts} / {r.carryParts}
@@ -385,5 +388,61 @@ export function CpuPanel({ snapshot: s }: Props) {
         </div>
       )}
     </section>
+  )
+}
+
+/** Room the tooltip leaves at the bottom of the window before it opens above its number instead. */
+const TOOLTIP_ROOM = 240
+
+/**
+ * A remote source's miner count; hovering it (or focusing it with the keyboard) shows each miner: its name and id,
+ * the room it's in and where, what it's doing, its WORK parts and how long it has left. Placed against the window
+ * (position: fixed), so the table's scrolling wrapper can't clip it; below the count, or above near the window's
+ * bottom.
+ */
+function MinerTooltip({ count, miners, source }: { count: number; miners?: RemoteMinerSnapshot[]; source: string }) {
+  const [at, setAt] = useState<CSSProperties | null>(null)
+  if (!miners || miners.length === 0) return <>{count}</>
+
+  const open = (e: { currentTarget: HTMLElement }) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const right = Math.max(8, window.innerWidth - r.right)
+    setAt(
+      window.innerHeight - r.bottom < TOOLTIP_ROOM
+        ? { bottom: window.innerHeight - r.top + 6, right }
+        : { top: r.bottom + 6, right }
+    )
+  }
+  const close = () => setAt(null)
+
+  return (
+    <span
+      className="tooltip"
+      tabIndex={0}
+      aria-label={`${count} miner${count === 1 ? "" : "s"}: hover or focus for details`}
+      onMouseEnter={open}
+      onFocus={open}
+      onMouseLeave={close}
+      onBlur={close}
+    >
+      <span className="tooltip-anchor">{count}</span>
+      {at && (
+        <span className="tooltip-body" role="tooltip" style={at}>
+          <strong>Miners of {source}</strong>
+          {miners.map(m => (
+            <span key={m.id} className="tooltip-row">
+              <span>
+                ⛏️ <strong>{m.name}</strong> <span className="muted">id {m.id}</span>
+              </span>
+              <span>
+                in <strong>{m.room}</strong> at {m.x},{m.y}
+                {m.onSpot ? " (on its spot)" : ""} · {m.spawning ? "spawning" : m.state ?? "?"} · {m.workParts} WORK
+                {m.ttl !== undefined && ` · ${m.ttl} ticks left`}
+              </span>
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
   )
 }
