@@ -558,3 +558,34 @@ dialog.confirm select {
   align-items: center;
   gap: 6px;
 }
+
+/* What players did to us (see AggressionReport). */
+li.flagged {
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+
+.aggression {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.aggression .verdict,
+.aggression p {
+  margin: 0;
+}
+
+ul.incidents {
+  margin-top: 6px;
+}
+
+ul.incidents li.incident {
+  border-left: 3px solid var(--border);
+  padding: 2px 0 2px 8px;
+  margin: 4px 0;
+}
+
+ul.incidents li.incident.bad {
+  border-left-color: var(--bad);
+}

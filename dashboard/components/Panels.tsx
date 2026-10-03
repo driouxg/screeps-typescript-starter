@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import type { DashboardSnapshot } from "@bot/snapshot"
 import { Empty, Icon } from "./ui"
+import { AggressionReport } from "./AggressionReport"
 
 type Props = { snapshot: DashboardSnapshot }
 
@@ -177,6 +178,10 @@ export function RelationsPanel({
   onCancelRetaliation: () => void
 }) {
   const flagged = Object.entries(s.relations.hostilePlayers)
+  const reports = s.aggression ?? []
+  const reportOf = (player: string) => reports.find(a => a.player === player)
+  // Players who attacked us but aren't flagged: allies, hit backs only, or aggression "passive".
+  const unflagged = reports.filter(a => a.flagged === undefined && a.incidents.length > 0)
   const strike = s.retaliation ?? null
   const underway = strike !== null && strike.state !== "over"
 
@@ -240,22 +245,51 @@ export function RelationsPanel({
       <h3>🚫 Flagged for attacking us</h3>
       {flagged.length ? (
         <ul className="plain">
-          {flagged.map(([name, tick]) => (
-            <li key={name} className="row">
-              <span>
-                {name} <span className="muted">since tick {tick.toLocaleString()} ({ago(tick, s.tick)})</span>
-              </span>
-              <span>
-                <button className="button" disabled={busy} onClick={() => onForgive(name)}>
-                  Forgive
-                </button>{" "}
-                {retaliateButton(name)}
-              </span>
-            </li>
-          ))}
+          {flagged.map(([name, tick]) => {
+            const report = reportOf(name)
+            return (
+              <li key={name} className="flagged">
+                <div className="row">
+                  <span>
+                    <strong>{name}</strong>{" "}
+                    <span className="muted">
+                      since tick {tick.toLocaleString()} ({ago(tick, s.tick)})
+                    </span>
+                  </span>
+                  <span>
+                    <button className="button" disabled={busy} onClick={() => onForgive(name)}>
+                      Forgive
+                    </button>{" "}
+                    {retaliateButton(name)}
+                  </span>
+                </div>
+                {report ? (
+                  <AggressionReport a={report} tick={s.tick} />
+                ) : (
+                  <p className="muted">No details recorded (flagged before incidents were logged).</p>
+                )}
+              </li>
+            )
+          })}
         </ul>
       ) : (
         <Empty>Nobody.</Empty>
+      )}
+      {unflagged.length > 0 && (
+        <>
+          <h3>👀 Attacked us, not flagged</h3>
+          <p className="controls-help">
+            Allies, creeps hitting back after ours hit them in melee, or attacks while aggression is passive.
+          </p>
+          <ul className="plain">
+            {unflagged.map(a => (
+              <li key={a.player} className="flagged">
+                <strong>{a.player}</strong> <span className="badge">{a.relation}</span>
+                <AggressionReport a={a} tick={s.tick} />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </section>
   )

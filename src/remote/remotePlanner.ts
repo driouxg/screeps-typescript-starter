@@ -47,6 +47,13 @@ import { assessRemoteThreat, forgetStaleThreats } from "defence/remoteDefence"
  *     new remotes are taken on (only those already mined are kept), and above OVERLOADED the worst one is dropped,
  *     however good the estimate looked: home creeps (replacements, defenders) must not wait behind remote ones.
  *
+ * Each remote room belongs to one base only (assignRooms): several bases mining one room got in each other's way,
+ * and two picking the same source left one of them spawning creeps for a source the other had. Of the bases that can
+ * reach a room, it's the one mining it now (so its creeps and roads aren't thrown away), else the nearest, the bigger
+ * on ties. A base plans only from its own rooms; a mineable room its owner passes on (spawn budget, not worth it from
+ * there) is then offered to the other bases in reach, biggest first (see run), so it isn't left unmined for being
+ * nearest the wrong base.
+ *
  * Rooms owned or reserved by anyone else (allies included), source keeper rooms and rooms with an invader core are
  * never mined. Where hostiles show up (see watchForThreats), defenders are sent if they can win; if they can't, the
  * room is paused for PAUSE_TICKS and its creeps go home.
@@ -140,6 +147,15 @@ declare global {
   }
 }
 
+/** A base's remote plan (see RemotePlanner.choose). */
+interface Plan {
+  chosen: RemoteSource[]
+  /** Rooms it weighed sources in: mineable, with a safe path. */
+  considered: Set<string>
+  /** Its highway's road tiles. */
+  highway: RoomPosition[]
+}
+
 interface Candidate {
   source: { id: string; x: number; y: number }
   room: string
@@ -174,13 +190,57 @@ export default class RemotePlanner {
     // Listed afresh by this plan (see considerContest).
     Memory.contestCandidates = {}
 
-    const remotes: { [id: string]: RemoteSource } = {}
     this.report = []
+    const origins = new Map<string, RoomPosition>()
     for (const home of homes) {
       const origin = home.storage?.pos ?? home.find(FIND_MY_SPAWNS)[0]?.pos
-      if (!origin) continue
-      for (const source of this.choose(home, origin)) remotes[source.id] = source
+      if (origin) origins.set(home.name, origin)
     }
+    const planners = homes.filter(h => origins.has(h.name))
+    const owners = this.assignRooms(planners)
+    const own = (home: Room) => new Set([...owners].filter(([, owner]) => owner === home.name).map(([room]) => room))
+
+    // Each base plans from its own rooms.
+    const plans = new Map<string, Plan>()
+    for (const home of planners) plans.set(home.name, this.choose(home, origins.get(home.name)!, own(home)))
+
+    // Mineable rooms their owner passed on go to another base in reach that wants them, biggest first. A base that
+    // takes one re-plans with it added, so the room is weighed against its own.
+    const minedRooms = () => {
+      const mined = new Set<string>()
+      for (const plan of plans.values()) for (const r of plan.chosen) mined.add(r.room)
+      return mined
+    }
+    const passed = new Set<string>()
+    for (const plan of plans.values())
+      for (const room of plan.considered) if (!plan.chosen.some(r => r.room === room)) passed.add(room)
+    const bySize = [...planners].sort((a, b) => b.energyCapacityAvailable - a.energyCapacityAvailable)
+    for (const home of bySize) {
+      const mined = minedRooms()
+      const reach = new Set(this.roomsInReach(home.name, maxRoute(home.controller!.level)).map(([room]) => room))
+      const offered = [...passed].filter(room => owners.get(room) !== home.name && reach.has(room) && !mined.has(room))
+      if (offered.length <= 0) continue
+      const before = plans.get(home.name)!
+      const lines = this.report.length
+      const plan = this.choose(home, origins.get(home.name)!, new Set([...own(home), ...offered]))
+      const taken = [...new Set(plan.chosen.map(r => r.room))].filter(room => offered.includes(room))
+      if (taken.length <= 0) {
+        // Nothing gained: keep the first plan (and its report lines, not this one's).
+        this.report.splice(lines)
+        if (before.highway.length) setHighway(home.name, before.highway)
+        else if (Memory.highways) delete Memory.highways[home.name]
+        continue
+      }
+      plans.set(home.name, plan)
+      for (const room of taken) {
+        this.report.push(`${room}: passed on by ${owners.get(room) ?? "its owner"}, mined from ${home.name} instead`)
+        owners.set(room, home.name)
+        passed.delete(room)
+      }
+    }
+
+    const remotes: { [id: string]: RemoteSource } = {}
+    for (const plan of plans.values()) for (const source of plan.chosen) remotes[source.id] = source
     // Homes no longer mining remotes (or below MIN_RCL) don't keep a highway.
     for (const home of Object.keys(Memory.highways ?? {}))
       if (!Object.values(remotes).some(r => r.home === home)) delete Memory.highways![home]
@@ -231,7 +291,40 @@ export default class RemotePlanner {
       if (threat.defenders) paused[name] = Math.max(paused[name] ?? 0, Game.time + DEFENDED_PAUSE_TICKS)
   }
 
-  private choose(home: Room, origin: RoomPosition): RemoteSource[] {
+  /**
+   * Which base each room in reach belongs to (see the top of this file): the base mining it now if that base can still
+   * reach it, else the nearest by rooms, then the bigger. Rooms only one base reaches are simply that base's.
+   */
+  private assignRooms(homes: Room[]): Map<string, string> {
+    const current = new Map<string, string>()
+    for (const r of Object.values(Memory.remotes ?? {})) current.set(r.room, r.home)
+
+    const contenders = new Map<string, { home: Room; distance: number }[]>()
+    for (const home of homes)
+      for (const [room, distance] of this.roomsInReach(home.name, maxRoute(home.controller!.level)))
+        contenders.set(room, [...(contenders.get(room) ?? []), { home, distance }])
+
+    const owners = new Map<string, string>()
+    for (const [room, options] of contenders) {
+      const sticky = options.find(o => o.home.name === current.get(room))
+      const best =
+        sticky ??
+        options.sort(
+          (a, b) =>
+            a.distance - b.distance ||
+            b.home.energyCapacityAvailable - a.home.energyCapacityAvailable ||
+            a.home.name.localeCompare(b.home.name)
+        )[0]
+      owners.set(room, best.home.name)
+    }
+    return owners
+  }
+
+  /**
+   * The sources `home` mines, from the rooms in `rooms` (those it owns, see assignRooms, and any offered to it), and
+   * the rooms it weighed sources in (mineable and reachable), whether or not it chose them.
+   */
+  private choose(home: Room, origin: RoomPosition, rooms: Set<string>): Plan {
     const level = home.controller!.level
     const reach = maxRoute(level)
     const roadsOn = ROAD_MIN_RCL <= level
@@ -244,7 +337,9 @@ export default class RemotePlanner {
 
     // Every candidate, scored on its own route (as if it paid for all of its road).
     const candidates: (Candidate & { score: RemoteSource })[] = []
+    const considered = new Set<string>()
     for (const [roomName] of this.roomsInReach(home.name, reach)) {
+      if (!rooms.has(roomName)) continue
       const why = this.whyNotMineable(roomName, home)
       if (why) {
         this.report.push(`${home.name} -> ${roomName}: skipped, ${why}`)
@@ -257,6 +352,7 @@ export default class RemotePlanner {
           continue
         }
         const c = { source: s, room: roomName, route }
+        considered.add(roomName)
         candidates.push({ ...c, score: score(c, home.name, capacity, canReserve(roomName), roadsOn, roads, route.roadCost) })
       }
     }
@@ -321,7 +417,7 @@ export default class RemotePlanner {
 
     if (0 < highway.length) setHighway(home.name, highway)
     else if (Memory.highways) delete Memory.highways[home.name]
-    return chosen
+    return { chosen, considered, highway }
   }
 
   /** Rooms within `range` of home (with their distance in rooms) by a route that avoids hostile rooms. */

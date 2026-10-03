@@ -1,6 +1,13 @@
 import { ENEMIES, isAlly } from "config/relations"
 import { ourStrength, playerStrength, Strength } from "defence/strength"
-import { ContestCandidateSnapshot, ContestSnapshot, EnemySnapshot, StrengthSnapshot } from "./snapshot"
+import { relationOf } from "config/relations"
+import {
+  AggressionSnapshot,
+  ContestCandidateSnapshot,
+  ContestSnapshot,
+  EnemySnapshot,
+  StrengthSnapshot
+} from "./snapshot"
 
 /** Rooms listed per enemy, most recently seen first. */
 const ROOMS_PER_ENEMY = 12
@@ -83,6 +90,79 @@ export function contestReports(): { contests: ContestSnapshot[]; contestCandidat
     tick: c.tick
   }))
   return { contests, contestCandidates }
+}
+
+/**
+ * Players listed in the aggression report (flagged ones first, then the most recent), and incidents each: the snapshot
+ * shares its memory segment's 100 KB with everything else.
+ */
+const AGGRESSION_PLAYERS = 12
+const AGGRESSION_INCIDENTS = 8
+
+/**
+ * What each player did to us (see defence/aggressionLog), with the bot's reading of whether it was real aggression:
+ *   bad   they attacked us in our own rooms without us having started it;
+ *   warn  they attacked us in rooms that are neither ours nor theirs (a fight over a remote, a roaming army), or we
+ *         have no incidents on record (flagged before logging began, by a conquest, or from the console);
+ *   good  every attack came after we hit them, or was them defending their own base or remotes.
+ */
+export function aggressionReports(): AggressionSnapshot[] {
+  const flagged = Memory.hostilePlayers ?? {}
+  const log = Memory.aggressionLog ?? {}
+  const players = [...new Set([...Object.keys(log), ...Object.keys(flagged)])]
+  return players
+    .map(player => {
+      const record = log[player]
+      const incidents = record?.incidents ?? []
+      const count = (zone: string) => incidents.filter(i => i.zone === zone).length
+      const unprovokedOurs = incidents.filter(i => i.zone === "ours" && !i.provoked).length
+      const unprovokedElsewhere = incidents.filter(i => i.zone === "elsewhere" && !i.provoked).length
+      const killed = record?.killed ?? 0
+      let verdict: AggressionSnapshot["verdict"]
+      if (incidents.length === 0)
+        verdict = {
+          tone: "warn",
+          text: record?.flaggedFor
+            ? `No attacks on us on record: flagged because ${record.flaggedFor}.`
+            : "No attacks on us on record: flagged before incidents were logged, or from the console."
+        }
+      else if (unprovokedOurs)
+        verdict = {
+          tone: "bad",
+          text: `Attacked us in our own rooms without us starting it (${unprovokedOurs} incident${
+            unprovokedOurs === 1 ? "" : "s"
+          }${killed ? `, ${killed} of ours killed` : ""}): a real threat.`
+        }
+      else if (unprovokedElsewhere)
+        verdict = {
+          tone: "warn",
+          text: `Attacked us in rooms that are neither ours nor theirs (${unprovokedElsewhere}): maybe a fight over a remote, or an army passing through.`
+        }
+      else
+        verdict = {
+          tone: "good",
+          text: "Every attack came after we hit them first, or was them defending their own base or remotes: likely safe to forgive."
+        }
+      return {
+        player,
+        relation: relationOf(player),
+        flagged: flagged[player],
+        flaggedFor: record?.flaggedFor,
+        first: record?.first ?? flagged[player] ?? Game.time,
+        last: record?.last ?? flagged[player] ?? Game.time,
+        damage: record?.damage ?? 0,
+        killed,
+        hits: record?.hits ?? 0,
+        inOurs: count("ours"),
+        inTheirs: count("theirs"),
+        elsewhere: count("elsewhere"),
+        unprovokedOurs,
+        verdict,
+        incidents: incidents.slice(0, AGGRESSION_INCIDENTS)
+      }
+    })
+    .sort((a, b) => Number(b.flagged !== undefined) - Number(a.flagged !== undefined) || b.last - a.last)
+    .slice(0, AGGRESSION_PLAYERS)
 }
 
 function snapshotOf(s: Strength): StrengthSnapshot {

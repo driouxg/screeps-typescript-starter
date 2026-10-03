@@ -1,6 +1,7 @@
 import { isAlly } from "config/relations"
 import * as creepRoles from "creeps/roles"
 import { recordIntel } from "expansion/intel"
+import { noteFlagged } from "defence/aggressionLog"
 import { assessConquests, assessRoom, MAX_WAVES, sideName, STALE_TICKS } from "./assessment"
 import { recordSiege } from "./siegeIntel"
 import { bodyFor, MemberKind, TemplateName, templateNamed } from "./squadMeta"
@@ -312,8 +313,10 @@ function runRequest(): void {
   c.template = template
   Memory.conquest = c
   // At war with them now: our defence treats their creeps as hostile, and paths keep out of their other rooms.
-  if (Memory.hostilePlayers?.[c.player] === undefined)
+  if (Memory.hostilePlayers?.[c.player] === undefined) {
     Memory.hostilePlayers = { ...(Memory.hostilePlayers ?? {}), [c.player]: Game.time }
+    noteFlagged(c.player, `you approved the conquest of their base ${c.room}`)
+  }
 
   // Approved again after the scout couldn't get there: go on what we know, if we know the way in.
   if (stale && (!current || !candidate.breach)) {

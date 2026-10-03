@@ -8,7 +8,7 @@ import { upcomingSteps } from "structures/construction/buildOrderConstructor"
 import * as creepRoles from "creeps/roles"
 import { myUsername } from "utils/username"
 import { expansionCandidates } from "expansion/candidates"
-import { contestReports, enemyReports } from "./enemyReport"
+import { aggressionReports, contestReports, enemyReports } from "./enemyReport"
 import { ConquerorMemory, conquerors } from "conquest/conquest"
 import { sideName } from "conquest/assessment"
 import { TEMPLATES } from "conquest/squadMeta"
@@ -201,6 +201,7 @@ function build(): DashboardSnapshot {
       return { ourStrength: ours, enemies }
     })(),
     ...contestReports(),
+    aggression: aggressionReports(),
     contestRequest: Memory.contestRequest
       ? {
           room: Memory.contestRequest.room,

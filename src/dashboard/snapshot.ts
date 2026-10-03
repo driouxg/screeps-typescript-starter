@@ -69,6 +69,52 @@ export interface EnemySnapshot {
   }[]
 }
 
+/** One attack on us (repeats merged), see src/defence/aggressionLog.ts. */
+export interface AggressionIncidentSnapshot {
+  tick: number
+  lastTick: number
+  room: string
+  /** "our base", "their remote", "Bob's base", "an unclaimed room". */
+  where: string
+  /** ours, theirs or elsewhere. */
+  zone: string
+  /** "tower", or "creep: 4 ATTACK, 4 MOVE". */
+  attacker: string
+  /** "our REMOTE_MINER", "our spawn". */
+  target: string
+  /** melee, ranged, mass ranged, dismantle, hit back, controller attack, nuke. */
+  how: string
+  damage: number
+  hits: number
+  killed: number
+  /** Why it may not have been aggression on their part. */
+  provoked?: string
+}
+
+/** What a player has done to us, to judge whether to keep them flagged hostile. */
+export interface AggressionSnapshot {
+  player: string
+  relation: string
+  /** Tick flagged hostile, while flagged. */
+  flagged?: number
+  /** What got them flagged. */
+  flaggedFor?: string
+  first: number
+  last: number
+  damage: number
+  killed: number
+  hits: number
+  /** Incidents in our rooms, theirs, elsewhere; and those in our rooms we did nothing to bring on. */
+  inOurs: number
+  inTheirs: number
+  elsewhere: number
+  unprovokedOurs: number
+  /** The bot's reading of it. */
+  verdict: { tone: "good" | "warn" | "bad"; text: string }
+  /** Newest first. */
+  incidents: AggressionIncidentSnapshot[]
+}
+
 export interface RetaliationSnapshot {
   player: string
   /** planning, spawning, attacking, or over (status says how it ended). */
@@ -369,6 +415,8 @@ export interface DashboardSnapshot {
   threats: ThreatSnapshot[]
   hostiles: HostileSnapshot[]
   relations: { allies: string[]; enemies: string[]; hostilePlayers: { [username: string]: number } }
+  /** What each player has done to us (see src/defence/aggressionLog.ts), flagged ones first. */
+  aggression?: AggressionSnapshot[]
   /** The strike on a player who attacked us (see src/defence/retaliation.ts), while it lasts or how it ended. */
   retaliation?: RetaliationSnapshot | null
   /** Rooms the player asked to scout (see src/expansion/scoutRequests.ts), and how it's going. */

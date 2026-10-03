@@ -1,5 +1,6 @@
 import { controls } from "./controls"
 import { myUsername } from "utils/username"
+import { forgetOldAggression, logIncident, logOurAttack, noteFlagged } from "defence/aggressionLog"
 
 /**
  * How we treat each player:
@@ -60,35 +61,133 @@ export function isHostile(creep: { owner: Owner; body?: BodyPartDefinition[] }):
   return (creep.body ?? []).some(p => 0 < p.hits && (p.type === ATTACK || p.type === RANGED_ATTACK))
 }
 
+/** How an attack was made, from its event's attackType. */
+const HOW: { [type: number]: string } = {
+  [EVENT_ATTACK_TYPE_MELEE]: "melee",
+  [EVENT_ATTACK_TYPE_RANGED]: "ranged",
+  [EVENT_ATTACK_TYPE_RANGED_MASS]: "mass ranged",
+  [EVENT_ATTACK_TYPE_DISMANTLE]: "dismantle",
+  [EVENT_ATTACK_TYPE_HIT_BACK]: "hit back",
+  [EVENT_ATTACK_TYPE_NUKE]: "nuke"
+}
+
+/** An attacker or target from an event, alive or not (a creep killed that tick left a tombstone, a structure a ruin). */
+interface Party {
+  owner?: string
+  my: boolean
+  /** "tower", "creep: 4 ATTACK, 4 MOVE" for an attacker; "our REMOTE_MINER", "our spawn" for a target of ours. */
+  label: string
+  /** For our attacks on others: "creep" or the structure type. */
+  what: string
+}
+
 /**
  * Flag players who attacked us in the rooms we can see this tick: their creeps' or towers' attacks on our creeps,
- * structures or controller. Allies are never flagged (a warning is logged instead).
+ * structures or controller, and log each attack (see defence/aggressionLog) with where, what and whether we started
+ * it, for the dashboard. Not flagged: allies (a warning is logged instead), anyone with aggression "passive" (see
+ * config/controls), and a creep's automatic hit back when one of ours hit it in melee: that's the game's doing, not
+ * theirs. Our own attacks on other players are remembered too, as provocation.
+ *
+ * The event log is last tick's: a creep or structure killed by an attack is gone by now, so it's found by its
+ * tombstone or ruin (missing those had let killing blows, the worst attacks, go unrecorded).
  */
 export function recordAggression(): void {
-  // Passive: nobody becomes hostile just for attacking us (see config/controls).
-  if (controls().aggression === "passive") return
+  const passive = controls().aggression === "passive"
+  const me = myUsername()
   for (const room of Object.values(Game.rooms)) {
-    for (const e of room.getEventLog()) {
-      if (e.event !== EVENT_ATTACK && e.event !== EVENT_ATTACK_CONTROLLER) continue
-      const attacker = Game.getObjectById(e.objectId as Id<Creep | StructureTower>)
-      const owner = attacker && "owner" in attacker ? attacker.owner?.username : undefined
-      if (!owner || owner === myUsername() || NPC_PLAYERS.includes(owner)) continue
+    const events = room.getEventLog()
+    if (!events.length) continue
+    const destroyed = new Set(
+      events.filter(e => e.event === EVENT_OBJECT_DESTROYED).map(e => e.objectId)
+    )
+    const cache = new Map<string, Party | null>()
+    const party = (id: string) => {
+      if (!cache.has(id)) cache.set(id, resolve(room, id))
+      return cache.get(id)!
+    }
 
-      const target =
+    for (const e of events) {
+      if (e.event !== EVENT_ATTACK && e.event !== EVENT_ATTACK_CONTROLLER) continue
+      const attacker = party(e.objectId)
+      const owner = attacker?.owner
+      if (!attacker || !owner) continue
+      const data = (e.event === EVENT_ATTACK ? e.data : {}) as { targetId?: string; damage?: number; attackType?: number }
+      const how = e.event === EVENT_ATTACK_CONTROLLER ? "controller attack" : HOW[data.attackType ?? 0] ?? "attack"
+
+      const target: Party | null =
         e.event === EVENT_ATTACK_CONTROLLER
           ? room.controller
-          : Game.getObjectById((e.data as { targetId: string }).targetId as Id<Creep | Structure>)
-      const ours = !!target && "my" in target && target.my
-      if (!ours) continue
+            ? { owner: room.controller.owner?.username, my: room.controller.my, label: "our controller", what: "controller" }
+            : null
+          : data.targetId
+          ? party(data.targetId)
+          : null
+      if (!target) continue
 
-      if (isAlly(owner)) {
-        console.log(`Ally ${owner} attacked us in ${room.name}; not flagging allies automatically`)
+      // Ours on theirs: remembered as provocation for when they hit back.
+      if (owner === me) {
+        if (target.owner && target.owner !== me && !NPC_PLAYERS.includes(target.owner) && how !== "hit back")
+          logOurAttack(target.owner, room.name, target.what)
         continue
       }
-      if (Memory.hostilePlayers?.[owner] === undefined) {
-        Memory.hostilePlayers = { ...(Memory.hostilePlayers ?? {}), [owner]: Game.time }
-        console.log(`${owner} attacked us in ${room.name}: now treated as hostile`)
+      if (NPC_PLAYERS.includes(owner) || !target.my) continue
+
+      const incident = logIncident(owner, {
+        tick: Game.time,
+        room: room.name,
+        roomObject: room,
+        attacker: attacker.label,
+        target: target.label,
+        how,
+        damage: data.damage ?? 0,
+        hits: 1,
+        killed: data.targetId && destroyed.has(data.targetId) ? 1 : 0
+      })
+
+      if (isAlly(owner)) {
+        console.log(`Ally ${owner} attacked ${target.label} in ${room.name}; not flagging allies automatically`)
+        continue
       }
+      if (passive || how === "hit back" || Memory.hostilePlayers?.[owner] !== undefined) continue
+      const what = `${how} attack on ${target.label} in ${room.name} (${incident.where}) by ${attacker.label}`
+      Memory.hostilePlayers = { ...(Memory.hostilePlayers ?? {}), [owner]: Game.time }
+      noteFlagged(owner, `${what}${incident.provoked ? `; note: ${incident.provoked}` : ""}`)
+      console.log(
+        `${owner} attacked us: ${what}, ${data.damage ?? 0} damage${incident.killed ? ", a killing blow" : ""}${
+          incident.provoked ? ` (note: ${incident.provoked})` : ""
+        }. Now treated as hostile`
+      )
     }
   }
+  if (Game.time % 1000 === 0) forgetOldAggression()
+}
+
+/** The creep, power creep or structure with `id`, alive or (killed last tick) by its tombstone or ruin. */
+function resolve(room: Room, id: string): Party | null {
+  const alive = Game.getObjectById(id as Id<Creep | PowerCreep | Structure>)
+  if (alive) return describe(alive)
+  const tombstone = room.find(FIND_TOMBSTONES).find(t => t.creep.id === id)
+  if (tombstone) return describe(tombstone.creep)
+  const ruin = room.find(FIND_RUINS).find(r => r.structure.id === id)
+  return ruin ? describe(ruin.structure) : null
+}
+
+function describe(object: Creep | PowerCreep | Structure): Party {
+  const owner = "owner" in object ? object.owner?.username : undefined
+  const my = "my" in object ? !!object.my : false
+  if ("body" in object) {
+    const creep = object
+    const role = creep.my ? Memory.creeps?.[creep.name]?.role : undefined
+    return { owner, my, label: my ? `our ${role ?? "creep"}` : `creep: ${bodySummary(creep.body)}`, what: "creep" }
+  }
+  if (!("structureType" in object)) return { owner, my, label: my ? "our power creep" : "power creep", what: "power creep" }
+  const type = object.structureType
+  return { owner, my, label: my ? `our ${type}` : type, what: type }
+}
+
+/** "4 ATTACK, 2 HEAL, 6 MOVE". */
+function bodySummary(body: BodyPartDefinition[]): string {
+  const counts = new Map<string, number>()
+  for (const part of body) counts.set(part.type, (counts.get(part.type) ?? 0) + 1)
+  return [...counts].map(([part, n]) => `${n} ${part.toUpperCase()}`).join(", ")
 }

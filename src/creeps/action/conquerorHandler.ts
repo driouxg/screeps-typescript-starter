@@ -4,6 +4,8 @@ import { smartMove as move, stepOffEdge } from "./common/movement"
 import { park } from "./common/parking"
 import ICreepHandler from "./ICreepHandler"
 
+/** Attackers go for their creeps within this range (in the target room) before the squad's focus. */
+const ATTACKER_REACH = 3
 /** Squad members out of this range of the leader hold the march up. */
 const MARCH_SPREAD = 3
 /** The order squads form up in: the leader is the first of these it has. */
@@ -104,20 +106,37 @@ export default class ConquerorHandler implements ICreepHandler {
     }
 
     // Dismantlers and attackers.
-    const adjacent = enemies(1)[0]
-    if (memory.kind === "attacker" && adjacent) {
-      creep.attack(adjacent)
-      return
+    const isLeader = !leader || leader.id === creep.id
+    if (memory.kind === "attacker") {
+      // Their creeps close by first: hit one next to us, or go for the nearest within ATTACKER_REACH.
+      const adjacent = enemies(1)[0]
+      if (adjacent) {
+        creep.attack(adjacent)
+        return
+      }
+      const near = creep.room.name === c.room ? creep.pos.findClosestByRange(enemies(ATTACKER_REACH)) : null
+      if (near) {
+        smartMove(creep, near, 1)
+        return
+      }
     }
     if (focus && creep.pos.isNearTo(focus)) {
       if (memory.kind === "dismantler") creep.dismantle(focus)
       else creep.attack(focus)
       return
     }
-    // Inside their room, keep the healers in reach: don't step ahead of them under tower fire.
+    // Inside their room, keep the healers in reach: don't step ahead of them under tower fire. The healers follow the
+    // leader, so the leader waits for them; anyone else out of their reach closes up on the leader (waiting where it
+    // stood left the second attacker of a raid at the room's edge for good).
     const healers = wave.filter(m => (m.memory as ConquerorMemory).kind === "healer")
-    if (creep.room.name === c.room && healers.length && healers.every(h => h.room.name !== creep.room.name || 2 < creep.pos.getRangeTo(h)))
+    const healersAway =
+      creep.room.name === c.room &&
+      healers.length &&
+      healers.every(h => h.room.name !== creep.room.name || 2 < creep.pos.getRangeTo(h))
+    if (healersAway) {
+      if (!isLeader && leader) smartMove(creep, leader, 1)
       return
+    }
     smartMove(creep, focusPos, 1)
   }
 
